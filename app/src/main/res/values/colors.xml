@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Wood / Background palette -->
+    <color name="wood_dark">#FF6F3B24</color>
+    <color name="wood_mid">#FF9B5A35</color>
+    <color name="wood_light">#FFC98953</color>
+
+    <!-- Tile colors -->
+    <color name="tile_blue">#FF35A9E0</color>
+    <color name="tile_green">#FF62D95C</color>
+    <color name="tile_red">#FFEB665B</color>
+    <color name="tile_purple">#FF7567DD</color>
+    <color name="tile_pink">#FFD955A8</color>
+    <color name="tile_gold">#FFF1B62B</color>
+
+    <!-- Text -->
+    <color name="text_white">#FFFFFFFF</color>
+    <color name="text_dark">#FF3C241A</color>
+
+    <!-- UI accents -->
+    <color name="coin_gold">#FFFFD54A</color>
+    <color name="success">#FF58D66F</color>
+    <color name="warning">#FFFFB648</color>
+    <color name="error">#FFE9534F</color>
+
+    <!-- Board -->
+    <color name="board_cell_empty">#33FFFFFF</color>
+    <color name="board_cell_highlight">#66FFD54A</color>
+    <color name="board_cell_invalid">#44E9534F</color>
+
+    <!-- Seed colors (Material You) -->
+    <color name="seed">#FF9B5A35</color>
+</resources>

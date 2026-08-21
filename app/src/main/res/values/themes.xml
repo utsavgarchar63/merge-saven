@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MergeSeven" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#FF6F3B24</item>
+        <item name="android:navigationBarColor">#FF6F3B24</item>
+        <item name="android:windowBackground">@color/wood_dark</item>
+    </style>
+</resources>
