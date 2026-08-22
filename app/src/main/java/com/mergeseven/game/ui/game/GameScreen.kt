@@ -12,6 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -162,21 +166,21 @@ private fun HexBoardCanvas(
             .fillMaxWidth()
             .aspectRatio(1f)
             .padding(16.dp)
-            .androidx.compose.ui.input.pointer.pointerInput(boardRadius, playableCells, "tap") {
-                androidx.compose.foundation.gestures.detectTapGestures { offset ->
-                    val centerX = size.width / 2f
-                    val centerY = size.height / 2f
-                    val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width, size.height, 8f)
+            .pointerInput(boardRadius, playableCells, "tap") {
+                detectTapGestures { offset ->
+                    val centerX = size.width.toFloat() / 2f
+                    val centerY = size.height.toFloat() / 2f
+                    val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width.toFloat(), size.height.toFloat(), 8f)
                     val tappedCell = HexGeometry.nearestCell(offset.x, offset.y, hexSize, centerX, centerY, playableCells)
                     if (tappedCell != null) onCellTapped(tappedCell)
                 }
             }
-            .androidx.compose.ui.input.pointer.pointerInput(boardRadius, playableCells, "drag") {
-                androidx.compose.foundation.gestures.detectDragGestures(
+            .pointerInput(boardRadius, playableCells, "drag") {
+                detectDragGestures(
                     onDragStart = { offset ->
-                        val centerX = size.width / 2f
-                        val centerY = size.height / 2f
-                        val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width, size.height, 8f)
+                        val centerX = size.width.toFloat() / 2f
+                        val centerY = size.height.toFloat() / 2f
+                        val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width.toFloat(), size.height.toFloat(), 8f)
                         val hoveredCell = HexGeometry.nearestCell(offset.x, offset.y, hexSize, centerX, centerY, playableCells)
                         onCellHover(hoveredCell)
                     },
@@ -185,9 +189,9 @@ private fun HexBoardCanvas(
                     onDrag = { change, _ ->
                         change.consume()
                         val offset = change.position
-                        val centerX = size.width / 2f
-                        val centerY = size.height / 2f
-                        val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width, size.height, 8f)
+                        val centerX = size.width.toFloat() / 2f
+                        val centerY = size.height.toFloat() / 2f
+                        val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width.toFloat(), size.height.toFloat(), 8f)
                         val hoveredCell = HexGeometry.nearestCell(offset.x, offset.y, hexSize, centerX, centerY, playableCells)
                         onCellHover(hoveredCell)
                     }
@@ -386,7 +390,7 @@ private fun PieceTray(
     modifier: Modifier = Modifier
 ) {
     val clickModifier = if (onClick != null) {
-        Modifier.androidx.compose.foundation.clickable { onClick() }
+        Modifier.clickable { onClick() }
     } else Modifier
 
     Surface(
