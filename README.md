@@ -283,16 +283,16 @@ Invalid moves never mutate board state
 # PHASE 11 — Game Over Engine
 
 ### Tasks
-- [ ] Enumerate possible pieces
-- [ ] Enumerate possible rotations
-- [ ] Enumerate possible placement origins
-- [ ] Validate whether any legal placement exists
-- [ ] Optimize the candidate search (avoid perf hit on large boards)
-- [ ] Trigger game-over state when no legal moves remain
-- [ ] Prevent false-positive game overs
-- [ ] Test near-full board
-- [ ] Test completely full board
-- [ ] Test "no valid placement despite empty cells" edge case
+- [x] Enumerate possible pieces
+- [x] Enumerate possible rotations
+- [x] Enumerate possible placement origins
+- [x] Validate whether any legal placement exists
+- [x] Optimize the candidate search (avoid perf hit on large boards)
+- [x] Trigger game-over state when no legal moves remain
+- [x] Prevent false-positive game overs
+- [x] Test near-full board
+- [x] Test completely full board
+- [x] Test "no valid placement despite empty cells" edge case
 
 ---
 
