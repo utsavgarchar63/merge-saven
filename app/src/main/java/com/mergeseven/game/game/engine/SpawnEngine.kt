@@ -8,7 +8,9 @@ import kotlin.random.Random
  * Generates pieces and tile values using weighted randomization.
  * See Master Plan Section 18 (Spawn / Random System), Section 92 (Piece Pool).
  */
-class SpawnEngine {
+class SpawnEngine(
+    private val random: Random = Random.Default
+) {
 
     private var nextPieceId: Long = System.nanoTime()
 
@@ -62,7 +64,7 @@ class SpawnEngine {
     fun generateValue(level: Int = 1): Int {
         val weights = Constants.SPAWN_WEIGHTS
         val totalWeight = weights.values.sum()
-        var roll = Random.nextInt(totalWeight)
+        var roll = random.nextInt(totalWeight)
 
         for ((value, weight) in weights) {
             roll -= weight
@@ -84,7 +86,7 @@ class SpawnEngine {
             else -> pieceShapes.size - 1  // All shapes
         }
 
-        val index = Random.nextInt(maxShapeIndex + 1)
+        val index = random.nextInt(maxShapeIndex + 1)
         return pieceShapes[index]
     }
 }

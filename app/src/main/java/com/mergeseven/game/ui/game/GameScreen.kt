@@ -68,12 +68,21 @@ fun GameScreen(
             HexBoardCanvas(
                 playableCells = uiState.boardCells,
                 tiles = uiState.tiles,
-                boardRadius = uiState.boardRadius
+                boardRadius = uiState.boardRadius,
+                showDebugGrid = uiState.showDebugGrid,
+                debugSelectedCell = uiState.debugSelectedCell,
+                hoveredCells = uiState.hoveredCells,
+                onCellTapped = { viewModel.onCellTapped(it) },
+                onCellHover = { viewModel.onCellHover(it) },
+                onDragEnd = { viewModel.onDragEnd() }
             )
         }
 
         // ─── Bottom Area (Piece Queue + Boosters) ────
         GameBottomBar(
+            currentPiece = uiState.currentPiece,
+            nextPieces = uiState.nextPieces,
+            onRotate = { viewModel.onRotatePiece() },
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
@@ -140,13 +149,50 @@ private fun GameTopBar(
 private fun HexBoardCanvas(
     playableCells: Set<HexCoord>,
     tiles: Map<HexCoord, Pair<Int, Color>>,
-    boardRadius: Int
+    boardRadius: Int,
+    showDebugGrid: Boolean = false,
+    debugSelectedCell: HexCoord? = null,
+    hoveredCells: List<Pair<HexCoord, Boolean>> = emptyList(),
+    onCellTapped: (HexCoord) -> Unit = {},
+    onCellHover: (HexCoord?) -> Unit = {},
+    onDragEnd: () -> Unit = {}
 ) {
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
             .padding(16.dp)
+            .androidx.compose.ui.input.pointer.pointerInput(boardRadius, playableCells, "tap") {
+                androidx.compose.foundation.gestures.detectTapGestures { offset ->
+                    val centerX = size.width / 2f
+                    val centerY = size.height / 2f
+                    val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width, size.height, 8f)
+                    val tappedCell = HexGeometry.nearestCell(offset.x, offset.y, hexSize, centerX, centerY, playableCells)
+                    if (tappedCell != null) onCellTapped(tappedCell)
+                }
+            }
+            .androidx.compose.ui.input.pointer.pointerInput(boardRadius, playableCells, "drag") {
+                androidx.compose.foundation.gestures.detectDragGestures(
+                    onDragStart = { offset ->
+                        val centerX = size.width / 2f
+                        val centerY = size.height / 2f
+                        val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width, size.height, 8f)
+                        val hoveredCell = HexGeometry.nearestCell(offset.x, offset.y, hexSize, centerX, centerY, playableCells)
+                        onCellHover(hoveredCell)
+                    },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragEnd() },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        val offset = change.position
+                        val centerX = size.width / 2f
+                        val centerY = size.height / 2f
+                        val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width, size.height, 8f)
+                        val hoveredCell = HexGeometry.nearestCell(offset.x, offset.y, hexSize, centerX, centerY, playableCells)
+                        onCellHover(hoveredCell)
+                    }
+                )
+            }
     ) {
         val centerX = size.width / 2f
         val centerY = size.height / 2f
@@ -160,7 +206,22 @@ private fun HexBoardCanvas(
         // Draw empty cells
         for (cell in playableCells) {
             val (px, py) = HexGeometry.hexToPixel(cell, hexSize, centerX, centerY)
-            drawHexCell(px, py, hexSize, GameColors.BoardCellEmpty)
+            val isSelected = cell == debugSelectedCell
+            val cellColor = if (isSelected) GameColors.BoardCellHighlight else GameColors.BoardCellEmpty
+            drawHexCell(px, py, hexSize, cellColor)
+            
+            // Debug grid coordinates
+            if (showDebugGrid && !tiles.containsKey(cell)) {
+                drawContext.canvas.nativeCanvas.apply {
+                    val paint = android.graphics.Paint().apply {
+                        this.color = android.graphics.Color.WHITE
+                        this.textSize = hexSize * 0.3f
+                        this.textAlign = android.graphics.Paint.Align.CENTER
+                        this.alpha = 150
+                    }
+                    drawText("${cell.q},${cell.r}", px, py + hexSize * 0.1f, paint)
+                }
+            }
         }
 
         // Draw tiles
@@ -168,6 +229,20 @@ private fun HexBoardCanvas(
             val (value, color) = tileInfo
             val (px, py) = HexGeometry.hexToPixel(coord, hexSize, centerX, centerY)
             drawHexTile(px, py, hexSize, color, value)
+            
+            if (showDebugGrid) {
+                val isSelected = coord == debugSelectedCell
+                if (isSelected) {
+                    drawHexCell(px, py, hexSize, GameColors.BoardCellHighlight)
+                }
+            }
+        }
+
+        // Draw hover highlights
+        for ((cell, isValid) in hoveredCells) {
+            val (px, py) = HexGeometry.hexToPixel(cell, hexSize, centerX, centerY)
+            val hoverColor = if (isValid) GameColors.BoardCellHighlight else GameColors.BoardCellInvalid
+            drawHexCell(px, py, hexSize, hoverColor)
         }
     }
 }
@@ -254,7 +329,12 @@ private fun hexPath(
 }
 
 @Composable
-private fun GameBottomBar(modifier: Modifier = Modifier) {
+private fun GameBottomBar(
+    currentPiece: com.mergeseven.game.game.model.TilePiece?,
+    nextPieces: List<com.mergeseven.game.game.model.TilePiece>,
+    onRotate: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -270,34 +350,69 @@ private fun GameBottomBar(modifier: Modifier = Modifier) {
             }
         }
 
-        // Piece queue placeholder
+        // Piece queue
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            repeat(3) { index ->
-                Surface(
-                    modifier = Modifier.size(64.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    color = GameColors.WoodMid.copy(alpha = 0.5f),
-                    border = if (index == 0) {
-                        ButtonDefaults.outlinedButtonBorder(enabled = true)
-                    } else null
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = if (index == 0) "▶" else "?",
-                            color = GameColors.TextWhite.copy(
-                                alpha = if (index == 0) 1f else 0.5f
-                            ),
-                            fontSize = 20.sp
-                        )
-                    }
+            PieceTray(
+                piece = currentPiece,
+                scale = 1f,
+                onClick = onRotate,
+                modifier = Modifier.size(80.dp)
+            )
+            val firstNext = nextPieces.firstOrNull()
+            PieceTray(
+                piece = firstNext,
+                scale = 0.7f,
+                modifier = Modifier.size(60.dp)
+            )
+            val secondNext = nextPieces.drop(1).firstOrNull()
+            PieceTray(
+                piece = secondNext,
+                scale = 0.5f,
+                modifier = Modifier.size(50.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PieceTray(
+    piece: com.mergeseven.game.game.model.TilePiece?,
+    scale: Float = 1f,
+    onClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val clickModifier = if (onClick != null) {
+        Modifier.androidx.compose.foundation.clickable { onClick() }
+    } else Modifier
+
+    Surface(
+        modifier = modifier.then(clickModifier),
+        shape = MaterialTheme.shapes.medium,
+        color = GameColors.WoodMid.copy(alpha = 0.5f),
+        border = if (scale == 1f) androidx.compose.foundation.BorderStroke(2.dp, GameColors.WoodLight) else null
+    ) {
+        if (piece != null) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val hexSize = size.width / 3f * scale
+                val centerX = size.width / 2f
+                val centerY = size.height / 2f
+                
+                // Draw piece cells relative to center
+                for (cell in piece.rotatedCells()) {
+                    val (px, py) = com.mergeseven.game.game.engine.HexGeometry.hexToPixel(
+                        cell.offset, hexSize, centerX, centerY
+                    )
+                    drawHexTile(px, py, hexSize, GameColors.tileColor(cell.value), cell.value)
                 }
             }
         }
     }
 }
+
 
 @Composable
 private fun BoosterSlot(label: String) {
