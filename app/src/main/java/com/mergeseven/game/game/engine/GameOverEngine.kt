@@ -27,7 +27,8 @@ class GameOverEngine(
      * If none work → GAME OVER
      */
     fun isGameOver(state: GameState): Boolean {
-        val candidatePieces = listOf(state.currentPiece) + state.nextPieces
+        val candidatePieces = state.trayPieces.filterNotNull()
+        if (candidatePieces.isEmpty()) return false
 
         for (piece in candidatePieces) {
             for (rotation in 0 until Constants.ROTATION_STEPS) {

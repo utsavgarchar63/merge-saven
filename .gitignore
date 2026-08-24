@@ -52,7 +52,5 @@ proguard/
 *keystore.properties
 
 # Android Studio captures (Profiler, etc)
-captures/
-.externalNativeBuild/
-.cxx/
-*.apk
+# Kotlin daemon session files
+.kotlin/

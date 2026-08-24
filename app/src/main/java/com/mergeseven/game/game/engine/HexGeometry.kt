@@ -129,13 +129,26 @@ object HexGeometry {
         size: Float,
         centerX: Float,
         centerY: Float,
-        playableCells: Set<HexCoord>
+        playableCells: Set<HexCoord>,
+        maxPixelDistance: Float = size * 1.6f
     ): HexCoord? {
         val candidate = pixelToHex(pixelX, pixelY, size, centerX, centerY)
-        if (candidate in playableCells) return candidate
+        if (candidate in playableCells) {
+            val (px, py) = hexToPixel(candidate, size, centerX, centerY)
+            val distSq = (pixelX - px) * (pixelX - px) + (pixelY - py) * (pixelY - py)
+            if (distSq <= maxPixelDistance * maxPixelDistance) {
+                return candidate
+            }
+        }
 
-        // If the rounded cell isn't playable, find the closest playable cell
-        return playableCells.minByOrNull { it.distanceTo(candidate) }
+        return playableCells.filter { cell ->
+            val (px, py) = hexToPixel(cell, size, centerX, centerY)
+            val distSq = (pixelX - px) * (pixelX - px) + (pixelY - py) * (pixelY - py)
+            distSq <= maxPixelDistance * maxPixelDistance
+        }.minByOrNull { cell ->
+            val (px, py) = hexToPixel(cell, size, centerX, centerY)
+            (pixelX - px) * (pixelX - px) + (pixelY - py) * (pixelY - py)
+        }
     }
 
     /**

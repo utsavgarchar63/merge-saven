@@ -10,50 +10,33 @@ import com.mergeseven.game.game.model.*
  * All game logic goes through this interface.
  */
 interface GameEngine {
-
-    /**
-     * Place a piece on the board at the given origin.
-     * Returns a GameResult containing the new state and events
-     * (placement, merges, chain reactions, score, coins, etc.)
-     */
     fun placePiece(
         state: GameState,
         piece: TilePiece,
-        origin: HexCoord
+        origin: HexCoord,
+        slotIndex: Int = 0
     ): GameResult
 
-    /**
-     * Rotate a piece clockwise by 60°.
-     */
     fun rotatePiece(piece: TilePiece): TilePiece
+    fun rotateTrayPiece(state: GameState, slotIndex: Int): GameState
+    fun shuffleTray(state: GameState): GameState
+    fun undo(state: GameState): GameState
+    fun removeTile(state: GameState, coord: HexCoord): GameState
 
-    /**
-     * Check if a piece can be placed at the given origin.
-     */
     fun canPlace(
         state: GameState,
         piece: TilePiece,
         origin: HexCoord
     ): Boolean
 
-    /**
-     * Check if the game is over (no valid placements exist).
-     */
     fun isGameOver(state: GameState): Boolean
 
-    /**
-     * Create a new initial game state for the given level.
-     */
     fun createInitialState(
         level: Int = 1,
         bestScore: Long = 0
     ): GameState
 }
 
-/**
- * Default implementation of the game engine.
- * Delegates to specialized sub-engines for separation of concerns.
- */
 class GameEngineImpl(
     private val boardEngine: BoardEngine,
     private val mergeEngine: MergeEngine,
@@ -67,7 +50,8 @@ class GameEngineImpl(
     override fun placePiece(
         state: GameState,
         piece: TilePiece,
-        origin: HexCoord
+        origin: HexCoord,
+        slotIndex: Int
     ): GameResult {
         // Validate placement
         if (!canPlace(state, piece, origin)) {
@@ -98,23 +82,19 @@ class GameEngineImpl(
             .filterIsInstance<GameEvent.MergeCompleted>()
             .sumOf { it.scoreEarned }
 
-        // 4. Generate next piece and advance queue
-        val nextPieces = state.nextPieces.toMutableList()
-        val newCurrentPiece = if (nextPieces.isNotEmpty()) {
-            nextPieces.removeAt(0)
-        } else {
-            spawnEngine.generatePiece(state.level)
-        }
-        nextPieces.add(spawnEngine.generatePiece(state.level))
+        // 4. Update tray: Replace used piece at slotIndex with a new spawned piece
+        val newTray = state.trayPieces.toMutableList()
+        val targetSlot = if (slotIndex in newTray.indices) slotIndex else 0
+        newTray[targetSlot] = spawnEngine.generatePiece(state.level)
 
-        // 5. Build new state
+        // 5. Build new state (saving previousState for Undo)
         var newState = state.copy(
             board = newBoard,
-            currentPiece = newCurrentPiece,
-            nextPieces = nextPieces,
+            trayPieces = newTray,
             score = state.score + scoreEarned,
             bestScore = maxOf(state.bestScore, state.score + scoreEarned),
-            moves = state.moves + 1
+            moves = state.moves + 1,
+            previousState = state
         )
 
         // 6. Check level completion
@@ -136,6 +116,31 @@ class GameEngineImpl(
         return piece.rotateClockwise()
     }
 
+    override fun rotateTrayPiece(state: GameState, slotIndex: Int): GameState {
+        val tray = state.trayPieces.toMutableList()
+        if (slotIndex in tray.indices) {
+            val piece = tray[slotIndex]
+            if (piece != null) {
+                tray[slotIndex] = piece.rotateClockwise()
+            }
+        }
+        return state.copy(trayPieces = tray)
+    }
+
+    override fun shuffleTray(state: GameState): GameState {
+        val newTray = List(3) { spawnEngine.generatePiece(state.level) }
+        return state.copy(trayPieces = newTray)
+    }
+
+    override fun undo(state: GameState): GameState {
+        return state.previousState ?: state
+    }
+
+    override fun removeTile(state: GameState, coord: HexCoord): GameState {
+        val newBoard = state.board.withoutTile(coord)
+        return state.copy(board = newBoard)
+    }
+
     override fun canPlace(
         state: GameState,
         piece: TilePiece,
@@ -151,11 +156,12 @@ class GameEngineImpl(
     override fun createInitialState(level: Int, bestScore: Long): GameState {
         val board = boardEngine.createBoard()
         val pieces = List(3) { spawnEngine.generatePiece(level) }
+        val levelRule = com.mergeseven.game.game.rules.LevelPool.getLevel(level)
         return GameState.initial(
             board = board,
-            currentPiece = pieces[0],
-            nextPieces = pieces.drop(1),
+            trayPieces = pieces,
             level = level,
+            targetValue = levelRule.target.toInt(),
             bestScore = bestScore
         )
     }

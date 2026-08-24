@@ -2,11 +2,16 @@ package com.mergeseven.game.app
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.mergeseven.game.ui.daily.DailyScreen
 import com.mergeseven.game.ui.game.GameScreen
 import com.mergeseven.game.ui.home.HomeScreen
+import com.mergeseven.game.ui.levels.LevelsScreen
+import com.mergeseven.game.ui.settings.SettingsScreen
 
 /**
  * Navigation routes for the app.
@@ -17,7 +22,6 @@ object Routes {
     const val GAME = "game"
     const val LEVELS = "levels"
     const val DAILY = "daily"
-    const val SHOP = "shop"
     const val SETTINGS = "settings"
 }
 
@@ -36,8 +40,7 @@ fun AppNavGraph(
         composable(Routes.HOME) {
             HomeScreen(
                 onPlayClick = {
-                    navController.navigate(Routes.GAME) {
-                        // Prevent multiple game instances on the back stack
+                    navController.navigate(Routes.LEVELS) {
                         launchSingleTop = true
                     }
                 },
@@ -48,11 +51,6 @@ fun AppNavGraph(
                 },
                 onDailyClick = {
                     navController.navigate(Routes.DAILY) {
-                        launchSingleTop = true
-                    }
-                },
-                onShopClick = {
-                    navController.navigate(Routes.SHOP) {
                         launchSingleTop = true
                     }
                 },
@@ -72,20 +70,49 @@ fun AppNavGraph(
             )
         }
 
+        composable(
+            route = "${Routes.GAME}/{levelId}",
+            arguments = listOf(navArgument("levelId") { type = NavType.IntType })
+        ) {
+            GameScreen(
+                onNavigateHome = {
+                    navController.popBackStack(Routes.HOME, inclusive = false)
+                }
+            )
+        }
+
         composable(Routes.LEVELS) {
-            // TODO: LevelsScreen
+            LevelsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onStartLevel = { levelId ->
+                    navController.navigate("${Routes.GAME}/$levelId") {
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
 
         composable(Routes.DAILY) {
-            // TODO: DailyScreen
-        }
-
-        composable(Routes.SHOP) {
-            // TODO: ShopScreen
+            DailyScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onStartDailyChallenge = {
+                    navController.navigate(Routes.GAME) {
+                        launchSingleTop = true
+                    }
+                }
+            )
         }
 
         composable(Routes.SETTINGS) {
-            // TODO: SettingsScreen
+            SettingsScreen(
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }

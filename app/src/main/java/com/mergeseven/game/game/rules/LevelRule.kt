@@ -52,25 +52,26 @@ enum class LevelGoalType {
 }
 
 /**
- * Prototype level pool.
- * See Master Plan Section 93.
+ * Level pool with balanced target tile goals per level.
  */
 object LevelPool {
-    val levels = listOf(
-        LevelRule(level = 1, target = 16),
-        LevelRule(level = 2, target = 32),
-        LevelRule(level = 3, target = 64),
-        LevelRule(level = 4, target = 128),
-        LevelRule(level = 5, target = 256)
+    private val targetSequence = listOf(
+        16L, 32L, 64L, 128L, 256L,
+        512L, 1024L, 2048L, 4096L, 8192L
     )
 
     fun getLevel(level: Int): LevelRule {
-        return levels.getOrElse(level - 1) {
-            // For levels beyond the pool, scale the target
-            LevelRule(
-                level = level,
-                target = (1L shl (level + 3)) // 2^(level+3)
-            )
+        val target = if (level in 1..targetSequence.size) {
+            targetSequence[level - 1]
+        } else {
+            // For levels 11+, target doubles up to max 65536
+            val exp = (level + 3).coerceAtMost(16)
+            1L shl exp
         }
+
+        return LevelRule(
+            level = level,
+            target = target
+        )
     }
 }

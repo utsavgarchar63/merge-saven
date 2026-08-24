@@ -12,8 +12,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class GameState(
     val board: BoardState,
-    val currentPiece: TilePiece,
-    val nextPieces: List<TilePiece>,
+    val trayPieces: List<TilePiece?>,
     val score: Long,
     val bestScore: Long,
     val coins: Int,
@@ -22,25 +21,26 @@ data class GameState(
     val moves: Int,
     val isPaused: Boolean,
     val isGameOver: Boolean,
-    val isBusy: Boolean
+    val isBusy: Boolean,
+    val previousState: GameState? = null
 ) {
+    val currentPiece: TilePiece?
+        get() = trayPieces.firstOrNull { it != null }
+
+    val nextPieces: List<TilePiece>
+        get() = trayPieces.filterNotNull().drop(1)
+
     companion object {
-        /**
-         * Creates a default initial game state with an empty board.
-         * Board creation is delegated to BoardEngine.
-         */
         fun initial(
             board: BoardState,
-            currentPiece: TilePiece,
-            nextPieces: List<TilePiece>,
+            trayPieces: List<TilePiece>,
             level: Int = 1,
             targetValue: Int = 16,
             initialCoins: Int = 100,
             bestScore: Long = 0
         ): GameState = GameState(
             board = board,
-            currentPiece = currentPiece,
-            nextPieces = nextPieces,
+            trayPieces = trayPieces.take(3),
             score = 0L,
             bestScore = bestScore,
             coins = initialCoins,
@@ -49,7 +49,8 @@ data class GameState(
             moves = 0,
             isPaused = false,
             isGameOver = false,
-            isBusy = false
+            isBusy = false,
+            previousState = null
         )
     }
 }
