@@ -1,97 +1,119 @@
 package com.mergeseven.game.data.repository
 
+import android.util.Log
+import com.mergeseven.game.cloud.CloudEconomyNotifier
+import com.mergeseven.game.core.DateProvider
+import com.mergeseven.game.core.flags.Feature
+import com.mergeseven.game.core.flags.FeatureFlags
+import com.mergeseven.game.data.local.store.UserProfileStore
 import com.mergeseven.game.data.model.DailyChallengeState
-import com.mergeseven.game.data.model.DailyQuest
+import com.mergeseven.game.data.model.UserProfile
+import com.mergeseven.game.data.model.defaultDailyQuests
+import com.mergeseven.game.di.PersistenceScope
+import com.mergeseven.game.meta.XpCurve
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
-data class UserProfile(
-    val coins: Int = 250,
-    val totalStars: Int = 0,
-    val currentStreak: Int = 1,
-    val claimedDays: Set<Int> = emptySet<Int>(),
-    val lastLoginDate: String = "",
-    val dailyQuests: List<DailyQuest> = defaultDailyQuests(),
-    val dailyChallenge: DailyChallengeState = DailyChallengeState()
-)
-
-private fun defaultDailyQuests(): List<DailyQuest> = listOf(
-    DailyQuest(
-        id = "quest_merge",
-        title = "Merge 10 Tiles Today",
-        description = "Merge any 10 tiles during gameplay",
-        currentProgress = 0,
-        targetProgress = 10,
-        coinsReward = 100,
-        starsReward = 1
-    ),
-    DailyQuest(
-        id = "quest_level",
-        title = "Reach Level 3 Target",
-        description = "Clear target score or complete a level",
-        currentProgress = 0,
-        targetProgress = 1,
-        coinsReward = 200,
-        starsReward = 2
-    ),
-    DailyQuest(
-        id = "quest_score",
-        title = "Achieve 2,000 Score",
-        description = "Reach 2,000 points in a single session",
-        currentProgress = 0,
-        targetProgress = 2000,
-        coinsReward = 300,
-        starsReward = 3
-    )
-)
-
 /**
- * Singleton repository for persisting user coins, total stars, daily streak, quests, and challenges.
+ * Owns the player's coins, stars, streak, quests, and daily challenge.
+ *
+ * Reads are served from an in-memory [StateFlow] so the UI and callers stay synchronous; every
+ * mutation is written through to [store]. Loading from disk is asynchronous, which creates a short
+ * window at startup where a caller could mutate a profile that has not been hydrated yet — see
+ * [mutate] for how that is handled without losing the mutation or the stored balance.
  */
 @Singleton
-class UserDataRepository @Inject constructor() {
+class UserDataRepository @Inject constructor(
+    private val store: UserProfileStore,
+    @PersistenceScope private val scope: CoroutineScope,
+    private val dateProvider: DateProvider,
+    private val featureFlags: FeatureFlags,
+    private val cloudEconomyNotifier: CloudEconomyNotifier
+) {
 
     private val _userProfile = MutableStateFlow(UserProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
 
+    private val lock = Any()
+
+    @Volatile
+    private var hydrated = false
+
+    /** Mutations that arrived before the stored profile was read, replayed on top of it. */
+    private val pendingMutations = mutableListOf<(UserProfile) -> UserProfile>()
+
     init {
-        checkDailyLogin(LocalDate.now().format(DateTimeFormatter.ISO_DATE))
+        scope.launch {
+            val stored = store.load()
+            val replayed = synchronized(lock) {
+                val base = stored ?: UserProfile()
+                val result = pendingMutations.fold(base) { profile, mutation -> mutation(profile) }
+                pendingMutations.clear()
+                hydrated = true
+                result
+            }
+            _userProfile.value = replayed
+            store.save(replayed)
+            checkDailyLogin()
+        }
     }
 
-    fun addCoins(amount: Int) {
-        _userProfile.update { it.copy(coins = it.coins + amount) }
+    fun addCoins(amount: Int) = mutate(notifyEconomy = amount != 0) { profile ->
+        profile.copy(coins = profile.coins + amount)
     }
 
-    fun addStars(amount: Int) {
-        _userProfile.update { it.copy(totalStars = it.totalStars + amount) }
+    /**
+     * Atomically deducts [amount] if the wallet has enough. Returns false without changing balance
+     * when funds are insufficient (AF3).
+     */
+    fun trySpendCoins(amount: Int): Boolean {
+        if (amount <= 0) return true
+        var spent = false
+        mutate(notifyEconomy = false) { profile ->
+            if (profile.coins < amount) {
+                spent = false
+                profile
+            } else {
+                spent = true
+                profile.copy(coins = profile.coins - amount)
+            }
+        }
+        if (spent && featureFlags.isEnabled(Feature.AF7)) {
+            cloudEconomyNotifier.notifyChanged()
+        }
+        return spent
     }
 
-    fun checkDailyLogin(todayDate: String = LocalDate.now().format(DateTimeFormatter.ISO_DATE)) {
-        _userProfile.update { profile ->
-            if (profile.lastLoginDate.isEmpty()) {
-                profile.copy(
-                    lastLoginDate = todayDate,
-                    dailyChallenge = profile.dailyChallenge.copy(dateSeed = todayDate)
-                )
-            } else if (profile.lastLoginDate != todayDate) {
+    fun coins(): Int = _userProfile.value.coins
+
+    fun addStars(amount: Int) = mutate { profile ->
+        profile.copy(totalStars = profile.totalStars + amount)
+    }
+
+    fun checkDailyLogin(todayDate: String = dateProvider.today()) = mutate { profile ->
+        when {
+            profile.lastLoginDate.isEmpty() -> profile.copy(
+                lastLoginDate = todayDate,
+                dailyChallenge = profile.dailyChallenge.copy(dateSeed = todayDate)
+            )
+
+            profile.lastLoginDate != todayDate -> {
                 val lastDate = runCatching { LocalDate.parse(profile.lastLoginDate) }.getOrNull()
-                val today = runCatching { LocalDate.parse(todayDate) }.getOrNull()
+                val parsedToday = runCatching { LocalDate.parse(todayDate) }.getOrNull()
+                val isConsecutive = lastDate != null &&
+                    parsedToday != null &&
+                    lastDate.plusDays(1) == parsedToday
 
-                val isConsecutive = lastDate != null && today != null && lastDate.plusDays(1) == today
-
-                val newStreak = if (isConsecutive) {
-                    if (profile.claimedDays.contains(7)) 1 else profile.currentStreak
-                } else {
-                    1
-                }
-
-                val newClaimed = if (isConsecutive && !profile.claimedDays.contains(7)) profile.claimedDays else emptySet()
+                val hasFinishedCycle = profile.claimedDays.contains(FINAL_STREAK_DAY)
+                val newStreak = if (isConsecutive && !hasFinishedCycle) profile.currentStreak else 1
+                val newClaimed = if (isConsecutive && !hasFinishedCycle) profile.claimedDays else emptySet()
 
                 profile.copy(
                     lastLoginDate = todayDate,
@@ -100,19 +122,24 @@ class UserDataRepository @Inject constructor() {
                     dailyQuests = defaultDailyQuests(),
                     dailyChallenge = DailyChallengeState(dateSeed = todayDate)
                 )
-            } else {
-                if (profile.dailyChallenge.dateSeed.isEmpty()) {
-                    profile.copy(dailyChallenge = profile.dailyChallenge.copy(dateSeed = todayDate))
-                } else {
-                    profile
-                }
             }
+
+            profile.dailyChallenge.dateSeed.isEmpty() ->
+                profile.copy(dailyChallenge = profile.dailyChallenge.copy(dateSeed = todayDate))
+
+            else -> profile
         }
     }
 
-    fun claimDailyReward(day: Int, coinsReward: Int, starsReward: Int) {
-        _userProfile.update { profile ->
-            val nextStreak = if (day >= profile.currentStreak && day < 7) day + 1 else profile.currentStreak
+    fun claimDailyReward(day: Int, coinsReward: Int, starsReward: Int) =
+        mutate(notifyEconomy = true) { profile ->
+            if (day in profile.claimedDays) return@mutate profile
+
+            val nextStreak = if (day >= profile.currentStreak && day < FINAL_STREAK_DAY) {
+                day + 1
+            } else {
+                profile.currentStreak
+            }
             profile.copy(
                 coins = profile.coins + coinsReward,
                 totalStars = profile.totalStars + starsReward,
@@ -120,65 +147,137 @@ class UserDataRepository @Inject constructor() {
                 currentStreak = nextStreak
             )
         }
-    }
 
-    fun updateQuestProgress(questId: String, progressIncrement: Int) {
-        _userProfile.update { profile ->
-            val updatedQuests = profile.dailyQuests.map { quest ->
+    fun updateQuestProgress(questId: String, progressIncrement: Int) = mutate { profile ->
+        profile.copy(
+            dailyQuests = profile.dailyQuests.map { quest ->
                 if (quest.id == questId && !quest.isClaimed) {
-                    val newProgress = (quest.currentProgress + progressIncrement).coerceAtMost(quest.targetProgress)
-                    quest.copy(currentProgress = newProgress)
+                    quest.copy(
+                        currentProgress = (quest.currentProgress + progressIncrement)
+                            .coerceAtMost(quest.targetProgress)
+                    )
                 } else {
                     quest
                 }
             }
-            profile.copy(dailyQuests = updatedQuests)
-        }
+        )
     }
 
-    fun claimQuestReward(questId: String) {
-        _userProfile.update { profile ->
-            var coinsToAdd = 0
-            var starsToAdd = 0
+    fun claimQuestReward(questId: String) = mutate(notifyEconomy = true) { profile ->
+        val quest = profile.dailyQuests.firstOrNull { it.id == questId }
+        if (quest == null || !quest.isCompleted || quest.isClaimed) return@mutate profile
 
-            val updatedQuests = profile.dailyQuests.map { quest ->
-                if (quest.id == questId && quest.isCompleted && !quest.isClaimed) {
-                    coinsToAdd = quest.coinsReward
-                    starsToAdd = quest.starsReward
-                    quest.copy(isClaimed = true)
-                } else {
-                    quest
-                }
+        profile.copy(
+            coins = profile.coins + quest.coinsReward,
+            totalStars = profile.totalStars + quest.starsReward,
+            dailyQuests = profile.dailyQuests.map {
+                if (it.id == questId) it.copy(isClaimed = true) else it
             }
+        )
+    }
 
-            profile.copy(
-                coins = profile.coins + coinsToAdd,
-                totalStars = profile.totalStars + starsToAdd,
-                dailyQuests = updatedQuests
+    fun completeDailyChallenge(score: Int) = finishDailyAttempt(score)
+
+    /**
+     * ADV-003: first finished run of the day locks the official score and may award rewards;
+     * later finishes that day are practice (attempts++ only).
+     */
+    fun finishDailyAttempt(score: Int) = mutate { profile ->
+        val challenge = profile.dailyChallenge
+        if (challenge.attempts > 0) {
+            return@mutate profile.copy(
+                dailyChallenge = challenge.copy(attempts = challenge.attempts + 1)
             )
+        }
+        val metTarget = score >= challenge.targetScore
+        profile.copy(
+            coins = profile.coins + if (metTarget) challenge.coinsReward else 0,
+            totalStars = profile.totalStars + if (metTarget) challenge.starsReward else 0,
+            dailyChallenge = challenge.copy(
+                bestScore = score,
+                isCompleted = metTarget,
+                attempts = 1
+            )
+        )
+    }
+
+    fun finishWeeklyAttempt(weekKey: String, score: Int) {
+        // Weekly PB/runs live in ModeRecordsStore (AF2-09); no profile schema change required.
+        Log.d(TAG, "Weekly attempt finished week=$weekKey score=$score")
+    }
+
+    /** AF5-01: grant XP and level up. Returns levels gained. */
+    fun addXp(amount: Int): Int {
+        var levelsGained = 0
+        mutate { profile ->
+            val (xp, level, gained) = XpCurve.apply(profile.xp, profile.playerLevel, amount)
+            levelsGained = gained
+            profile.copy(xp = xp, playerLevel = level)
+        }
+        return levelsGained
+    }
+
+    fun recordLifetimeStats(
+        mergesDelta: Int = 0,
+        biggestTile: Int = 0,
+        chainLength: Int = 0,
+        playtimeDeltaMs: Long = 0L
+    ) = mutate { profile ->
+        profile.copy(
+            totalMerges = profile.totalMerges + mergesDelta.coerceAtLeast(0),
+            biggestTile = maxOf(profile.biggestTile, biggestTile),
+            longestChain = maxOf(profile.longestChain, chainLength),
+            playtimeMs = profile.playtimeMs + playtimeDeltaMs.coerceAtLeast(0L)
+        )
+    }
+
+    fun equipTileTheme(id: String) = mutate(notifyEconomy = true) { it.copy(equippedTileThemeId = id) }
+
+    fun equipBoardTheme(id: String) = mutate(notifyEconomy = true) { it.copy(equippedBoardThemeId = id) }
+
+    /** AF9-02: reset daily challenge attempts so another official run is allowed. */
+    fun grantExtraDailyAttempt() = mutate(notifyEconomy = false) { profile ->
+        profile.copy(
+            dailyChallenge = profile.dailyChallenge.copy(attempts = 0)
+        )
+    }
+
+    /** AF7: replace in-memory + Room profile from a cloud restore (skips economy upload). */
+    fun replaceFromCloud(profile: UserProfile) {
+        synchronized(lock) {
+            pendingMutations.clear()
+            hydrated = true
+        }
+        _userProfile.value = profile
+        scope.launch { store.save(profile) }
+    }
+
+    /**
+     * Applies [block] to the in-memory profile immediately and persists the result.
+     *
+     * Before hydration completes the mutation is also recorded, so that when the stored profile
+     * arrives it can be replayed on top of it. Without that, a coin grant in the first moments after
+     * launch would either be overwritten by the load or would overwrite the stored balance.
+     */
+    private fun mutate(
+        notifyEconomy: Boolean = false,
+        block: (UserProfile) -> UserProfile
+    ) {
+        synchronized(lock) {
+            if (!hydrated) pendingMutations += block
+        }
+        val updated = _userProfile.updateAndGet(block)
+        if (hydrated) {
+            scope.launch { store.save(updated) }
+        }
+        if (notifyEconomy && featureFlags.isEnabled(Feature.AF7)) {
+            cloudEconomyNotifier.notifyChanged()
         }
     }
 
-    fun completeDailyChallenge(score: Int) {
-        _userProfile.update { profile ->
-            val currentChallenge = profile.dailyChallenge
-            val newBest = maxOf(currentChallenge.bestScore, score)
-            val isCompleted = currentChallenge.isCompleted || score >= currentChallenge.targetScore
-            val isFirstTimeCompletion = isCompleted && !currentChallenge.isCompleted
-
-            val bonusCoins = if (isFirstTimeCompletion) currentChallenge.coinsReward else 0
-            val bonusStars = if (isFirstTimeCompletion) currentChallenge.starsReward else 0
-
-            profile.copy(
-                coins = profile.coins + bonusCoins,
-                totalStars = profile.totalStars + bonusStars,
-                dailyChallenge = currentChallenge.copy(
-                    bestScore = newBest,
-                    isCompleted = isCompleted,
-                    attempts = currentChallenge.attempts + 1
-                )
-            )
-        }
+    private companion object {
+        /** Length of the daily reward cycle, after which the streak restarts. */
+        const val FINAL_STREAK_DAY = 7
+        const val TAG = "UserDataRepository"
     }
 }
-

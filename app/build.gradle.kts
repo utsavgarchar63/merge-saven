@@ -5,9 +5,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
-    // Uncomment when Firebase is configured:
-    // alias(libs.plugins.google.services)
-    // alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
@@ -22,6 +21,11 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    sourceSets {
+        // Lets MigrationTestHelper read the exported schemas at runtime.
+        getByName("androidTest").assets.srcDir("$projectDir/schemas")
     }
 
     signingConfigs {
@@ -50,6 +54,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // java.time is used for daily streaks/quests and is API 26+ without this.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -66,12 +72,36 @@ android {
         compose = true
         buildConfig = true
     }
+
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
 }
+
+// Room schema JSON is committed to app/schemas and read by the migration tests.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+}
+
+// AF6-01: keep real google-services.json out of git; copy example stub if missing so CI compiles.
+val ensureGoogleServicesJson by tasks.registering {
+    val example = file("google-services.json.example")
+    val target = file("google-services.json")
+    onlyIf { !target.exists() && example.exists() }
+    doLast {
+        example.copyTo(target, overwrite = false)
+    }
+}
+tasks.named("preBuild").configure { dependsOn(ensureGoogleServicesJson) }
 
 dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
@@ -105,26 +135,41 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
-    // Firebase (uncomment when configured)
-    // implementation(platform(libs.firebase.bom))
-    // implementation(libs.firebase.analytics)
-    // implementation(libs.firebase.crashlytics)
+    // Firebase (AF6)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.firebase.config)
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.functions)
+    implementation(libs.firebase.firestore)
 
-    // Ads (uncomment when AdMob is configured)
-    // implementation(libs.play.services.ads)
+    // Play Games / Auth (AF7 cloud save)
+    implementation(libs.play.services.auth)
+    implementation(libs.play.services.games)
 
-    // Billing (uncomment when billing is configured)
-    // implementation(libs.billing)
+    // Ads + UMP (AF9)
+    implementation(libs.play.services.ads)
+    implementation(libs.user.messaging.platform)
+
+    // Play Billing (AF9)
+    implementation(libs.billing)
+
+    // Java 8+ API desugaring
+    coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.room.testing)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
 }

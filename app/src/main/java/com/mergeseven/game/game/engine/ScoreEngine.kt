@@ -22,11 +22,12 @@ class ScoreEngine {
     fun calculateMergeScore(
         mergedValue: Int,
         tileCount: Int,
-        chainIndex: Int = 0
+        chainIndex: Int = 0,
+        traitMultiplier: Float = 1f
     ): Long {
         val baseScore = mergedValue.toLong() * tileCount.toLong()
         val multiplier = getChainMultiplier(chainIndex)
-        return (baseScore * multiplier).toLong()
+        return (baseScore * multiplier * traitMultiplier).toLong()
     }
 
     /**

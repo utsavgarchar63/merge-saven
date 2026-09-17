@@ -1,8 +1,19 @@
 package com.mergeseven.game.ui.daily
 
-import android.content.Context
+import com.mergeseven.game.core.analytics.NoOpAnalyticsTracker
 import com.mergeseven.game.core.audio.AudioManager
+import com.mergeseven.game.core.flags.Feature
+import com.mergeseven.game.core.flags.FeatureFlags
+import com.mergeseven.game.data.local.store.BoosterInventoryStore
 import com.mergeseven.game.data.repository.UserDataRepository
+import com.mergeseven.game.game.boosters.BoosterCatalog
+import com.mergeseven.game.game.model.BoosterType
+import com.mergeseven.game.testing.TestPersistence
+import com.mergeseven.game.testing.fakeContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -17,20 +28,32 @@ class DailyViewModelTest {
 
     @Before
     fun setup() {
-        userDataRepository = UserDataRepository()
-        // Provide audioManager instance safely
-        val dummyContext = try {
-            val contextClass = Class.forName("android.content.Context")
-            java.lang.reflect.Proxy.newProxyInstance(
-                contextClass.classLoader,
-                arrayOf(contextClass)
-            ) { _, _, _ -> null } as Context
-        } catch (e: Exception) {
-            // Fallback if proxying context in JVM test environment
-            throw e
-        }
-        audioManager = AudioManager(dummyContext)
-        viewModel = DailyViewModel(userDataRepository, audioManager)
+        userDataRepository = TestPersistence.userDataRepository()
+        audioManager = AudioManager(fakeContext())
+        viewModel = DailyViewModel(
+            userDataRepository = userDataRepository,
+            audioManager = audioManager,
+            featureFlags = object : FeatureFlags {
+                override fun isEnabled(feature: Feature) = false
+                override fun observe(feature: Feature) = flowOf(false)
+                override suspend fun setEnabled(feature: Feature, enabled: Boolean) = Unit
+                override fun snapshot() = Feature.entries.associateWith { false }
+            },
+            boosterInventory = object : BoosterInventoryStore {
+                private val _owned =
+                    MutableStateFlow(BoosterCatalog.specs.mapValues { it.value.startingOwned })
+                override val owned: StateFlow<Map<BoosterType, Int>> = _owned.asStateFlow()
+                override suspend fun loadAndSeed() = Unit
+                override fun count(type: BoosterType) = _owned.value[type] ?: 0
+                override suspend fun grant(type: BoosterType, amount: Int) {
+                    _owned.value = _owned.value + (type to count(type) + amount)
+                }
+                override suspend fun tryConsume(type: BoosterType) = false
+            },
+            analyticsTracker = NoOpAnalyticsTracker(),
+            adService = com.mergeseven.game.ads.FakeAdService(),
+            adPreloader = com.mergeseven.game.ads.AdPreloader(com.mergeseven.game.ads.FakeAdService())
+        )
     }
 
     @Test

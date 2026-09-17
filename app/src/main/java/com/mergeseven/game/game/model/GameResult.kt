@@ -41,6 +41,22 @@ sealed interface GameEvent {
         val scoreEarned: Long
     ) : GameEvent
 
+    /** Bomb AOE (or similar) removed tiles from the board. */
+    data class TilesCleared(
+        val tiles: List<Tile>,
+        val reason: String
+    ) : GameEvent
+
+    /** Frozen tiles lost a freeze stage (or became NORMAL). */
+    data class TilesThawed(
+        val tiles: List<Tile>
+    ) : GameEvent
+
+    /** A single tile appeared on a spawn vent (AF1-12). */
+    data class VentSpawned(
+        val tile: Tile
+    ) : GameEvent
+
     /** A chain reaction completed (multiple sequential merges). */
     data class ChainCompleted(
         val chainLength: Int,

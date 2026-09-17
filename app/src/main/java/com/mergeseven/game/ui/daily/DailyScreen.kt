@@ -8,18 +8,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Star
+import com.mergeseven.game.ui.components.CoinIcon
+import com.mergeseven.game.ui.components.GameIcon
+import com.mergeseven.game.ui.components.GameIcons
+import com.mergeseven.game.ui.components.StarIcon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,8 +36,11 @@ fun DailyScreen(
     onStartDailyChallenge: () -> Unit = {}
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val af9Enabled by viewModel.af9Enabled.collectAsStateWithLifecycle()
+    val status by viewModel.status.collectAsStateWithLifecycle()
     val rewards = viewModel.getDailyRewards()
     val scrollState = rememberScrollState()
+    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
 
     Box(
         modifier = Modifier
@@ -70,6 +72,18 @@ fun DailyScreen(
                     challengeState = userProfile.dailyChallenge,
                     onStartChallenge = onStartDailyChallenge
                 )
+                if (af9Enabled) {
+                    OutlinedButton(
+                        onClick = { activity?.let { viewModel.watchAdForExtraAttempt(it) } },
+                        enabled = activity != null,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("WATCH AD · EXTRA DAILY ATTEMPT", color = GameColors.CoinGold)
+                    }
+                }
+                status?.let {
+                    Text(it, color = GameColors.CoinGold)
+                }
 
                 // ─── 7-Day Login Streak Section ─────────
                 Text(
@@ -131,10 +145,11 @@ private fun DailyTopBar(
                 .size(40.dp)
                 .background(GameColors.WoodMid, CircleShape)
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            GameIcon(
+                resId = GameIcons.Back,
                 contentDescription = "Back",
-                tint = GameColors.TextWhite
+                tint = GameColors.TextWhite,
+                size = 24.dp
             )
         }
 
@@ -157,12 +172,7 @@ private fun DailyTopBar(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = "Stars",
-                    tint = GameColors.CoinGold,
-                    modifier = Modifier.size(18.dp)
-                )
+                StarIcon(size = 18.dp)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "$totalStars",
@@ -181,8 +191,10 @@ private fun DailyTopBar(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                CoinIcon(size = 18.dp)
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "🪙 $coins",
+                    text = "$coins",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = GameColors.CoinGold
                 )
@@ -270,7 +282,7 @@ private fun DailyChallengeCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Bonus: 🪙 +${challengeState.coinsReward} • ⭐ +${challengeState.starsReward}",
+                        text = "Bonus: +${challengeState.coinsReward} coins • +${challengeState.starsReward} stars",
                         style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                         color = GameColors.CoinGold
                     )
@@ -281,12 +293,12 @@ private fun DailyChallengeCard(
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
-                            contentDescription = null,
-                            tint = Color.Black,
-                            modifier = Modifier.size(16.dp)
-                        )
+                        GameIcon(
+                        resId = GameIcons.Play,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        size = 16.dp
+                    )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = if (challengeState.isCompleted) "PLAY AGAIN" else "PLAY",
@@ -375,7 +387,7 @@ private fun DailyRewardCard(
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = "🪙 +${item.coins}",
+                text = "+${item.coins}",
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = GameColors.CoinGold,
                 fontSize = 12.sp
@@ -383,11 +395,9 @@ private fun DailyRewardCard(
 
             if (item.stars > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
+                    StarIcon(
                         tint = GameColors.CoinGold,
-                        modifier = Modifier.size(12.dp)
+                        size = 12.dp
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
@@ -403,11 +413,11 @@ private fun DailyRewardCard(
 
             when {
                 isClaimed -> {
-                    Icon(
-                        imageVector = Icons.Default.Check,
+                    GameIcon(
+                        resId = GameIcons.Check,
                         contentDescription = "Claimed",
                         tint = GameColors.CoinGold,
-                        modifier = Modifier.size(18.dp)
+                        size = 18.dp
                     )
                 }
                 isAvailable -> {
@@ -425,11 +435,11 @@ private fun DailyRewardCard(
                     }
                 }
                 else -> {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
+                    GameIcon(
+                        resId = GameIcons.Lock,
                         contentDescription = "Locked",
                         tint = GameColors.TextWhite.copy(alpha = 0.3f),
-                        modifier = Modifier.size(16.dp)
+                        size = 16.dp
                     )
                 }
             }
@@ -484,7 +494,8 @@ private fun QuestRow(
             }
 
             Text(
-                text = "Reward: 🪙 +${quest.coinsReward}" + if (quest.starsReward > 0) " • ⭐ +${quest.starsReward}" else "",
+                text = "Reward: +${quest.coinsReward} coins" +
+                    if (quest.starsReward > 0) " • +${quest.starsReward} stars" else "",
                 style = MaterialTheme.typography.labelSmall,
                 color = GameColors.CoinGold,
                 fontSize = 11.sp
@@ -503,12 +514,12 @@ private fun QuestRow(
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Claimed",
-                            tint = GameColors.CoinGold,
-                            modifier = Modifier.size(14.dp)
-                        )
+                        GameIcon(
+                        resId = GameIcons.Check,
+                        contentDescription = "Claimed",
+                        tint = GameColors.CoinGold,
+                        size = 14.dp
+                    )
                         Spacer(modifier = Modifier.width(2.dp))
                         Text(
                             text = "CLAIMED",

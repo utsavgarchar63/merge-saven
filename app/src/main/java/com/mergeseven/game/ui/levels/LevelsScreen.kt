@@ -9,11 +9,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +20,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mergeseven.game.data.repository.LevelItem
+import com.mergeseven.game.ui.components.CoinIcon
+import com.mergeseven.game.ui.components.GameIcon
+import com.mergeseven.game.ui.components.GameIcons
+import com.mergeseven.game.ui.components.StarIcon
 import com.mergeseven.game.ui.theme.GameColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,10 +112,11 @@ private fun LevelsTopBar(
                 .size(40.dp)
                 .background(GameColors.WoodMid, CircleShape)
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            GameIcon(
+                resId = GameIcons.Back,
                 contentDescription = "Back",
-                tint = GameColors.TextWhite
+                tint = GameColors.TextWhite,
+                size = 24.dp
             )
         }
 
@@ -139,12 +139,7 @@ private fun LevelsTopBar(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Star,
-                    contentDescription = "Stars",
-                    tint = GameColors.CoinGold,
-                    modifier = Modifier.size(18.dp)
-                )
+                StarIcon(size = 18.dp)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = "$totalStars",
@@ -163,8 +158,10 @@ private fun LevelsTopBar(
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                CoinIcon(size = 18.dp)
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "🪙 $coins",
+                    text = "$coins",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = GameColors.CoinGold
                 )
@@ -229,20 +226,18 @@ private fun LevelNodeCard(
                 ) {
                     for (i in 1..3) {
                         val isStarred = i <= levelItem.stars
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
+                        StarIcon(
                             tint = if (isStarred) GameColors.CoinGold else GameColors.TextWhite.copy(alpha = 0.2f),
-                            modifier = Modifier.size(14.dp)
+                            size = 14.dp
                         )
                     }
                 }
             } else {
-                Icon(
-                    imageVector = Icons.Default.Lock,
+                GameIcon(
+                    resId = GameIcons.Lock,
                     contentDescription = "Locked",
                     tint = GameColors.TextWhite.copy(alpha = 0.3f),
-                    modifier = Modifier.size(28.dp)
+                    size = 28.dp
                 )
                 Text(
                     text = "Level ${levelItem.rule.level}",
@@ -321,11 +316,9 @@ private fun LevelDetailModal(
                 ) {
                     for (i in 1..3) {
                         val isStarred = i <= levelItem.stars
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
+                        StarIcon(
                             tint = if (isStarred) GameColors.CoinGold else GameColors.TextWhite.copy(alpha = 0.3f),
-                            modifier = Modifier.size(24.dp)
+                            size = 24.dp
                         )
                     }
                 }
@@ -341,10 +334,11 @@ private fun LevelDetailModal(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayArrow,
+                        GameIcon(
+                            resId = GameIcons.Play,
                             contentDescription = null,
-                            tint = Color.Black
+                            tint = Color.Black,
+                            size = 24.dp
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(

@@ -2,6 +2,7 @@ package com.mergeseven.game.game.engine
 
 import com.mergeseven.game.game.model.BoardState
 import com.mergeseven.game.game.model.HexCoord
+import com.mergeseven.game.game.model.RngState
 import com.mergeseven.game.game.model.Tile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -38,15 +39,15 @@ class MergeEngineTest {
         assertEquals(1, groups.size)
         assertEquals(3, groups[0].size)
 
-        val (newBoard, event) = mergeEngine.resolveGroup(board, groups[0])
+        val resolution = mergeEngine.resolveGroup(board, groups[0], testRandom())
         
         // Check event
-        assertEquals(8, event.resultTile.value)
-        assertEquals(3, event.mergedCount)
+        assertEquals(8, resolution.event.resultTile.value)
+        assertEquals(3, resolution.event.mergedCount)
         
         // Check new board state
-        assertEquals(1, newBoard.activeTiles().size)
-        assertEquals(8, newBoard.activeTiles()[0].value)
+        assertEquals(1, resolution.board.activeTiles().size)
+        assertEquals(8, resolution.board.activeTiles()[0].value)
     }
 
     @Test
@@ -102,10 +103,12 @@ class MergeEngineTest {
         assertEquals(1, groups.size)
         assertEquals(4, groups[0].size)
 
-        val (newBoard, event) = mergeEngine.resolveGroup(board, groups[0])
+        val resolution = mergeEngine.resolveGroup(board, groups[0], testRandom())
         
-        assertEquals(16, event.resultTile.value)
-        assertEquals(4, event.mergedCount)
-        assertEquals(1, newBoard.activeTiles().size)
+        assertEquals(16, resolution.event.resultTile.value)
+        assertEquals(4, resolution.event.mergedCount)
+        assertEquals(1, resolution.board.activeTiles().size)
     }
+
+    private fun testRandom() = GameRandom(RngState.fromSeed(1L))
 }

@@ -13,12 +13,15 @@ import javax.inject.Singleton
  * Game Audio Manager for Background Music and Sound Effects.
  * Uses MediaPlayer for continuous ambient background music loop
  * and SoundPool for instant low-latency game sound effects.
+ * AF10-05 adds intensity stems that crossfade with combo heat.
  */
 @Singleton
 class AudioManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private var mediaPlayer: MediaPlayer? = null
+    private var midPlayer: MediaPlayer? = null
+    private var highPlayer: MediaPlayer? = null
     private var soundPool: SoundPool? = null
 
     private var soundPlaceId: Int = 0
@@ -29,6 +32,9 @@ class AudioManager @Inject constructor(
         private set
     var isSoundEnabled: Boolean = true
         private set
+
+    @Volatile
+    private var musicIntensity: Float = 0f
 
     init {
         runCatching {
@@ -48,6 +54,11 @@ class AudioManager @Inject constructor(
 
     fun setSoundEnabled(enabled: Boolean) {
         isSoundEnabled = enabled
+    }
+
+    fun setMusicIntensity(intensity: Float) {
+        musicIntensity = intensity.coerceIn(0f, 1f)
+        applyLayerVolumes()
     }
 
     private fun initSoundPool() {
@@ -74,6 +85,14 @@ class AudioManager @Inject constructor(
                 isLooping = true
                 setVolume(0.4f, 0.4f)
             }
+            midPlayer = MediaPlayer.create(context, R.raw.bg_music_mid)?.apply {
+                isLooping = true
+                setVolume(0f, 0f)
+            }
+            highPlayer = MediaPlayer.create(context, R.raw.bg_music_high)?.apply {
+                isLooping = true
+                setVolume(0f, 0f)
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -85,9 +104,12 @@ class AudioManager @Inject constructor(
             if (mediaPlayer == null) {
                 initMusicPlayer()
             }
-            if (mediaPlayer?.isPlaying == false) {
-                mediaPlayer?.start()
+            listOf(mediaPlayer, midPlayer, highPlayer).forEach { player ->
+                if (player?.isPlaying == false) {
+                    player.start()
+                }
             }
+            applyLayerVolumes()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -95,8 +117,10 @@ class AudioManager @Inject constructor(
 
     fun pauseMusic() {
         try {
-            if (mediaPlayer?.isPlaying == true) {
-                mediaPlayer?.pause()
+            listOf(mediaPlayer, midPlayer, highPlayer).forEach { player ->
+                if (player?.isPlaying == true) {
+                    player.pause()
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -105,27 +129,44 @@ class AudioManager @Inject constructor(
 
     fun stopMusic() {
         try {
-            mediaPlayer?.stop()
-            mediaPlayer?.release()
+            listOf(mediaPlayer, midPlayer, highPlayer).forEach { player ->
+                player?.stop()
+                player?.release()
+            }
             mediaPlayer = null
+            midPlayer = null
+            highPlayer = null
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
-    fun playSoundPlace() {
+    fun playSoundPlace(pitch: Float = 1.0f) {
         if (!isSoundEnabled || soundPlaceId == 0) return
-        soundPool?.play(soundPlaceId, 0.8f, 0.8f, 1, 0, 1.0f)
+        soundPool?.play(soundPlaceId, 0.8f, 0.8f, 1, 0, pitch.coerceIn(0.5f, 2.0f))
     }
 
-    fun playSoundMerge() {
+    fun playSoundMerge(pitch: Float = 1.0f) {
         if (!isSoundEnabled || soundMergeId == 0) return
-        soundPool?.play(soundMergeId, 0.9f, 0.9f, 2, 0, 1.0f)
+        soundPool?.play(soundMergeId, 0.9f, 0.9f, 2, 0, pitch.coerceIn(0.5f, 2.0f))
     }
 
-    fun playSoundCombo() {
+    fun playSoundCombo(pitch: Float = 1.0f) {
         if (!isSoundEnabled || soundComboId == 0) return
-        soundPool?.play(soundComboId, 1.0f, 1.0f, 3, 0, 1.0f)
+        soundPool?.play(soundComboId, 1.0f, 1.0f, 3, 0, pitch.coerceIn(0.5f, 2.0f))
+    }
+
+    private fun applyLayerVolumes() {
+        if (!isMusicEnabled) return
+        val intensity = musicIntensity
+        val base = 0.4f * (1f - intensity * 0.35f)
+        val mid = (intensity * 0.55f).coerceIn(0f, 0.55f)
+        val high = ((intensity - 0.45f) / 0.55f).coerceIn(0f, 1f) * 0.5f
+        runCatching {
+            mediaPlayer?.setVolume(base, base)
+            midPlayer?.setVolume(mid, mid)
+            highPlayer?.setVolume(high, high)
+        }
     }
 
     fun release() {

@@ -17,6 +17,26 @@
     <string name="game_level">Level %d</string>
     <string name="game_coins">Coins</string>
     <string name="game_target">Target: %d</string>
+    <string name="game_tray_hint">Drag any piece to board</string>
+    <string name="game_tray_empty">Empty</string>
+    <string name="game_tray_dragging">Dragging</string>
+    <string name="game_tray_slot">Tray slot %1$d</string>
+    <string name="game_deadlock_warning">Board is tight — consider a hint</string>
+    <string name="game_hint">Hint %d</string>
+    <string name="game_hint_ad">AD</string>
+    <string name="game_achievement">Achievement: %s</string>
+    <string name="game_place_action">Place piece</string>
+    <string name="game_booster_target_action">Use booster on cell</string>
+    <string name="game_cell_empty">Empty cell at %1$d, %2$d</string>
+    <string name="game_cell_occupied">Tile %1$d at %2$d, %3$d</string>
+    <string name="game_cell_trait">, %1$s</string>
+    <string name="game_announce_placed">Placed. Score %1$d</string>
+    <string name="game_announce_merge">Merged. Score %1$d</string>
+    <string name="game_announce_invalid">Cannot place there</string>
+    <string name="game_announce_level_complete">Level complete</string>
+    <string name="game_announce_game_over">Game over. Score %1$d</string>
+    <string name="back">Back</string>
+    <string name="cd_pause">Pause</string>
 
     <!-- Pause Dialog -->
     <string name="pause_resume">Resume</string>
@@ -27,33 +47,68 @@
     <!-- Game Over -->
     <string name="game_over_title">GAME OVER</string>
     <string name="game_over_score">Score</string>
+    <string name="game_over_final_score">Final Score: %1$d</string>
     <string name="game_over_best">Best</string>
     <string name="game_over_highest_tile">Highest Tile</string>
     <string name="game_over_moves">Moves</string>
     <string name="game_over_coins_earned">Coins Earned</string>
     <string name="game_over_continue">Continue</string>
+    <string name="game_over_continue_cost">CONTINUE · %1$d</string>
     <string name="game_over_retry">Retry</string>
     <string name="game_over_home">Home</string>
     <string name="game_over_watch_ad">Watch Ad + Continue</string>
+    <string name="game_over_play_again">PLAY AGAIN</string>
+    <string name="game_over_share">SHARE RUN</string>
+    <string name="game_over_watch_ghost">WATCH DAILY LEADER</string>
 
     <!-- Level Complete -->
     <string name="level_complete_title">LEVEL COMPLETE!</string>
+    <string name="level_complete_level">LEVEL %1$d COMPLETE!</string>
     <string name="level_complete_next">NEXT LEVEL</string>
     <string name="level_complete_replay">PLAY AGAIN</string>
     <string name="level_complete_home">HOME</string>
+    <string name="level_complete_map">LEVEL MAP</string>
+    <string name="level_complete_coins">+%1$d Coins Earned</string>
+    <string name="ghost_loaded">Ghost loaded (%1$d frames)</string>
+    <string name="shop_subtitle_af9">Coins, boosters, and Remove Ads</string>
+    <string name="shop_subtitle_af9_off">Purchases arrive when AF9 is enabled — browse the catalog now.</string>
+    <string name="shop_ad_free">Ad-free active · rewarded ads still optional</string>
+    <string name="shop_coins_balance">%1$d coins</string>
 
     <!-- Boosters -->
     <string name="booster_swap">Swap</string>
-    <string name="booster_randomize">Randomize</string>
+    <string name="booster_randomize">Shuffle</string>
     <string name="booster_remove">Remove</string>
     <string name="booster_undo">Undo</string>
+    <string name="booster_hammer">Hammer</string>
+    <string name="booster_value_up">Value+</string>
+    <string name="booster_magnet">Magnet</string>
+    <string name="booster_time_freeze">Freeze</string>
+    <string name="booster_continue">Continue</string>
 
     <!-- Settings -->
     <string name="settings_title">Settings</string>
-    <string name="settings_sound">Sound</string>
-    <string name="settings_music">Music</string>
-    <string name="settings_haptics">Haptics</string>
-    <string name="settings_notifications">Notifications</string>
+    <string name="settings_section_audio">Audio &amp; sensory</string>
+    <string name="settings_section_accessibility">Accessibility</string>
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="settings_sound">Sound Effects</string>
+    <string name="settings_sound_subtitle">Tile place, merge &amp; combo sounds</string>
+    <string name="settings_music">Background Music</string>
+    <string name="settings_music_subtitle">Relaxing ambient puzzle theme</string>
+    <string name="settings_haptics">Haptic Vibrations</string>
+    <string name="settings_haptics_subtitle">Tactile feedback on place, merge &amp; fail</string>
+    <string name="settings_reduce_motion">Reduce Motion</string>
+    <string name="settings_reduce_motion_subtitle">Disable shake, particles, and slow-motion</string>
+    <string name="settings_notifications">Daily Reminders</string>
+    <string name="settings_notifications_subtitle">Alerts for streak rewards &amp; daily challenge</string>
+    <string name="settings_colourblind">Colourblind palette</string>
+    <string name="settings_colourblind_subtitle">Remaps tile colours and adds shape cues</string>
+    <string name="settings_large_touch">Large touch targets</string>
+    <string name="settings_large_touch_subtitle">Bigger tray, boosters, and board hit areas</string>
+    <string name="colourblind_off">Off</string>
+    <string name="colourblind_deuteranopia">Deuteranopia</string>
+    <string name="colourblind_protanopia">Protanopia</string>
+    <string name="colourblind_tritanopia">Tritanopia</string>
     <string name="settings_language">Language</string>
     <string name="settings_restore_purchases">Restore Purchases</string>
     <string name="settings_privacy">Privacy Policy</string>
@@ -80,4 +135,26 @@
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
     <string name="confirm">Confirm</string>
+    <string name="close">Close</string>
+
+    <!-- AF7 Play Games (placeholder until Console project is linked) -->
+    <string name="game_services_project_id" translatable="false">000000000000</string>
+    <string name="cloud_sign_in">Sign in with Play Games</string>
+    <string name="cloud_sign_out">Sign out</string>
+    <string name="cloud_guest">Guest (local only)</string>
+    <string name="cloud_export">Export my data</string>
+    <string name="cloud_delete">Delete Merge Seven data</string>
+    <string name="cloud_delete_body">Removes progress on this device and your cloud save slot. This does not delete your Google account.</string>
+
+    <!-- AF9 AdMob / Billing (Production IDs) -->
+    <string name="admob_app_id" translatable="false">ca-app-pub-6926810742930516~9728984035</string>
+    <string name="admob_rewarded_unit_id" translatable="false">ca-app-pub-6926810742930516/4988240353</string>
+    <string name="admob_interstitial_unit_id" translatable="false">ca-app-pub-6926810742930516/6590105790</string>
+    <string name="admob_banner_unit_id" translatable="false">ca-app-pub-6926810742930516/8854886068</string>
+    <string name="ad_unavailable">No ad available right now</string>
+    <string name="watch_ad_hint">Watch ad for free hint</string>
+    <string name="watch_ad_double_coins">Watch ad to double coins</string>
+    <string name="watch_ad_extra_daily">Watch ad for an extra daily attempt</string>
+    <string name="offer_starter">Starter Pack</string>
+    <string name="premium_stipend_claimed">Daily premium stipend claimed</string>
 </resources>

@@ -9,6 +9,9 @@
     <!-- Vibration for haptic feedback -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- AF6-08: Android 13+ notifications -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".app.MergeSevenApplication"
         android:allowBackup="true"
@@ -19,11 +22,17 @@
         android:theme="@style/Theme.MergeSeven"
         tools:targetApi="35">
 
+        <!-- Resolve AdMob vs Analytics AD_SERVICES_CONFIG conflict -->
+        <property
+            android:name="android.adservices.AD_SERVICES_CONFIG"
+            android:resource="@xml/gma_ad_services_config"
+            tools:replace="android:resource" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:screenOrientation="portrait"
+            android:screenOrientation="fullUser"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
             android:theme="@style/Theme.MergeSeven">
             <intent-filter>
@@ -32,10 +41,33 @@
             </intent-filter>
         </activity>
 
-        <!-- AdMob App ID (replace with real ID before release) -->
-        <!-- <meta-data
+        <service
+            android:name=".core.liveops.MergeSevenFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- Play Games Services project id (replace before shipping AF7 to production). -->
+        <meta-data
+            android:name="com.google.android.gms.games.APP_ID"
+            android:value="@string/game_services_project_id" />
+
+        <!-- AdMob App ID: Google sample app id for test builds; replace before production. -->
+        <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX" /> -->
+            android:value="@string/admob_app_id" />
 
     </application>
 

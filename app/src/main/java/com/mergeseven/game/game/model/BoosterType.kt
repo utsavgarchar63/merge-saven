@@ -21,5 +21,17 @@ enum class BoosterType {
     UNDO,
 
     /** After game over, restore a playable state. */
-    CONTINUE
+    CONTINUE,
+
+    /** Destroy one selected tile (AF3). */
+    HAMMER,
+
+    /** Raise a tile by one value tier (AF3). */
+    VALUE_UP,
+
+    /** Pull matching values together (AF3). */
+    MAGNET,
+
+    /** Pause the Time Attack clock briefly (AF3). */
+    TIME_FREEZE
 }

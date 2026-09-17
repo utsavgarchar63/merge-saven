@@ -26,4 +26,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "MergeSeven"
 include(":app")
+include(":benchmark")
 

@@ -1,7 +1,9 @@
 package com.mergeseven.game.di
 
+import com.mergeseven.game.core.DateProvider
 import com.mergeseven.game.core.DefaultDispatcherProvider
 import com.mergeseven.game.core.DispatcherProvider
+import com.mergeseven.game.core.SystemDateProvider
 import com.mergeseven.game.game.engine.*
 import dagger.Module
 import dagger.Provides
@@ -20,6 +22,12 @@ object AppModule {
     @Singleton
     fun provideDispatcherProvider(): DispatcherProvider {
         return DefaultDispatcherProvider()
+    }
+
+    @Provides
+    @Singleton
+    fun provideDateProvider(): DateProvider {
+        return SystemDateProvider()
     }
 
     @Provides
@@ -73,7 +81,8 @@ object AppModule {
         spawnEngine: SpawnEngine,
         scoreEngine: ScoreEngine,
         gameOverEngine: GameOverEngine,
-        chainReactionEngine: ChainReactionEngine
+        chainReactionEngine: ChainReactionEngine,
+        levelBoardFactory: com.mergeseven.game.game.levels.LevelBoardFactory
     ): GameEngine {
         return GameEngineImpl(
             boardEngine = boardEngine,
@@ -82,7 +91,8 @@ object AppModule {
             spawnEngine = spawnEngine,
             scoreEngine = scoreEngine,
             gameOverEngine = gameOverEngine,
-            chainReactionEngine = chainReactionEngine
+            chainReactionEngine = chainReactionEngine,
+            levelBoardFactory = levelBoardFactory
         )
     }
 }

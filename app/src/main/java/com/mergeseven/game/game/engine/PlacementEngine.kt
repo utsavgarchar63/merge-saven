@@ -8,8 +8,6 @@ import com.mergeseven.game.game.model.*
  */
 class PlacementEngine {
 
-    private var nextTileId: Long = System.nanoTime()
-
     /**
      * Check if a piece can be placed at the given origin.
      *
@@ -25,7 +23,7 @@ class PlacementEngine {
     ): Boolean {
         val absoluteCells = piece.absoluteCells(origin)
         return absoluteCells.all { (coord, _) ->
-            board.isPlayable(coord) && board.isEmpty(coord)
+            board.isPlayable(coord) && board.isEmpty(coord) && !board.isLocked(coord)
         }
     }
 
@@ -38,13 +36,17 @@ class PlacementEngine {
     fun place(
         board: BoardState,
         piece: TilePiece,
-        origin: HexCoord
+        origin: HexCoord,
+        random: GameRandom
     ): List<Tile> {
-        return piece.absoluteCells(origin).map { (coord, value) ->
+        return piece.absolutePieceCells(origin).map { cell ->
             Tile(
-                id = nextTileId++,
-                value = value,
-                cell = coord
+                id = random.nextId(),
+                value = cell.value,
+                cell = cell.coord,
+                trait = cell.trait,
+                freezeStage = cell.freezeStage,
+                multiplierFactor = cell.multiplierFactor
             )
         }
     }

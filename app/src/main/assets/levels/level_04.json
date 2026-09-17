@@ -1,0 +1,16 @@
+{
+  "level": 4,
+  "target": 32,
+  "board": {
+    "mode": "radius_minus_holes",
+    "radius": 3,
+    "holes": []
+  },
+  "startingTiles": [],
+  "modifiers": [],
+  "objectives": [
+    { "type": "score_in_moves", "id": "score2k", "score": 2000, "moves": 30 },
+    { "type": "survive_moves", "id": "survive15", "moves": 15 }
+  ],
+  "starMoves": { "three": 18, "two": 28 }
+}

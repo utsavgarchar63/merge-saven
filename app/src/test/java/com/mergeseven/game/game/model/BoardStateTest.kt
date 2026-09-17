@@ -29,7 +29,7 @@ class BoardStateTest {
         val cells = playable.associateWith { null as Tile? }
         val state = BoardState(cells, playable)
         
-        val tile = Tile(coord, value = 2)
+        val tile = Tile(id = 1L, value = 2, cell = coord)
         val newState = state.withTile(tile)
         
         assertEquals(1, newState.occupiedCount)
@@ -42,7 +42,7 @@ class BoardStateTest {
     @Test
     fun `test removing a tile`() {
         val coord = HexCoord(0, 0)
-        val tile = Tile(coord, value = 4)
+        val tile = Tile(id = 1L, value = 4, cell = coord)
         val playable = setOf(coord)
         val cells = mapOf(coord to tile)
         val state = BoardState(cells, playable)

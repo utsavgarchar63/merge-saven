@@ -2,6 +2,7 @@ package com.mergeseven.game.game.engine
 
 import com.mergeseven.game.game.model.BoardState
 import com.mergeseven.game.game.model.HexCoord
+import com.mergeseven.game.game.model.RngState
 import com.mergeseven.game.game.model.Tile
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -41,7 +42,11 @@ class ChainReactionEngineTest {
         tiles.forEach { board = board.withTile(it) }
 
         // Start chain reaction
-        val result = chainReactionEngine.resolveChains(board, recentlyPlaced = listOf(tiles[0]))
+        val result = chainReactionEngine.resolveChains(
+            board,
+            GameRandom(RngState.fromSeed(1L)),
+            recentlyPlaced = listOf(tiles[0])
+        )
 
         // The first step merges the three 4s into an 8 at (0,0).
         // The second step merges the new 8 at (0,0) with the existing 8s at (-1,0) and (0,-1) into a 16.
@@ -69,14 +74,19 @@ class ChainReactionEngineTest {
         val t4 = Tile(4, 4, HexCoord(-1, 0))
         val t5 = Tile(5, 4, HexCoord(0, -1))
         
-        // Two existing 8s adjacent to (-1,0) (where the 4 will likely resolve)
-        val t6 = Tile(6, 8, HexCoord(-2, 0))
-        val t7 = Tile(7, 8, HexCoord(-1, -1))
+        // Every merge after the first resolves at the center-most cell of its group, which here is
+        // always (0,0), so the waiting 8s have to neighbour (0,0) for the third step to trigger.
+        val t6 = Tile(6, 8, HexCoord(1, -1))
+        val t7 = Tile(7, 8, HexCoord(-1, 1))
         
         val tiles = listOf(t1, t2, t3, t4, t5, t6, t7)
         tiles.forEach { board = board.withTile(it) }
 
-        val result = chainReactionEngine.resolveChains(board, recentlyPlaced = listOf(t1))
+        val result = chainReactionEngine.resolveChains(
+            board,
+            GameRandom(RngState.fromSeed(1L)),
+            recentlyPlaced = listOf(t1)
+        )
 
         // Step 1: 2s merge into 4 at (0,0).
         // Step 2: New 4 at (0,0) merges with (-1,0) and (0,-1) into an 8.

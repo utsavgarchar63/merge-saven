@@ -28,16 +28,28 @@ class ScoreEngineTest {
 
     @Test
     fun `test chain multipliers`() {
-        // Assuming Constants.CHAIN_MULTIPLIERS = [1.0f, 1.5f, 2.0f, 3.0f, 5.0f]
-        
+        // Constants.CHAIN_MULTIPLIERS = [1.0f, 1.25f, 1.5f, 2.0f] (Master Plan Section 20)
+
         // Chain index 0 (1.0x) -> 8 * 3 = 24
         assertEquals(24L, scoreEngine.calculateMergeScore(mergedValue = 8, tileCount = 3, chainIndex = 0))
-        
-        // Chain index 1 (1.5x) -> (8 * 3) * 1.5 = 36
-        assertEquals(36L, scoreEngine.calculateMergeScore(mergedValue = 8, tileCount = 3, chainIndex = 1))
-        
-        // Chain index 2 (2.0x) -> (8 * 3) * 2.0 = 48
-        assertEquals(48L, scoreEngine.calculateMergeScore(mergedValue = 8, tileCount = 3, chainIndex = 2))
+
+        // Chain index 1 (1.25x) -> (8 * 3) * 1.25 = 30
+        assertEquals(30L, scoreEngine.calculateMergeScore(mergedValue = 8, tileCount = 3, chainIndex = 1))
+
+        // Chain index 2 (1.5x) -> (8 * 3) * 1.5 = 36
+        assertEquals(36L, scoreEngine.calculateMergeScore(mergedValue = 8, tileCount = 3, chainIndex = 2))
+
+        // Chain index 3 (2.0x) -> (8 * 3) * 2.0 = 48
+        assertEquals(48L, scoreEngine.calculateMergeScore(mergedValue = 8, tileCount = 3, chainIndex = 3))
+
+        // Beyond the table, the last multiplier holds
+        assertEquals(48L, scoreEngine.calculateMergeScore(mergedValue = 8, tileCount = 3, chainIndex = 9))
+    }
+
+    @Test
+    fun `trait multiplier scales the score`() {
+        assertEquals(48L, scoreEngine.calculateMergeScore(mergedValue = 8, tileCount = 3, traitMultiplier = 2f))
+        assertEquals(12L, scoreEngine.calculateMergeScore(mergedValue = 8, tileCount = 3, traitMultiplier = 0.5f))
     }
 
     @Test

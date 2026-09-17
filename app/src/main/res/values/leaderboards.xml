@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Replace with Play Console leaderboard IDs before release. -->
+    <string name="leaderboard_endless" translatable="false">CgkIxxxxxxxxxxxxENDLESS</string>
+    <string name="leaderboard_daily" translatable="false">CgkIxxxxxxxxxxxxDAILY</string>
+    <string name="leaderboard_weekly" translatable="false">CgkIxxxxxxxxxxxxWEEKLY</string>
+</resources>

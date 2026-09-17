@@ -51,6 +51,7 @@ object GameColors {
     // ──────────────────────────────────────────────
     val BoardCellEmpty = Color(0x33FFFFFF)
     val BoardCellHighlight = Color(0x66FFD54A)
+    val BoardCellHint = Color(0x8842A5F5)
     val BoardCellInvalid = Color(0x44E9534F)
 
     // ──────────────────────────────────────────────

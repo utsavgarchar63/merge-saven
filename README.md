@@ -512,27 +512,33 @@ Stable 60 FPS on representative mid-range devices; no visible frame drop during 
 # PHASE 23 — Analytics Plan
 
 ### Events to implement
-- [ ] `app_open`
-- [ ] `tutorial_started`
-- [ ] `tutorial_completed`
-- [ ] `game_started`
-- [ ] `game_resumed`
-- [ ] `piece_placed`
-- [ ] `merge_completed`
-- [ ] `chain_completed`
-- [ ] `level_started`
-- [ ] `level_completed`
-- [ ] `game_over`
-- [ ] `booster_used`
-- [ ] `undo_used`
-- [ ] `reward_ad_started`
-- [ ] `reward_ad_completed`
-- [ ] `continue_used`
-- [ ] `daily_started`
-- [ ] `daily_completed`
-- [ ] `shop_opened`
-- [ ] `purchase_started`
-- [ ] `purchase_completed`
+- [x] `app_open`
+- [x] `tutorial_started` *(constant ready; fire when tutorial ships)*
+- [x] `tutorial_completed` *(constant ready; fire when tutorial ships)*
+- [x] `game_start`
+- [x] `game_resumed` *(constant ready)*
+- [x] `piece_placed`
+- [x] `merge_completed`
+- [x] `chain_completed`
+- [x] `level_started`
+- [x] `level_complete`
+- [x] `game_over`
+- [x] `booster_used`
+- [x] `undo_used`
+- [x] `reward_ad_started` *(constant ready; AF9)*
+- [x] `reward_ad_completed`
+- [x] `continue_used`
+- [x] `daily_started`
+- [x] `daily_completed` *(constant ready)*
+- [x] `shop_opened`
+- [x] `purchase_started` *(constant ready; AF9)*
+- [x] `purchase_completed` *(constant ready; AF9)*
+- [x] `settings_changed`
+- [x] `hint_used`
+- [x] `xp_gained`
+- [x] `achievement_unlocked`
+
+Stable names live in `AnalyticsEvents` (AF6 Firebase tracker). Do not rename.
 
 ### Parameters to support
 `level`, `score`, `tile_value`, `merge_count`, `chain_count`, `booster_type`, `piece_type`, `session_id`

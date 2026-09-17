@@ -1,74 +1,64 @@
 package com.mergeseven.game.game.model
 
+import kotlin.math.abs
+import kotlin.math.max
 import kotlinx.serialization.Serializable
 
 /**
  * The state of the hex board.
- * See Master Plan Section 8.4.
+ * See Master Plan Section 8.4 / AF1-10–12.
  *
  * @param cells Map of hex coordinates to tiles. Null value means the cell is empty.
  * @param playableCells The set of coordinates that are valid play positions.
+ * @param cellModifiers Optional per-cell modifiers (score pad, spawn vent, locked).
  */
 @Serializable
 data class BoardState(
     val cells: Map<HexCoord, Tile?>,
-    val playableCells: Set<HexCoord>
+    val playableCells: Set<HexCoord>,
+    val cellModifiers: Map<HexCoord, CellModifier> = emptyMap()
 ) {
-    /**
-     * Returns all non-null tiles currently on the board.
-     */
     fun activeTiles(): List<Tile> =
         cells.values.filterNotNull()
 
-    /**
-     * Returns all empty playable cells.
-     */
     fun emptyCells(): Set<HexCoord> =
         playableCells.filter { cells[it] == null }.toSet()
 
-    /**
-     * Returns the tile at the given coordinate, or null if empty or out of bounds.
-     */
     fun tileAt(coord: HexCoord): Tile? = cells[coord]
 
-    /**
-     * Returns true if the given coordinate is a valid playable cell.
-     */
     fun isPlayable(coord: HexCoord): Boolean =
         coord in playableCells
 
-    /**
-     * Returns true if the given coordinate is empty and playable.
-     */
     fun isEmpty(coord: HexCoord): Boolean =
         coord in playableCells && cells[coord] == null
 
-    /**
-     * Returns a new BoardState with the given tile placed.
-     */
+    fun modifierAt(coord: HexCoord): CellModifier? = cellModifiers[coord]
+
+    fun isLocked(coord: HexCoord): Boolean =
+        cellModifiers[coord]?.type == CellModifierType.LOCKED
+
     fun withTile(tile: Tile): BoardState =
         copy(cells = cells + (tile.cell to tile))
 
-    /**
-     * Returns a new BoardState with the tile at the given coordinate removed.
-     */
     fun withoutTile(coord: HexCoord): BoardState =
         copy(cells = cells + (coord to null))
 
-    /**
-     * Number of occupied cells.
-     */
+    fun withModifiers(modifiers: Map<HexCoord, CellModifier>): BoardState =
+        copy(cellModifiers = modifiers)
+
+    fun withModifierCleared(coord: HexCoord): BoardState =
+        copy(cellModifiers = cellModifiers - coord)
+
     val occupiedCount: Int get() = cells.values.count { it != null }
 
-    /**
-     * Number of total playable cells.
-     */
     val totalPlayable: Int get() = playableCells.size
 
-    /**
-     * Board fill ratio (0.0 = empty, 1.0 = full).
-     */
     val fillRatio: Float get() =
         if (totalPlayable == 0) 0f
         else occupiedCount.toFloat() / totalPlayable.toFloat()
+
+    /** Bounding hex radius for Canvas fit (AF1-10 non-radial boards). */
+    fun displayRadius(): Int =
+        playableCells.maxOfOrNull { max(abs(it.q), max(abs(it.r), abs(it.s))) }
+            ?: 0
 }

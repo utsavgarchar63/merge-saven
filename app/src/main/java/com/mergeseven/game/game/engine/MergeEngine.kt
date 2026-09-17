@@ -1,13 +1,25 @@
 package com.mergeseven.game.game.engine
 
 import com.mergeseven.game.core.Constants
+import com.mergeseven.game.game.engine.traits.TraitInteractions
 import com.mergeseven.game.game.model.*
 
 /**
+ * Outcome of resolving one merge group, including side-effect inputs for the chain layer.
+ */
+data class MergeResolution(
+    val board: BoardState,
+    val event: GameEvent.MergeCompleted,
+    val bombSourceCells: List<HexCoord>,
+    val mergeCells: Set<HexCoord>,
+    val destination: HexCoord
+)
+
+/**
  * Detects and resolves tile merges on the board.
- * See Master Plan Sections 10-11 (Merge Rule, Merge Resolution), Phase 8.
+ * See Master Plan Sections 10-11 (Merge Rule, Merge Resolution), Phase 8 / AF1.
  *
- * Uses BFS to find connected groups of same-value tiles.
+ * Uses BFS to find connected mergeable groups (wildcard-aware via [TraitInteractions]).
  * Groups of MIN_MERGE_COUNT or more are merged into the next value.
  */
 class MergeEngine(
@@ -16,44 +28,34 @@ class MergeEngine(
 
     /**
      * Find all mergeable groups on the board.
-     * A group is a set of connected tiles with the same value
-     * that has at least MIN_MERGE_COUNT members.
-     *
-     * @return List of groups, each containing the tiles in the group.
+     * A group is a set of connected merge-participating tiles that share one established value
+     * (wildcards match any) and has at least MIN_MERGE_COUNT members.
      */
     fun findMergeableGroups(board: BoardState): List<List<Tile>> {
         val visited = mutableSetOf<HexCoord>()
         val groups = mutableListOf<List<Tile>>()
 
-        for (tile in board.activeTiles()) {
-            if (tile.cell in visited) continue
+        val ordered = board.activeTiles().sortedWith(compareBy({ it.cell.q }, { it.cell.r }, { it.id }))
 
-            // BFS to find connected group of same value
-            val group = mutableListOf<Tile>()
-            val queue = ArrayDeque<HexCoord>()
-            queue.add(tile.cell)
-            visited.add(tile.cell)
+        // Non-wildcard seeds first so group value is stable and wildcards are claimed deterministically.
+        for (start in ordered) {
+            if (start.cell in visited) continue
+            if (!TraitInteractions.canParticipateInMerge(start)) continue
+            if (TraitInteractions.isWildcard(start)) continue
 
-            while (queue.isNotEmpty()) {
-                val current = queue.removeFirst()
-                val currentTile = board.tileAt(current) ?: continue
-
-                if (currentTile.value == tile.value) {
-                    group.add(currentTile)
-
-                    // Visit six hex neighbors
-                    for (neighbor in current.neighbors()) {
-                        if (neighbor !in visited) {
-                            val neighborTile = board.tileAt(neighbor)
-                            if (neighborTile != null && neighborTile.value == tile.value) {
-                                visited.add(neighbor)
-                                queue.add(neighbor)
-                            }
-                        }
-                    }
-                }
+            val group = growGroup(board, start, start.value, visited)
+            if (group.size >= Constants.MIN_MERGE_COUNT) {
+                groups.add(group)
             }
+        }
 
+        // Remaining all-wildcard clusters.
+        for (start in ordered) {
+            if (start.cell in visited) continue
+            if (!TraitInteractions.canParticipateInMerge(start)) continue
+            if (!TraitInteractions.isWildcard(start)) continue
+
+            val group = growGroup(board, start, groupValue = null, visited)
             if (group.size >= Constants.MIN_MERGE_COUNT) {
                 groups.add(group)
             }
@@ -62,49 +64,83 @@ class MergeEngine(
         return groups
     }
 
+    private fun growGroup(
+        board: BoardState,
+        start: Tile,
+        groupValue: Int?,
+        visited: MutableSet<HexCoord>
+    ): List<Tile> {
+        val group = mutableListOf<Tile>()
+        val queue = ArrayDeque<Tile>()
+        var value = groupValue
+
+        queue.add(start)
+        visited.add(start.cell)
+
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            group.add(current)
+
+            if (value == null && !TraitInteractions.isWildcard(current)) {
+                value = current.value
+            }
+
+            for (neighborCoord in current.cell.neighbors()) {
+                if (neighborCoord in visited) continue
+                val neighbor = board.tileAt(neighborCoord) ?: continue
+                if (!TraitInteractions.canConnect(neighbor, value)) continue
+
+                visited.add(neighborCoord)
+                queue.add(neighbor)
+                if (value == null && !TraitInteractions.isWildcard(neighbor)) {
+                    value = neighbor.value
+                }
+            }
+        }
+
+        return group
+    }
+
     /**
      * Resolve a single merge group.
-     * See Master Plan Section 11.
-     *
-     * - Pick merge destination (deterministic: prefer center-most cell)
-     * - Remove source tiles
-     * - Create upgraded tile at destination
-     * - Calculate score
-     *
-     * @param board Current board state.
-     * @param group The tiles to merge.
-     * @param preferredDestination Optional preferred destination (e.g., newly placed tile).
-     * @param chainIndex The chain step index for multiplier calculation.
-     * @return Pair of the new board state and the merge event.
+     * Result tile is always [TileTrait.NORMAL]. Bomb clears and thaw are applied by
+     * [ChainReactionEngine] using [MergeResolution] metadata.
      */
     fun resolveGroup(
         board: BoardState,
         group: List<Tile>,
+        random: GameRandom,
         preferredDestination: HexCoord? = null,
         chainIndex: Int = 0
-    ): Pair<BoardState, GameEvent.MergeCompleted> {
-        val mergedValue = group.first().value * 2
+    ): MergeResolution {
+        val mergedValue = TraitInteractions.mergedResultValue(group)
         val destination = selectDestination(group, preferredDestination)
+        val mergeCells = group.map { it.cell }.toSet()
+        val bombSources = group.filter { TraitInteractions.isBomb(it) }.map { it.cell }
 
-        // Remove all source tiles
         var newBoard = board
         for (tile in group) {
             newBoard = newBoard.withoutTile(tile.cell)
         }
 
-        // Create upgraded tile at destination
         val newTile = Tile(
-            id = System.nanoTime(),
+            id = random.nextId(),
             value = mergedValue,
-            cell = destination
+            cell = destination,
+            trait = TileTrait.NORMAL
         )
         newBoard = newBoard.withTile(newTile)
 
-        // Calculate score
+        val traitMultiplier = TraitInteractions.scoreTraitMultiplier(group)
+        val padBonus = board.modifierAt(destination)
+            ?.takeIf { it.type == com.mergeseven.game.game.model.CellModifierType.SCORE_PAD }
+            ?.scoreBonus
+            ?: 1f
         val score = scoreEngine.calculateMergeScore(
             mergedValue = mergedValue,
             tileCount = group.size,
-            chainIndex = chainIndex
+            chainIndex = chainIndex,
+            traitMultiplier = traitMultiplier * padBonus
         )
 
         val event = GameEvent.MergeCompleted(
@@ -113,7 +149,13 @@ class MergeEngine(
             scoreEarned = score
         )
 
-        return newBoard to event
+        return MergeResolution(
+            board = newBoard,
+            event = event,
+            bombSourceCells = bombSources,
+            mergeCells = mergeCells,
+            destination = destination
+        )
     }
 
     /**
@@ -128,12 +170,10 @@ class MergeEngine(
         group: List<Tile>,
         preferred: HexCoord?
     ): HexCoord {
-        // Prefer the specified destination if it's in the group
         if (preferred != null && group.any { it.cell == preferred }) {
             return preferred
         }
 
-        // Otherwise pick center-most (closest to origin)
         return group.minByOrNull { it.cell.distanceTo(HexCoord.ORIGIN) }?.cell
             ?: group.first().cell
     }

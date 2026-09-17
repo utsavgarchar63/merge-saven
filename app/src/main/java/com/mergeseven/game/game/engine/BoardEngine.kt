@@ -54,6 +54,17 @@ class BoardEngine {
     }
 
     /**
+     * Creates a board from an explicit playable-cell set (non-radial shapes, AF1-10).
+     */
+    fun createBoard(playableCells: Set<HexCoord>): BoardState {
+        require(playableCells.isNotEmpty()) { "playableCells must not be empty" }
+        return BoardState(
+            cells = playableCells.associateWith { null },
+            playableCells = playableCells
+        )
+    }
+
+    /**
      * Returns the number of playable cells for a given radius.
      * Formula: 3 * radius * (radius + 1) + 1
      */

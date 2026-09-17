@@ -1,0 +1,26 @@
+{
+  "level": 2,
+  "target": 32,
+  "board": {
+    "mode": "radius_minus_holes",
+    "radius": 3,
+    "holes": [
+      { "q": 0, "r": 0 },
+      { "q": 1, "r": -1 }
+    ]
+  },
+  "startingTiles": [
+    { "q": -1, "r": 0, "value": 4, "trait": "STONE" },
+    { "q": 1, "r": 0, "value": 4, "trait": "FROZEN", "freezeStage": 2 }
+  ],
+  "modifiers": [
+    { "q": 2, "r": 0, "type": "SCORE_PAD", "scoreBonus": 1.5 },
+    { "q": -2, "r": 1, "type": "SPAWN_VENT" },
+    { "q": 0, "r": 2, "type": "LOCKED" }
+  ],
+  "objectives": [
+    { "type": "reach_value", "id": "reach32", "value": 32 },
+    { "type": "clear_all_stone", "id": "clear_stone" }
+  ],
+  "starMoves": { "three": 20, "two": 35 }
+}

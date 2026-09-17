@@ -24,11 +24,7 @@ class GameOverEngineTest {
         val board = boardEngine.createBoard(radius = 2)
         val state = GameState.initial(
             board = board,
-            currentPiece = TilePiece(
-                id = 1,
-                cells = listOf(TilePiece.PieceCell(1, 4, HexCoord(0, 0)))
-            ),
-            nextPieces = emptyList(),
+            trayPieces = listOf(singleCellPiece()),
             level = 1,
             bestScore = 0
         )
@@ -38,7 +34,7 @@ class GameOverEngineTest {
     @Test
     fun `test completely full board is game over`() {
         var board = boardEngine.createBoard(radius = 2)
-        
+
         // Fill every playable cell
         board.playableCells.forEachIndexed { index, coord ->
             board = board.withTile(Tile(index.toLong(), 2, coord))
@@ -46,47 +42,50 @@ class GameOverEngineTest {
 
         val state = GameState.initial(
             board = board,
-            currentPiece = TilePiece(
-                id = 1,
-                cells = listOf(TilePiece.PieceCell(1, 4, HexCoord(0, 0)))
-            ),
-            nextPieces = emptyList(),
+            trayPieces = listOf(singleCellPiece()),
             level = 1,
             bestScore = 0
         )
-        
+
         assertTrue("Completely full board must trigger game over", gameOverEngine.isGameOver(state))
     }
 
     @Test
     fun `test no valid placement despite empty cells edge case`() {
         var board = boardEngine.createBoard(radius = 2)
-        
+
         // A radius 2 board has 19 cells.
         // We will leave exactly 1 cell empty: HexCoord(0,0)
-        board.playableCells.filter { it != HexCoord(0,0) }.forEachIndexed { index, coord ->
+        board.playableCells.filter { it != HexCoord(0, 0) }.forEachIndexed { index, coord ->
             board = board.withTile(Tile(index.toLong(), 2, coord))
         }
-        
+
         // Now the board has 1 empty cell.
         // If the piece requires 2 cells, it cannot fit anywhere.
         val piece = TilePiece(
             id = 1,
             cells = listOf(
-                TilePiece.PieceCell(1, 4, HexCoord(0, 0)),
-                TilePiece.PieceCell(2, 4, HexCoord(1, 0))
+                PieceCell(HexCoord(0, 0), 4),
+                PieceCell(HexCoord(1, 0), 4)
             )
         )
-        
+
         val state = GameState.initial(
             board = board,
-            currentPiece = piece,
-            nextPieces = emptyList(),
+            trayPieces = listOf(piece),
             level = 1,
             bestScore = 0
         )
-        
+
         // Even though there is an empty cell, the piece cannot fit, so game over!
-        assertTrue("Game over should trigger when piece can't fit in remaining isolated cells", gameOverEngine.isGameOver(state))
+        assertTrue(
+            "Game over should trigger when piece can't fit in remaining isolated cells",
+            gameOverEngine.isGameOver(state)
+        )
     }
+
+    private fun singleCellPiece() = TilePiece(
+        id = 1,
+        cells = listOf(PieceCell(HexCoord(0, 0), 4))
+    )
 }

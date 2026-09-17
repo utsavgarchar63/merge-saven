@@ -8,11 +8,28 @@ import kotlinx.serialization.Serializable
  *
  * @param offset Relative position from the piece's origin.
  * @param value The numeric value for this cell.
+ * @param trait Forwarded onto the board tile when placed (AF1).
+ * @param multiplierFactor Forwarded for MULTIPLIER cells.
+ * @param freezeStage Forwarded for FROZEN cells.
  */
 @Serializable
 data class PieceCell(
     val offset: HexCoord,
-    val value: Int
+    val value: Int,
+    val trait: TileTrait = TileTrait.NORMAL,
+    val multiplierFactor: Int = 1,
+    val freezeStage: Int = 0
+)
+
+/**
+ * Absolute board position of a piece cell after placing at an origin.
+ */
+data class AbsolutePieceCell(
+    val coord: HexCoord,
+    val value: Int,
+    val trait: TileTrait = TileTrait.NORMAL,
+    val multiplierFactor: Int = 1,
+    val freezeStage: Int = 0
 )
 
 /**
@@ -52,14 +69,24 @@ data class TilePiece(
         copy(rotation = (rotation + 5) % 6) // +5 ≡ -1 mod 6
 
     /**
-     * Returns the absolute board positions of this piece's cells
-     * when placed at the given origin.
+     * Absolute board positions (coord + value only) for hover / canPlace.
      */
-    fun absoluteCells(origin: HexCoord): List<Pair<HexCoord, Int>> {
-        return rotatedCells().map { cell ->
-            (origin + cell.offset) to cell.value
+    fun absoluteCells(origin: HexCoord): List<Pair<HexCoord, Int>> =
+        absolutePieceCells(origin).map { it.coord to it.value }
+
+    /**
+     * Absolute board cells including trait payload for placement.
+     */
+    fun absolutePieceCells(origin: HexCoord): List<AbsolutePieceCell> =
+        rotatedCells().map { cell ->
+            AbsolutePieceCell(
+                coord = origin + cell.offset,
+                value = cell.value,
+                trait = cell.trait,
+                multiplierFactor = cell.multiplierFactor,
+                freezeStage = cell.freezeStage
+            )
         }
-    }
 }
 
 /**

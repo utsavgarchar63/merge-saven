@@ -4,6 +4,7 @@ import com.mergeseven.game.core.Constants
 import com.mergeseven.game.game.model.HexCoord
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -53,5 +54,16 @@ class BoardEngineTest {
         assertTrue("-1,0 should be playable", state.isPlayable(HexCoord(-1, 0)))
         
         assertNull("Blocked cells should not be in the cells map", state.tileAt(HexCoord(0, 0)))
+    }
+
+    @Test
+    fun `explicit playable cells create an arbitrary shape`() {
+        val playable = setOf(HexCoord(0, 0), HexCoord(2, -1), HexCoord(-1, 2))
+        val state = boardEngine.createBoard(playable)
+
+        assertEquals(3, state.totalPlayable)
+        assertEquals(2, state.displayRadius())
+        assertTrue(state.isPlayable(HexCoord(2, -1)))
+        assertFalse(state.isPlayable(HexCoord(1, 0)))
     }
 }
