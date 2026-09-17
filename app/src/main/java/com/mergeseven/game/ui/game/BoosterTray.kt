@@ -45,16 +45,15 @@ fun BoosterTray(
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 12.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val visible = if (af3Enabled) {
-            buttons
+            buttons.filter { it.type != BoosterType.SWAP }
         } else {
             buttons.filter {
                 it.type in setOf(
                     BoosterType.UNDO,
-                    BoosterType.SWAP,
                     BoosterType.RANDOMIZE,
                     BoosterType.REMOVE
                 )

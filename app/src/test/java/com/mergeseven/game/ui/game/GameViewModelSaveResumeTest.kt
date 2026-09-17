@@ -141,6 +141,36 @@ class GameViewModelSaveResumeTest {
     }
 
     @Test
+    fun `onNextLevel keepBoard true preserves board score and advances level`() = runTest {
+        val repository = FakeGameRepository(completedGame(level = 1, targetValue = 16))
+        val viewModel = createViewModel(repository, levelId = 1)
+
+        assertTrue(viewModel.uiState.value.isLevelComplete)
+        assertEquals(100L, viewModel.uiState.value.score)
+
+        viewModel.onNextLevel(keepBoard = true)
+
+        assertFalse(viewModel.uiState.value.isLevelComplete)
+        assertEquals(2, viewModel.uiState.value.level)
+        assertEquals(100L, viewModel.uiState.value.score)
+        assertTrue(viewModel.uiState.value.tiles.isNotEmpty())
+    }
+
+    @Test
+    fun `onNextLevel keepBoard false resets board for next level`() = runTest {
+        val repository = FakeGameRepository(completedGame(level = 1, targetValue = 16))
+        val viewModel = createViewModel(repository, levelId = 1)
+
+        assertTrue(viewModel.uiState.value.isLevelComplete)
+
+        viewModel.onNextLevel(keepBoard = false)
+
+        assertFalse(viewModel.uiState.value.isLevelComplete)
+        assertEquals(2, viewModel.uiState.value.level)
+        assertEquals(0L, viewModel.uiState.value.score)
+    }
+
+    @Test
     fun `a debug force game over ends the active session`() = runTest {
         val repository = FakeGameRepository(null)
         val debugCommands = com.mergeseven.game.core.debug.DebugCommands()

@@ -12,6 +12,7 @@ import com.mergeseven.game.ads.ConsentManager
 import com.mergeseven.game.app.AppNavGraph
 import com.mergeseven.game.billing.BillingRepository
 import com.mergeseven.game.billing.EntitlementStore
+import com.mergeseven.game.core.audio.AudioManager
 import com.mergeseven.game.core.flags.Feature
 import com.mergeseven.game.core.flags.FeatureFlags
 import com.mergeseven.game.ui.theme.MergeSevenTheme
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var featureFlags: FeatureFlags
     @Inject lateinit var billingRepository: BillingRepository
     @Inject lateinit var entitlementStore: EntitlementStore
+    @Inject lateinit var audioManager: AudioManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -50,5 +52,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /** Start background music whenever the app comes to the foreground. */
+    override fun onResume() {
+        super.onResume()
+        audioManager.startMusic()
+    }
+
+    /** Pause music whenever the app goes to the background or loses focus. */
+    override fun onPause() {
+        super.onPause()
+        audioManager.pauseMusic()
     }
 }

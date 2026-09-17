@@ -32,7 +32,8 @@ data class CosmeticsUiState(
     val message: String? = null,
     val af5Enabled: Boolean = false,
     val equippedTileThemeId: String = "classic",
-    val equippedBoardThemeId: String = "wood"
+    val equippedBoardThemeId: String = "wood",
+    val previewId: String = "classic"
 )
 
 @HiltViewModel
@@ -43,6 +44,7 @@ class CosmeticsViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val tab = MutableStateFlow(CosmeticKind.TILE)
+    private val previewId = MutableStateFlow<String?>(null)
     private val message = MutableStateFlow<String?>(null)
 
     init {
@@ -51,12 +53,15 @@ class CosmeticsViewModel @Inject constructor(
 
     val uiState: StateFlow<CosmeticsUiState> = combine(
         tab,
+        previewId,
         unlockService.owned,
         userDataRepository.userProfile,
-        message,
-        featureFlags.enabledState(Feature.AF5, viewModelScope)
-    ) { kind, owned, profile, msg, af5 ->
+        message
+    ) { kind, pId, owned, profile, msg ->
         val defs = if (kind == CosmeticKind.TILE) CosmeticCatalog.tiles() else CosmeticCatalog.boards()
+        val defaultPreview = if (kind == CosmeticKind.TILE) profile.equippedTileThemeId else profile.equippedBoardThemeId
+        val activePreviewId = pId ?: defaultPreview
+
         CosmeticsUiState(
             tab = kind,
             rows = defs.map { def ->
@@ -70,14 +75,20 @@ class CosmeticsViewModel @Inject constructor(
             },
             coins = profile.coins,
             message = msg,
-            af5Enabled = af5,
+            af5Enabled = featureFlags.isEnabled(Feature.AF5),
             equippedTileThemeId = profile.equippedTileThemeId,
-            equippedBoardThemeId = profile.equippedBoardThemeId
+            equippedBoardThemeId = profile.equippedBoardThemeId,
+            previewId = activePreviewId
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CosmeticsUiState())
 
     fun selectTab(kind: CosmeticKind) {
         tab.value = kind
+        previewId.value = null
+    }
+
+    fun selectPreview(id: String) {
+        previewId.value = id
     }
 
     fun equip(id: String) {
@@ -92,6 +103,7 @@ class CosmeticsViewModel @Inject constructor(
             } else {
                 userDataRepository.equipBoardTheme(id)
             }
+            previewId.value = id
             message.value = "Equipped ${def.title}"
         }
     }
@@ -99,7 +111,12 @@ class CosmeticsViewModel @Inject constructor(
     fun buy(id: String) {
         viewModelScope.launch {
             val ok = unlockService.tryBuyCosmetic(id)
-            message.value = if (ok) "Purchased" else "Not enough coins"
+            if (ok) {
+                previewId.value = id
+                message.value = "Purchased"
+            } else {
+                message.value = "Not enough coins"
+            }
         }
     }
 

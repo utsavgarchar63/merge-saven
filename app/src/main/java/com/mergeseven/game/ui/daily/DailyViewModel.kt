@@ -26,6 +26,9 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
+import com.mergeseven.game.meta.AchievementMetric
+import com.mergeseven.game.meta.AchievementTracker
+
 data class DailyRewardItem(
     val day: Int,
     val coins: Int,
@@ -42,7 +45,8 @@ class DailyViewModel @Inject constructor(
     private val boosterInventory: BoosterInventoryStore,
     private val analyticsTracker: AnalyticsTracker,
     private val adService: AdService,
-    private val adPreloader: AdPreloader
+    private val adPreloader: AdPreloader,
+    private val achievementTracker: AchievementTracker
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile> = userDataRepository.userProfile
@@ -60,6 +64,12 @@ class DailyViewModel @Inject constructor(
             .getOrDefault("")
         if (today.isNotEmpty()) {
             userDataRepository.checkDailyLogin(today)
+            viewModelScope.launch {
+                achievementTracker.reportMetric(
+                    AchievementMetric.STREAK,
+                    userDataRepository.userProfile.value.currentStreak
+                )
+            }
         }
     }
 

@@ -348,13 +348,13 @@ fun SettingsScreen(
                 ) {
                     Text("ACHIEVEMENTS", color = GameColors.TextWhite)
                 }
-                OutlinedButton(
+                /* OutlinedButton(
                     onClick = onCosmeticsClick,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("COSMETICS", color = GameColors.TextWhite)
-                }
+                } */
                 OutlinedButton(
                     onClick = onStatsClick,
                     modifier = Modifier.fillMaxWidth(),

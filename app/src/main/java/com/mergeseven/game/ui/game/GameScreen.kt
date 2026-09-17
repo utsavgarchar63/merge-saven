@@ -341,6 +341,7 @@ fun GameScreen(
                             colourblindMode = uiState.colourblindMode,
                             largeTouchTargets = uiState.largeTouchTargets,
                             onSelectTraySlot = viewModel::onSelectTraySlot,
+                            onRotatePiece = viewModel::onRotateTraySlot,
                             onTrayPositioned = { bounds -> trayBounds = bounds },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -389,6 +390,7 @@ fun GameScreen(
                     colourblindMode = uiState.colourblindMode,
                     largeTouchTargets = uiState.largeTouchTargets,
                     onSelectTraySlot = viewModel::onSelectTraySlot,
+                    onRotatePiece = viewModel::onRotateTraySlot,
                     onTrayPositioned = { bounds ->
                         trayBounds = bounds
                     },
@@ -460,7 +462,8 @@ fun GameScreen(
                     }
                 },
                 onDoubleCoins = { activity?.let { viewModel.onDoubleCoinsAd(it) } },
-                onNextLevel = { viewModel.onNextLevel() },
+                onNextLevel = { viewModel.onNextLevel(keepBoard = true) },
+                onNextLevelFresh = { viewModel.onNextLevel(keepBoard = false) },
                 onNavigateHome = onNavigateHome,
                 onReplay = { viewModel.startNewGame() }
             )
@@ -530,7 +533,142 @@ fun GameScreen(
                 onDismiss = { viewModel.dismissConfirmBooster() }
             )
         }
+
+        // ─── Pause Overlay ──────────────────────────────
+        if (uiState.isPaused) {
+            PauseDialog(
+                onResume = { viewModel.onResume() },
+                onHome = onNavigateHome
+            )
+        }
         } // statusBars padded content
+    }
+}
+
+@Composable
+private fun PauseDialog(
+    onResume: () -> Unit,
+    onHome: () -> Unit
+) {
+    androidx.activity.compose.BackHandler { onResume() }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.72f))
+            // Consume all touches so the game board can't be interacted with while paused
+            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } },
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = GameColors.WoodDark.copy(alpha = 0.96f),
+            border = androidx.compose.foundation.BorderStroke(
+                2.dp,
+                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                    listOf(GameColors.CoinGold, GameColors.TileGold, GameColors.CoinGold)
+                )
+            ),
+            shadowElevation = 16.dp,
+            modifier = Modifier
+                .padding(horizontal = 32.dp)
+                .fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 28.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Pause icon badge
+                Surface(
+                    shape = CircleShape,
+                    color = GameColors.WoodMid.copy(alpha = 0.8f),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, GameColors.CoinGold.copy(alpha = 0.6f)),
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        GameIcon(
+                            resId = GameIcons.Pause,
+                            contentDescription = null,
+                            tint = GameColors.CoinGold,
+                            size = 30.dp
+                        )
+                    }
+                }
+
+                Text(
+                    text = "GAME PAUSED",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = 2.sp
+                    ),
+                    color = GameColors.CoinGold
+                )
+
+                Text(
+                    text = "Take a breath — your board is safe",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = GameColors.TextWhite.copy(alpha = 0.65f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Resume button
+                Button(
+                    onClick = onResume,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = GameColors.CoinGold,
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    GameIcon(
+                        resId = GameIcons.Play,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        size = 20.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "RESUME",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                    )
+                }
+
+                // Go Home button
+                OutlinedButton(
+                    onClick = onHome,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, GameColors.WoodLight.copy(alpha = 0.8f)),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    GameIcon(
+                        resId = GameIcons.Back,
+                        contentDescription = null,
+                        tint = GameColors.TextWhite.copy(alpha = 0.8f),
+                        size = 18.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "GO HOME",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.sp
+                        ),
+                        color = GameColors.TextWhite.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -545,6 +683,7 @@ private fun LevelCompleteDialog(
     onShare: () -> Unit = {},
     onDoubleCoins: () -> Unit = {},
     onNextLevel: () -> Unit,
+    onNextLevelFresh: (() -> Unit)? = null,
     onNavigateHome: () -> Unit,
     onReplay: () -> Unit
 ) {
@@ -694,10 +833,10 @@ private fun LevelCompleteDialog(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = stringResource(R.string.level_complete_next),
+                                text = stringResource(R.string.level_complete_continue),
                                 color = Color.Black,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
+                                fontSize = 15.sp
                             )
                         }
                     }
@@ -706,29 +845,31 @@ private fun LevelCompleteDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
+                        if (onNextLevelFresh != null) {
+                            OutlinedButton(
+                                onClick = onNextLevelFresh,
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, GameColors.WoodLight),
+                                modifier = Modifier.weight(1f).padding(end = 4.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.level_complete_fresh_board),
+                                    color = GameColors.TextWhite,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+
                         OutlinedButton(
                             onClick = onNavigateHome,
                             border = androidx.compose.foundation.BorderStroke(1.5.dp, GameColors.WoodLight),
-                            modifier = Modifier.weight(1f).padding(end = 6.dp)
+                            modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
                         ) {
                             Text(
                                 text = stringResource(R.string.level_complete_map),
                                 color = GameColors.TextWhite,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                        }
-
-                        OutlinedButton(
-                            onClick = onReplay,
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, GameColors.WoodLight),
-                            modifier = Modifier.weight(1f).padding(start = 6.dp)
-                        ) {
-                            Text(
-                                text = "REPLAY",
-                                color = GameColors.TextWhite,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                                fontSize = 12.sp
                             )
                         }
                     }
@@ -1185,10 +1326,14 @@ private fun ThreeOptionBottomTray(
     colourblindMode: ColourblindMode = ColourblindMode.OFF,
     largeTouchTargets: Boolean = false,
     onSelectTraySlot: (Int) -> Unit = {},
+    onRotatePiece: (Int) -> Unit = {},
     onTrayPositioned: (Rect) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val trayHeight = if (largeTouchTargets) 120.dp else 100.dp
+    // Whether the selected slot actually has a piece to rotate
+    val canRotate = trayPieces.getOrNull(selectedSlotIndex) != null
+
     Surface(
         modifier = modifier.onGloballyPositioned { coords ->
             onTrayPositioned(coords.boundsInRoot())
@@ -1198,16 +1343,66 @@ private fun ThreeOptionBottomTray(
         border = androidx.compose.foundation.BorderStroke(2.dp, GameColors.WoodLight)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = stringResource(R.string.game_tray_hint).uppercase(),
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = GameColors.CoinGold.copy(alpha = 0.9f),
-                modifier = Modifier.padding(bottom = 6.dp),
-                maxLines = 2
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.game_tray_hint).uppercase(),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = GameColors.CoinGold.copy(alpha = 0.9f),
+                    modifier = Modifier.weight(1f)
+                )
+                // ↻ Rotate button — rotates the currently selected tray piece
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (canRotate)
+                        GameColors.CoinGold.copy(alpha = 0.18f)
+                    else
+                        GameColors.WoodLight.copy(alpha = 0.10f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (canRotate) GameColors.CoinGold.copy(alpha = 0.55f)
+                        else GameColors.WoodLight.copy(alpha = 0.25f)
+                    ),
+                    modifier = Modifier
+                        .clickable(enabled = canRotate) {
+                            onRotatePiece(selectedSlotIndex)
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "↻",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            ),
+                            color = if (canRotate) GameColors.CoinGold
+                            else GameColors.TextWhite.copy(alpha = 0.35f)
+                        )
+                        Text(
+                            text = "ROTATE",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                letterSpacing = 1.sp
+                            ),
+                            color = if (canRotate) GameColors.CoinGold
+                            else GameColors.TextWhite.copy(alpha = 0.35f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

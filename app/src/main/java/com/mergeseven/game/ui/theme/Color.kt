@@ -11,48 +11,48 @@ import androidx.compose.ui.graphics.Color
 object GameColors {
 
     // ──────────────────────────────────────────────
-    // Wood / Background
+    // Wood / Background (Harmonized to App Icon)
     // ──────────────────────────────────────────────
-    val WoodDark = Color(0xFF6F3B24)
-    val WoodMid = Color(0xFF9B5A35)
-    val WoodLight = Color(0xFFC98953)
+    val WoodDark = Color(0xFF4A2518)
+    val WoodMid = Color(0xFF7A3E26)
+    val WoodLight = Color(0xFFA85D3B)
 
     // ──────────────────────────────────────────────
     // Tile Colors (mapped to tile values)
     // ──────────────────────────────────────────────
-    val TileBlue = Color(0xFF35A9E0)
-    val TileGreen = Color(0xFF62D95C)
-    val TileRed = Color(0xFFEB665B)
-    val TilePurple = Color(0xFF7567DD)
-    val TilePink = Color(0xFFD955A8)
-    val TileGold = Color(0xFFF1B62B)
-    val TileTeal = Color(0xFF26C6DA)
-    val TileOrange = Color(0xFFFF8A65)
-    val TileIndigo = Color(0xFF5C6BC0)
-    val TileLime = Color(0xFFAED581)
-    val TileCyan = Color(0xFF4DD0E1)
+    val TileBlue = Color(0xFF2CA5E0)
+    val TileGreen = Color(0xFF48D368)
+    val TileRed = Color(0xFFF0534C)
+    val TilePurple = Color(0xFF8B5CF6)
+    val TilePink = Color(0xFFEC4899)
+    val TileGold = Color(0xFFFBBF24)
+    val TileTeal = Color(0xFF14B8A6)
+    val TileOrange = Color(0xFFF97316)
+    val TileIndigo = Color(0xFF6366F1)
+    val TileLime = Color(0xFF84CC16)
+    val TileCyan = Color(0xFF06B6D4)
 
     // ──────────────────────────────────────────────
     // Text
     // ──────────────────────────────────────────────
     val TextWhite = Color(0xFFFFFFFF)
-    val TextDark = Color(0xFF3C241A)
+    val TextDark = Color(0xFF28130B)
 
     // ──────────────────────────────────────────────
     // UI Accents
     // ──────────────────────────────────────────────
     val CoinGold = Color(0xFFFFD54A)
-    val Success = Color(0xFF58D66F)
-    val Warning = Color(0xFFFFB648)
-    val Error = Color(0xFFE9534F)
+    val Success = Color(0xFF48D368)
+    val Warning = Color(0xFFF59E0B)
+    val Error = Color(0xFFEF4444)
 
     // ──────────────────────────────────────────────
     // Board
     // ──────────────────────────────────────────────
     val BoardCellEmpty = Color(0x33FFFFFF)
     val BoardCellHighlight = Color(0x66FFD54A)
-    val BoardCellHint = Color(0x8842A5F5)
-    val BoardCellInvalid = Color(0x44E9534F)
+    val BoardCellHint = Color(0x8838BDF8)
+    val BoardCellInvalid = Color(0x44EF4444)
 
     // ──────────────────────────────────────────────
     // Tile Value → Color Mapping

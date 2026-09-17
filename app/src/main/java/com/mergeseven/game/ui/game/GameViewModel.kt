@@ -57,8 +57,10 @@ import com.mergeseven.game.game.modes.ModeIds
 import com.mergeseven.game.game.modes.ModeSeeds
 import com.mergeseven.game.game.modes.ModeSessionContext
 import com.mergeseven.game.game.modes.ZenMode
+import com.mergeseven.game.game.objectives.LevelObjective
 import com.mergeseven.game.game.objectives.ObjectiveEvaluator
 import com.mergeseven.game.game.objectives.ObjectiveProgress
+import com.mergeseven.game.game.rules.LevelPool
 import com.mergeseven.game.game.repository.GameRepository
 import com.mergeseven.game.game.solver.CachedMoveSolver
 import com.mergeseven.game.game.solver.DailySeedValidator
@@ -180,7 +182,8 @@ data class GameUiState(
     val af11Enabled: Boolean = false,
     val colourblindMode: ColourblindMode = ColourblindMode.OFF,
     val largeTouchTargets: Boolean = false,
-    val accessibilityAnnouncement: AccessibilityAnnouncement? = null
+    val accessibilityAnnouncement: AccessibilityAnnouncement? = null,
+    val isPaused: Boolean = false
 ) {
     val currentPiece: TilePiece?
         get() = trayPieces.getOrNull(selectedSlotIndex) ?: trayPieces.firstOrNull { it != null }
@@ -447,17 +450,54 @@ class GameViewModel @Inject constructor(
         restartTimerIfNeeded()
     }
 
-    fun onNextLevel() {
+    fun onNextLevel(keepBoard: Boolean = true) {
+        if (keepBoard) {
+            val current = currentGameState
+            if (current != null) {
+                val nextLevelId = current.level + 1
+                val maxTileOnBoard = current.board.activeTiles().maxOfOrNull { it.value } ?: 0
+                val defaultLevelTarget = LevelPool.getLevel(nextLevelId).target.toInt()
+                val nextTarget = if (maxTileOnBoard >= defaultLevelTarget) {
+                    (maxTileOnBoard * 2).coerceAtLeast(defaultLevelTarget)
+                } else {
+                    defaultLevelTarget
+                }
+
+                val nextObjectives = listOf(
+                    LevelObjective.ReachValue(
+                        id = "reach_target",
+                        value = nextTarget
+                    )
+                )
+
+                val nextState = current.copy(
+                    level = nextLevelId,
+                    targetValue = nextTarget,
+                    objectives = nextObjectives,
+                    isGameOver = false
+                )
+
+                sessionEndedHandled = false
+                currentGameState = nextState
+                updateCrashContext(nextState, "next_level_continue")
+                applyState(nextState, endReason = null)
+                restartTimerIfNeeded()
+                return
+            }
+        }
+
         val nextLevel = _uiState.value.level + 1
         startNewGame(nextLevel)
     }
 
     fun onPause() {
+        _uiState.update { it.copy(isPaused = true) }
         audioManager.pauseMusic()
         timerJob?.cancel()
     }
 
     fun onResume() {
+        _uiState.update { it.copy(isPaused = false) }
         audioManager.startMusic()
         restartTimerIfNeeded()
     }
@@ -510,6 +550,7 @@ class GameViewModel @Inject constructor(
 
         if (isComplete && mode.id == ModeIds.CAMPAIGN) {
             levelRepository.completeLevel(gameState.level, gameState.score, stars)
+            userDataRepository.updateQuestProgress("quest_level", 1)
             audioManager.playSoundCombo()
             if (featureFlags.isEnabled(Feature.AF7)) {
                 cloudUploadTrigger.requestUpload(UploadReason.LEVEL_COMPLETE)
@@ -804,7 +845,6 @@ class GameViewModel @Inject constructor(
     ): List<BoosterButtonUi> {
         val trayTypes = listOf(
             BoosterType.UNDO,
-            BoosterType.SWAP,
             BoosterType.RANDOMIZE,
             BoosterType.REMOVE,
             BoosterType.HAMMER,
@@ -1013,9 +1053,14 @@ class GameViewModel @Inject constructor(
         val mergeCount = merges.size
         val maxResultTile = merges.maxOfOrNull { it.resultTile.value } ?: 0
         val maxChain = chains.maxOfOrNull { it.chainLength } ?: 0
+        val currentScore = result.state.score.toInt()
         if (mergeCount > 0) {
             userDataRepository.addXp(Constants.XP_PER_MERGE * mergeCount)
+            userDataRepository.updateQuestProgress("quest_merge", mergeCount)
             analyticsTracker.logEvent(AnalyticsEvents.XP_GAINED, mapOf("source" to "merge"))
+        }
+        if (currentScore > 0) {
+            userDataRepository.updateQuestProgress("quest_score", currentScore, isAbsolute = true)
         }
         if (maxChain > 1) {
             userDataRepository.addXp(Constants.XP_PER_CHAIN_STEP * (maxChain - 1))
@@ -1039,6 +1084,9 @@ class GameViewModel @Inject constructor(
             }
             if (maxResultTile > 0) {
                 achievementTracker.reportMetric(AchievementMetric.BIGGEST_TILE, maxResultTile)
+            }
+            if (currentScore > 0) {
+                achievementTracker.reportMetric(AchievementMetric.SCORE, currentScore)
             }
             unlockService.applyLevelUnlocks(userDataRepository.userProfile.value.playerLevel)
             achievementTracker.newlyCompleted.value?.title?.let { title ->

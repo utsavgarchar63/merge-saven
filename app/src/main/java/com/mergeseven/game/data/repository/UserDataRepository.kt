@@ -148,13 +148,17 @@ class UserDataRepository @Inject constructor(
             )
         }
 
-    fun updateQuestProgress(questId: String, progressIncrement: Int) = mutate { profile ->
+    fun updateQuestProgress(questId: String, progressValue: Int, isAbsolute: Boolean = false) = mutate { profile ->
         profile.copy(
             dailyQuests = profile.dailyQuests.map { quest ->
                 if (quest.id == questId && !quest.isClaimed) {
+                    val newProgress = if (isAbsolute) {
+                        maxOf(quest.currentProgress, progressValue)
+                    } else {
+                        quest.currentProgress + progressValue
+                    }
                     quest.copy(
-                        currentProgress = (quest.currentProgress + progressIncrement)
-                            .coerceAtMost(quest.targetProgress)
+                        currentProgress = newProgress.coerceAtMost(quest.targetProgress)
                     )
                 } else {
                     quest

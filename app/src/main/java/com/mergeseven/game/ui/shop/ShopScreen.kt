@@ -94,7 +94,7 @@ fun ShopScreen(
             Text(text = it, color = GameColors.CoinGold, modifier = Modifier.padding(bottom = 8.dp))
         }
 
-        if (af5Enabled) {
+        /* if (af5Enabled) {
             OutlinedButton(
                 onClick = onCosmeticsClick,
                 modifier = Modifier
@@ -103,7 +103,7 @@ fun ShopScreen(
             ) {
                 Text("COSMETICS", color = GameColors.CoinGold)
             }
-        }
+        } */
 
         if (af9Enabled) {
             OutlinedButton(

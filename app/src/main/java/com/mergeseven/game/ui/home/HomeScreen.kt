@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -103,7 +104,7 @@ fun HomeScreen(
         viewModel.refreshTournament()
     }
 
-    NotificationSoftAskHost()
+// NotificationSoftAskHost()
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -124,7 +125,7 @@ fun HomeScreen(
                 },
             contentScale = ContentScale.Crop
         )
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
@@ -138,13 +139,15 @@ fun HomeScreen(
                 )
                 .statusBarsPadding()
         ) {
+            val screenHeight = maxHeight
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
+                    .heightIn(min = screenHeight)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 32.dp, vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
             ) {
                 if (af9Enabled) {
                     BannerAdHost()
@@ -240,29 +243,7 @@ fun HomeScreen(
                     }
                 }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(
-                        painter = painterResource(GameIcons.Logo),
-                        contentDescription = "Merge Seven",
-                        modifier = Modifier
-                            .fillMaxWidth(0.72f)
-                            .padding(bottom = 8.dp),
-                        contentScale = ContentScale.Fit
-                    )
-
-                    if (animateHome) {
-                        IdleTileShimmerRow(shimmer = shimmer)
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-
-                    Text(
-                        text = "HEXAGON MERGE PUZZLE",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = GameColors.TextWhite.copy(alpha = 0.7f),
-                        letterSpacing = 2.sp,
-                        textAlign = TextAlign.Center
-                    )
-                }
+                HomeTitleHeaderBanner(animateHome = animateHome, shimmer = shimmer)
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -318,7 +299,7 @@ fun HomeScreen(
 
                     if (af5Enabled) {
                         HomeButton(text = "ACHIEVEMENTS", onClick = onAchievementsClick)
-                        HomeButton(text = "COSMETICS", onClick = onCosmeticsClick)
+                        HomeButton(text = "THEMES & COSMETICS", onClick = onCosmeticsClick)
                         HomeButton(text = "STATS", onClick = onStatsClick)
                     }
 
@@ -428,3 +409,125 @@ private fun HomeButton(
         )
     }
 }
+
+@Composable
+private fun HomeTitleHeaderBanner(
+    animateHome: Boolean,
+    shimmer: Float
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(bottom = 4.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .height(110.dp)
+            ) {
+                // Radial gold halo aura
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            GameColors.CoinGold.copy(alpha = 0.35f + shimmer * 0.15f),
+                            GameColors.TilePurple.copy(alpha = 0.2f),
+                            Color.Transparent
+                        )
+                    ),
+                    radius = size.width * 0.45f
+                )
+
+                // Render decorative glowing hexagon game tile graphics
+                val path = androidx.compose.ui.graphics.Path()
+                val hexRadius = 24f
+                val centers = listOf(
+                    Offset(size.width * 0.18f, size.height * 0.4f) to GameColors.TileBlue,
+                    Offset(size.width * 0.82f, size.height * 0.4f) to GameColors.TileGreen,
+                    Offset(size.width * 0.30f, size.height * 0.25f) to GameColors.TileGold,
+                    Offset(size.width * 0.70f, size.height * 0.25f) to GameColors.TilePurple
+                )
+
+                centers.forEach { (center, color) ->
+                    path.reset()
+                    for (i in 0..5) {
+                        val angleRad = (Math.PI / 3 * i - Math.PI / 6).toFloat()
+                        val x = center.x + hexRadius * kotlin.math.cos(angleRad)
+                        val y = center.y + hexRadius * kotlin.math.sin(angleRad)
+                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                    }
+                    path.close()
+                    drawPath(path = path, color = color.copy(alpha = 0.65f))
+                    drawPath(
+                        path = path,
+                        color = Color.White.copy(alpha = 0.4f),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+                    )
+                }
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Central Glowing Number 7 Badge
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = GameColors.WoodDark.copy(alpha = 0.85f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        2.dp,
+                        Brush.horizontalGradient(
+                            listOf(GameColors.CoinGold, GameColors.TileGold, GameColors.CoinGold)
+                        )
+                    ),
+                    shadowElevation = 8.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "💎 MERGE SEVEN 💎",
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.Black,
+                                fontSize = 26.sp,
+                                letterSpacing = 2.sp
+                            ),
+                            color = GameColors.CoinGold
+                        )
+                    }
+                }
+            }
+        }
+
+        if (animateHome) {
+            Spacer(modifier = Modifier.height(6.dp))
+            IdleTileShimmerRow(shimmer = shimmer)
+            Spacer(modifier = Modifier.height(6.dp))
+        }
+
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = GameColors.WoodLight.copy(alpha = 0.25f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, GameColors.CoinGold.copy(alpha = 0.4f))
+        ) {
+            Text(
+                text = "HEXAGON MERGE PUZZLE • v1.4.0",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    letterSpacing = 2.sp
+                ),
+                color = GameColors.CoinGold.copy(alpha = 0.95f),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
