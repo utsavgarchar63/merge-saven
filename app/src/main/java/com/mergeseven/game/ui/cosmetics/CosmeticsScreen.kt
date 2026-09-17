@@ -102,8 +102,7 @@ fun CosmeticsScreen(
                 .padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            val previewThemeId = ui.rows.firstOrNull { it.equipped }?.def?.id ?: "classic"
-            val theme = TileThemes.of(previewThemeId)
+            val theme = TileThemes.of(ui.equippedTileThemeId)
             listOf(2, 4, 8, 16).forEach { value ->
                 Canvas(modifier = Modifier.size(36.dp)) {
                     drawCircle(theme.tileColor(value))

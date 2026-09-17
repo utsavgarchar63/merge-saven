@@ -331,13 +331,15 @@ class GameViewModel @Inject constructor(
             combine(
                 featureFlags.observe(Feature.AF11),
                 settingsRepository.colourblindMode,
-                settingsRepository.largeTouchTargets
-            ) { af11, cb, large ->
-                Triple(af11, cb, large)
-            }.collect { (af11, cb, large) ->
-                af11Enabled = af11
-                colourblindMode = if (af11) cb else ColourblindMode.OFF
-                largeTouchTargets = af11 && large
+                settingsRepository.largeTouchTargets,
+                userDataRepository.userProfile
+            ) { af11, cb, large, profile ->
+                data class SettingsProfileTuple(val af11: Boolean, val cb: ColourblindMode, val large: Boolean, val profile: com.mergeseven.game.data.model.UserProfile)
+                SettingsProfileTuple(af11, cb, large, profile)
+            }.collect { tuple ->
+                af11Enabled = tuple.af11
+                colourblindMode = if (tuple.af11) tuple.cb else ColourblindMode.OFF
+                largeTouchTargets = tuple.af11 && tuple.large
                 currentGameState?.let { state ->
                     updateUiFromState(
                         state,
@@ -349,7 +351,9 @@ class GameViewModel @Inject constructor(
                     it.copy(
                         af11Enabled = af11Enabled,
                         colourblindMode = colourblindMode,
-                        largeTouchTargets = largeTouchTargets
+                        largeTouchTargets = largeTouchTargets,
+                        boardThemeId = if (featureFlags.isEnabled(Feature.AF5)) tuple.profile.equippedBoardThemeId else "wood",
+                        tileThemeId = if (featureFlags.isEnabled(Feature.AF5)) tuple.profile.equippedTileThemeId else "classic"
                     )
                 }
             }

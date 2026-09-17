@@ -30,7 +30,9 @@ data class CosmeticsUiState(
     val rows: List<CosmeticRow> = emptyList(),
     val coins: Int = 0,
     val message: String? = null,
-    val af5Enabled: Boolean = false
+    val af5Enabled: Boolean = false,
+    val equippedTileThemeId: String = "classic",
+    val equippedBoardThemeId: String = "wood"
 )
 
 @HiltViewModel
@@ -68,7 +70,9 @@ class CosmeticsViewModel @Inject constructor(
             },
             coins = profile.coins,
             message = msg,
-            af5Enabled = af5
+            af5Enabled = af5,
+            equippedTileThemeId = profile.equippedTileThemeId,
+            equippedBoardThemeId = profile.equippedBoardThemeId
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CosmeticsUiState())
 

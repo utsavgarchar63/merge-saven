@@ -64,7 +64,9 @@
     <!-- Level Complete -->
     <string name="level_complete_title">LEVEL COMPLETE!</string>
     <string name="level_complete_level">LEVEL %1$d COMPLETE!</string>
-    <string name="level_complete_next">NEXT LEVEL</string>
+    <string name="level_complete_next">CONTINUE PLAYING</string>
+    <string name="level_complete_continue">CONTINUE PLAYING (INFINITE)</string>
+    <string name="level_complete_fresh_board">START FRESH BOARD</string>
     <string name="level_complete_replay">PLAY AGAIN</string>
     <string name="level_complete_home">HOME</string>
     <string name="level_complete_map">LEVEL MAP</string>

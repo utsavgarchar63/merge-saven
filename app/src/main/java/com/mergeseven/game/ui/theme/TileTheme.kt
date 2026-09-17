@@ -39,11 +39,19 @@ object SeasonalTileTheme : TileTheme {
         warmShift(GameColors.tileColor(value))
 }
 
+object PremiumTileTheme : TileTheme {
+    override val id: String = CosmeticCatalog.TILE_PREMIUM
+    override fun tileColor(value: Int): Color =
+        goldShift(GameColors.tileColor(value))
+    override val highlightAlpha: Float = 0.35f
+}
+
 object TileThemes {
     fun of(id: String): TileTheme = when (id) {
         CosmeticCatalog.TILE_MARBLE -> MarbleTileTheme
         CosmeticCatalog.TILE_NEON -> NeonTileTheme
         CosmeticCatalog.TILE_SEASONAL -> SeasonalTileTheme
+        CosmeticCatalog.TILE_PREMIUM -> PremiumTileTheme
         else -> ClassicTileTheme
     }
 }
@@ -68,5 +76,12 @@ private fun warmShift(color: Color): Color = Color(
     red = (color.red * 1.08f).coerceAtMost(1f),
     green = (color.green * 0.95f).coerceIn(0f, 1f),
     blue = (color.blue * 0.85f).coerceIn(0f, 1f),
+    alpha = color.alpha
+)
+
+private fun goldShift(color: Color): Color = Color(
+    red = (color.red * 1.15f).coerceAtMost(1f),
+    green = (color.green * 0.98f).coerceAtMost(1f),
+    blue = (color.blue * 0.70f).coerceIn(0f, 1f),
     alpha = color.alpha
 )

@@ -38,36 +38,31 @@ class LocalFeatureFlags(
         @PersistenceScope scope: CoroutineScope
     ) : this(dataStore, scope, BuildConfig.DEBUG)
 
-    private val overrides = MutableStateFlow(allOff())
+    private val overrides = MutableStateFlow(allOn())
 
     init {
-        if (isDebug) {
-            scope.launch {
-                dataStore.data
-                    .catch { exception ->
-                        if (exception is IOException) emit(emptyPreferences()) else throw exception
+        scope.launch {
+            dataStore.data
+                .catch { exception ->
+                    if (exception is IOException) emit(emptyPreferences()) else throw exception
+                }
+                .collect { prefs ->
+                    overrides.value = Feature.entries.associateWith { feature ->
+                        prefs[key(feature)] ?: true
                     }
-                    .collect { prefs ->
-                        overrides.value = Feature.entries.associateWith { feature ->
-                            prefs[key(feature)] ?: false
-                        }
-                    }
-            }
+                }
         }
     }
 
     override fun isEnabled(feature: Feature): Boolean {
-        if (!isDebug) return false
-        return overrides.value[feature] == true
+        return overrides.value[feature] ?: true
     }
 
     override fun observe(feature: Feature): Flow<Boolean> {
-        if (!isDebug) return flowOf(false)
-        return overrides.asStateFlow().map { it[feature] == true }
+        return overrides.asStateFlow().map { it[feature] ?: true }
     }
 
     override suspend fun setEnabled(feature: Feature, enabled: Boolean) {
-        if (!isDebug) return
         overrides.update { it + (feature to enabled) }
         dataStore.edit { prefs ->
             prefs[key(feature)] = enabled
@@ -75,14 +70,13 @@ class LocalFeatureFlags(
     }
 
     override fun snapshot(): Map<Feature, Boolean> {
-        if (!isDebug) return allOff()
         return overrides.value.toMap()
     }
 
     private fun key(feature: Feature) = booleanPreferencesKey(feature.name)
 
     private companion object {
-        fun allOff(): Map<Feature, Boolean> = Feature.entries.associateWith { false }
+        fun allOn(): Map<Feature, Boolean> = Feature.entries.associateWith { true }
     }
 }
 
