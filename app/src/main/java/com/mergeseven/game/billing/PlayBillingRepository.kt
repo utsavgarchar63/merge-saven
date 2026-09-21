@@ -113,9 +113,9 @@ class PlayBillingRepository @Inject constructor(
         }
         val params = QueryProductDetailsParams.newBuilder().setProductList(products).build()
         return suspendCancellableCoroutine { cont ->
-            client.queryProductDetailsAsync(params) { result, productDetailsList ->
+            client.queryProductDetailsAsync(params) { result, productDetailsResult ->
                 if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                    cont.resume(productDetailsList.orEmpty())
+                    cont.resume(productDetailsResult.productDetailsList)
                 } else {
                     Log.w(TAG, "queryProductDetails ${result.debugMessage}")
                     cont.resume(emptyList())

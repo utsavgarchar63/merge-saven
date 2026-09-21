@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.google.android.gms.games.PlayGamesSdk
 import com.mergeseven.game.cloud.CloudSyncCoordinator
 import com.mergeseven.game.core.analytics.AnalyticsEvents
 import com.mergeseven.game.core.analytics.AnalyticsTracker
@@ -48,6 +49,9 @@ class MergeSevenApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        // Initialize Google Play Games Services v2 SDK
+        PlayGamesSdk.initialize(this)
 
         // Off the main thread: this opens the database, and startup must not wait on disk.
         persistenceScope.launch { persistenceSeeder.seedIfNeeded() }

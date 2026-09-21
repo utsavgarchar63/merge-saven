@@ -11,14 +11,14 @@ plugins {
 
 android {
     namespace = "com.mergeseven.game"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.mergeseven.game"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 4
-        versionName = "1.4.0"
+        targetSdk = 36
+        versionCode = 6
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -30,6 +30,44 @@ android {
 
     signingConfigs {
         getByName("debug") {
+            val debugKeystoreFile = file("debug.keystore")
+            val rootDebugKeystore = file("${project.rootDir}/debug.keystore")
+            if (debugKeystoreFile.exists()) {
+                storeFile = debugKeystoreFile
+            } else if (rootDebugKeystore.exists()) {
+                storeFile = rootDebugKeystore
+            }
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+            isV1SigningEnabled = true
+            isV2SigningEnabled = true
+        }
+        create("release") {
+            val keystoreFile = file("release.keystore")
+            val debugKeystoreFile = file("debug.keystore")
+            val rootDebugKeystore = file("${project.rootDir}/debug.keystore")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = "mergeseven123"
+                keyAlias = "releasekey"
+                keyPassword = "mergeseven123"
+            } else if (debugKeystoreFile.exists()) {
+                storeFile = debugKeystoreFile
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            } else if (rootDebugKeystore.exists()) {
+                storeFile = rootDebugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            } else {
+                storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
             isV1SigningEnabled = true
             isV2SigningEnabled = true
         }
@@ -43,7 +81,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

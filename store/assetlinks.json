@@ -1,0 +1,14 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mergeseven.game",
+      "sha256_cert_fingerprints": [
+        "CB:71:95:93:A6:B1:26:36:7B:EA:10:32:8D:48:1C:21:91:16:9B:89:86:9D:0A:9E:79:D9:BB:6D:BF:C1:A8:1D",
+        "14:8A:D6:86:CA:39:94:67:34:45:14:11:D8:8F:8F:33:D2:12:32:40:F2:D1:4D:9C:15:0A:B9:13:5A:5B:23:8B",
+        "29:B9:E4:FC:24:43:A9:83:5A:BE:C0:2D:C7:70:D3:16:E0:07:A7:6E:25:09:CC:66:AD:BA:9C:1F:34:77:2A:BD"
+      ]
+    }
+  }
+]

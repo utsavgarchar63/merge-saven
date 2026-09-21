@@ -54,7 +54,7 @@ class DailyViewModelTest {
             adService = com.mergeseven.game.ads.FakeAdService(),
             adPreloader = com.mergeseven.game.ads.AdPreloader(com.mergeseven.game.ads.FakeAdService()),
             achievementTracker = com.mergeseven.game.meta.AchievementTracker(
-                TestPersistence.unlockDao(),
+                com.mergeseven.game.testing.InMemoryUnlockDao(),
                 TestPersistence.dispatchers()
             )
         )

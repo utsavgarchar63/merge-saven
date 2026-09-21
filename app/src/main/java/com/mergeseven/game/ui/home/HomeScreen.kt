@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -145,9 +146,9 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .heightIn(min = screenHeight)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 32.dp, vertical = 24.dp),
+                    .padding(horizontal = 24.dp, vertical = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Top)
             ) {
                 if (af9Enabled) {
                     BannerAdHost()
@@ -155,98 +156,136 @@ fun HomeScreen(
                 stipendMessage?.let {
                     Text(it, color = GameColors.CoinGold, fontSize = 12.sp)
                 }
-                remoteOffer?.let { offer ->
-                    Text(
-                        text = "Offer: ${offer.title}",
-                        color = GameColors.CoinGold,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onShopClick() },
-                        textAlign = TextAlign.Center
-                    )
-                }
-                Row(
+
+                // ─── Top Bar Header: Centered Coins & Stars ───
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(vertical = 4.dp)
                 ) {
+                    // Left: Level & XP Progress
                     if (af5Enabled) {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = GameColors.WoodLight.copy(alpha = 0.3f),
-                            modifier = Modifier.weight(1f, fill = false)
+                            shape = RoundedCornerShape(18.dp),
+                            color = GameColors.WoodDark.copy(alpha = 0.75f),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                GameColors.CoinGold.copy(alpha = 0.35f)
+                            ),
+                            modifier = Modifier.align(Alignment.CenterStart)
                         ) {
-                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                                Text(
-                                    text = "LV ${userProfile.playerLevel}",
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                    color = GameColors.CoinGold
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = GameColors.CoinGold.copy(alpha = 0.2f),
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "${userProfile.playerLevel}",
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Black),
+                                            color = GameColors.CoinGold,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                                Column {
+                                    Text(
+                                        text = "LV ${userProfile.playerLevel}",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = GameColors.CoinGold
+                                    )
+                                    LinearProgressIndicator(
+                                        progress = {
+                                            XpCurve.progressFraction(userProfile.xp, userProfile.playerLevel)
+                                        },
+                                        modifier = Modifier
+                                            .width(56.dp)
+                                            .height(4.dp)
+                                            .clip(RoundedCornerShape(2.dp)),
+                                        color = GameColors.CoinGold,
+                                        trackColor = GameColors.WoodDark.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Center: Prominent, Centered Stars & Coins Header Pill
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = GameColors.WoodDark.copy(alpha = 0.85f),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            Brush.horizontalGradient(
+                                listOf(
+                                    GameColors.CoinGold.copy(alpha = 0.8f),
+                                    GameColors.TileGold.copy(alpha = 0.95f),
+                                    GameColors.CoinGold.copy(alpha = 0.8f)
                                 )
-                                LinearProgressIndicator(
-                                    progress = {
-                                        XpCurve.progressFraction(userProfile.xp, userProfile.playerLevel)
-                                    },
-                                    modifier = Modifier
-                                        .width(96.dp)
-                                        .height(6.dp)
-                                        .padding(top = 4.dp),
-                                    color = GameColors.CoinGold,
-                                    trackColor = GameColors.WoodDark.copy(alpha = 0.5f)
+                            )
+                        ),
+                        shadowElevation = 6.dp,
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            // Total Stars
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                StarIcon(size = 20.dp)
+                                Text(
+                                    text = "${userProfile.totalStars}",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 16.sp
+                                    ),
+                                    color = GameColors.TextWhite
+                                )
+                            }
+
+                            // Glowing Divider Dot
+                            Box(
+                                modifier = Modifier
+                                    .size(4.dp)
+                                    .clip(CircleShape)
+                                    .background(GameColors.CoinGold.copy(alpha = 0.6f))
+                            )
+
+                            // Coins
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                CoinIcon(size = 20.dp)
+                                Text(
+                                    text = "${userProfile.coins}",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 16.sp
+                                    ),
+                                    color = GameColors.CoinGold
                                 )
                             }
                         }
-                    } else {
-                        Spacer(modifier = Modifier.width(1.dp))
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = GameColors.WoodLight.copy(alpha = 0.3f),
-                        modifier = Modifier.padding(end = 8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            StarIcon(size = 18.dp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${userProfile.totalStars}",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = GameColors.TextWhite
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = GameColors.WoodLight.copy(alpha = 0.3f),
-                        modifier = Modifier.clickable(onClick = onShopClick)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CoinIcon(size = 18.dp)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "${userProfile.coins}",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = GameColors.CoinGold
-                            )
-                        }
-                    }
                     }
                 }
 
                 HomeTitleHeaderBanner(animateHome = animateHome, shimmer = shimmer)
 
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .widthIn(max = 360.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {

@@ -133,7 +133,11 @@ class JuiceControllerTest {
         bestScore = 0,
         coins = 0,
         level = 1,
-        targetValue = 16
+        targetValue = 16,
+        moves = 0,
+        isPaused = false,
+        isGameOver = false,
+        isBusy = false
     )
 
     private class FakeSettings : SettingsRepository {

@@ -1,8 +1,10 @@
 package com.mergeseven.game.competitive
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.util.Log
-import com.google.android.gms.games.Games
+import com.google.android.gms.games.PlayGames
 import com.google.android.gms.games.leaderboard.LeaderboardVariant
 import com.mergeseven.game.cloud.PlayGamesAuth
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -32,13 +34,22 @@ class PlayGamesLeaderboardRepository @Inject constructor(
     private val mutex = Mutex()
     private val cache = mutableMapOf<Pair<LeaderboardId, LeaderboardScope>, List<LeaderboardEntry>>()
 
+    private fun findActivity(ctx: Context): Activity? {
+        var c = ctx
+        while (c is ContextWrapper) {
+            if (c is Activity) return c
+            c = c.baseContext
+        }
+        return null
+    }
+
     override fun cachedScores(board: LeaderboardId, scope: LeaderboardScope): List<LeaderboardEntry> =
         cache[board to scope].orEmpty()
 
     override suspend fun submitScore(board: LeaderboardId, score: Long): Boolean = mutex.withLock {
-        val account = auth.lastAccount() ?: return false
+        val activity = findActivity(context) ?: return false
         return try {
-            val client = Games.getLeaderboardsClient(context, account)
+            val client = PlayGames.getLeaderboardsClient(activity)
             val id = context.getString(board.playGamesIdRes)
             client.submitScoreImmediate(id, score).await()
             true
@@ -66,12 +77,9 @@ class PlayGamesLeaderboardRepository @Inject constructor(
         scope: LeaderboardScope,
         maxResults: Int
     ): List<LeaderboardEntry> = mutex.withLock {
-        val account = auth.lastAccount()
-        if (account == null) {
-            return cache[board to scope].orEmpty()
-        }
+        val activity = findActivity(context) ?: return cache[board to scope].orEmpty()
         return try {
-            val client = Games.getLeaderboardsClient(context, account)
+            val client = PlayGames.getLeaderboardsClient(activity)
             val id = context.getString(board.playGamesIdRes)
             val collection = when (scope) {
                 LeaderboardScope.FRIENDS -> LeaderboardVariant.COLLECTION_FRIENDS
@@ -131,9 +139,9 @@ class PlayGamesLeaderboardRepository @Inject constructor(
     }
 
     override fun openPlayGamesIntent(board: LeaderboardId): android.content.Intent? {
-        val account = auth.lastAccount() ?: return null
+        val activity = findActivity(context) ?: return null
         return try {
-            val client = Games.getLeaderboardsClient(context, account)
+            val client = PlayGames.getLeaderboardsClient(activity)
             // Intent is async in newer APIs; callers handle null gracefully.
             null
         } catch (_: Exception) {

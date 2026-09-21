@@ -22,9 +22,9 @@ firebaseBom = "33.7.0"
 crashlytics = "3.0.2"
 playServiceAds = "23.6.0"
 playServicesAuth = "21.2.0"
-playServicesGames = "23.2.0"
+playServicesGames = "20.1.2"
 userMessagingPlatform = "3.1.0"
-billing = "7.1.1"
+billing = "8.0.0"
 serialization = "1.7.3"
 desugarJdkLibs = "2.1.4"
 
@@ -87,7 +87,7 @@ firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore
 play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServiceAds" }
 user-messaging-platform = { group = "com.google.android.ump", name = "user-messaging-platform", version.ref = "userMessagingPlatform" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
-play-services-games = { group = "com.google.android.gms", name = "play-services-games", version.ref = "playServicesGames" }
+play-services-games = { group = "com.google.android.gms", name = "play-services-games-v2", version.ref = "playServicesGames" }
 
 # Billing
 billing = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }

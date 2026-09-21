@@ -1,8 +1,10 @@
 package com.mergeseven.game.cloud
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.util.Log
-import com.google.android.gms.games.Games
+import com.google.android.gms.games.PlayGames
 import com.google.android.gms.games.SnapshotsClient
 import com.google.android.gms.games.snapshot.SnapshotMetadataChange
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -38,6 +40,15 @@ class PlayGamesCloudSaveRepository @Inject constructor(
 
     private val mutex = Mutex()
 
+    private fun findActivity(ctx: Context): Activity? {
+        var c = ctx
+        while (c is ContextWrapper) {
+            if (c is Activity) return c
+            c = c.baseContext
+        }
+        return null
+    }
+
     override suspend fun read(): CloudSnapshot? = mutex.withLock {
         val account = auth.lastAccount() ?: return null
         readFromPlayGames(account)?.let { return it }
@@ -58,10 +69,8 @@ class PlayGamesCloudSaveRepository @Inject constructor(
     override suspend fun deleteSlot() = mutex.withLock {
         val account = auth.lastAccount()
         if (account != null) {
-            runCatching { deleteFromPlayGames(account) }
-            fallbackFile(accountId(account)).delete()
+            deleteFromPlayGames(account)
         }
-        // Also clear any leftover fallback for current auth player id
         auth.account.value?.playerId?.let { fallbackFile(it).delete() }
         Unit
     }
@@ -69,8 +78,9 @@ class PlayGamesCloudSaveRepository @Inject constructor(
     private suspend fun readFromPlayGames(
         account: com.google.android.gms.auth.api.signin.GoogleSignInAccount
     ): CloudSnapshot? {
+        val activity = findActivity(context) ?: return null
         return try {
-            val client = Games.getSnapshotsClient(context, account)
+            val client = PlayGames.getSnapshotsClient(activity)
             val opened = client.open(
                 CloudSnapshot.SNAPSHOT_NAME,
                 /* createIfNotFound = */ false,
@@ -89,8 +99,9 @@ class PlayGamesCloudSaveRepository @Inject constructor(
         account: com.google.android.gms.auth.api.signin.GoogleSignInAccount,
         bytes: ByteArray
     ): Boolean {
+        val activity = findActivity(context) ?: return false
         return try {
-            val client = Games.getSnapshotsClient(context, account)
+            val client = PlayGames.getSnapshotsClient(activity)
             val opened = client.open(
                 CloudSnapshot.SNAPSHOT_NAME,
                 /* createIfNotFound = */ true,
@@ -112,14 +123,17 @@ class PlayGamesCloudSaveRepository @Inject constructor(
     private suspend fun deleteFromPlayGames(
         account: com.google.android.gms.auth.api.signin.GoogleSignInAccount
     ) {
-        val client = Games.getSnapshotsClient(context, account)
-        val opened = client.open(
-            CloudSnapshot.SNAPSHOT_NAME,
-            false,
-            SnapshotsClient.RESOLUTION_POLICY_MOST_RECENTLY_MODIFIED
-        ).await()
-        val meta = opened.data?.metadata ?: return
-        client.delete(meta).await()
+        val activity = findActivity(context) ?: return
+        try {
+            val client = PlayGames.getSnapshotsClient(activity)
+            val opened = client.open(
+                CloudSnapshot.SNAPSHOT_NAME,
+                false,
+                SnapshotsClient.RESOLUTION_POLICY_MOST_RECENTLY_MODIFIED
+            ).await()
+            val meta = opened.data?.metadata ?: return
+            client.delete(meta).await()
+        } catch (_: Exception) {}
     }
 
     private fun accountId(account: com.google.android.gms.auth.api.signin.GoogleSignInAccount): String =
