@@ -48,7 +48,8 @@ fun SettingsScreen(
     onShopClick: () -> Unit = {},
     onAchievementsClick: () -> Unit = {},
     onCosmeticsClick: () -> Unit = {},
-    onStatsClick: () -> Unit = {}
+    onStatsClick: () -> Unit = {},
+    onPrivacyPolicyClick: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
@@ -399,6 +400,17 @@ fun SettingsScreen(
                                 Modifier
                             }
                         )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        OutlinedButton(
+                            onClick = onPrivacyPolicyClick,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, GameColors.CoinGold.copy(alpha = 0.6f))
+                        ) {
+                            Text("PRIVACY POLICY", color = GameColors.CoinGold, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }

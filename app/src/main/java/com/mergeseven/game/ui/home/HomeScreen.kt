@@ -3,8 +3,11 @@ package com.mergeseven.game.ui.home
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -20,6 +23,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +47,7 @@ import com.mergeseven.game.ads.BannerAdHost
 import com.mergeseven.game.game.modes.ModeIds
 import com.mergeseven.game.meta.XpCurve
 import com.mergeseven.game.ui.components.CoinIcon
+import com.mergeseven.game.ui.components.GameIcon
 import com.mergeseven.game.ui.components.GameIcons
 import com.mergeseven.game.ui.components.StarIcon
 import com.mergeseven.game.ui.theme.GameColors
@@ -148,7 +155,7 @@ fun HomeScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Top)
+                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
             ) {
                 if (af9Enabled) {
                     BannerAdHost()
@@ -157,64 +164,13 @@ fun HomeScreen(
                     Text(it, color = GameColors.CoinGold, fontSize = 12.sp)
                 }
 
-                // ─── Top Bar Header: Centered Coins & Stars ───
+                // ─── Top Bar Header: Centered Coins & Stars Only ───
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 4.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Left: Level & XP Progress
-                    if (af5Enabled) {
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = GameColors.WoodDark.copy(alpha = 0.75f),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                GameColors.CoinGold.copy(alpha = 0.35f)
-                            ),
-                            modifier = Modifier.align(Alignment.CenterStart)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = GameColors.CoinGold.copy(alpha = 0.2f),
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = "${userProfile.playerLevel}",
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Black),
-                                            color = GameColors.CoinGold,
-                                            fontSize = 11.sp
-                                        )
-                                    }
-                                }
-                                Column {
-                                    Text(
-                                        text = "LV ${userProfile.playerLevel}",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = GameColors.CoinGold
-                                    )
-                                    LinearProgressIndicator(
-                                        progress = {
-                                            XpCurve.progressFraction(userProfile.xp, userProfile.playerLevel)
-                                        },
-                                        modifier = Modifier
-                                            .width(56.dp)
-                                            .height(4.dp)
-                                            .clip(RoundedCornerShape(2.dp)),
-                                        color = GameColors.CoinGold,
-                                        trackColor = GameColors.WoodDark.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
                     // Center: Prominent, Centered Stars & Coins Header Pill
                     Surface(
                         shape = RoundedCornerShape(24.dp),
@@ -229,25 +185,24 @@ fun HomeScreen(
                                 )
                             )
                         ),
-                        shadowElevation = 6.dp,
-                        modifier = Modifier.align(Alignment.Center)
+                        shadowElevation = 6.dp
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             // Total Stars
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                StarIcon(size = 20.dp)
+                                StarIcon(size = 22.dp)
                                 Text(
                                     text = "${userProfile.totalStars}",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 16.sp
+                                        fontSize = 17.sp
                                     ),
                                     color = GameColors.TextWhite
                                 )
@@ -256,22 +211,22 @@ fun HomeScreen(
                             // Glowing Divider Dot
                             Box(
                                 modifier = Modifier
-                                    .size(4.dp)
+                                    .size(5.dp)
                                     .clip(CircleShape)
-                                    .background(GameColors.CoinGold.copy(alpha = 0.6f))
+                                    .background(GameColors.CoinGold.copy(alpha = 0.7f))
                             )
 
                             // Coins
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                CoinIcon(size = 20.dp)
+                                CoinIcon(size = 22.dp)
                                 Text(
                                     text = "${userProfile.coins}",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 16.sp
+                                        fontSize = 17.sp
                                     ),
                                     color = GameColors.CoinGold
                                 )
@@ -282,6 +237,7 @@ fun HomeScreen(
 
                 HomeTitleHeaderBanner(animateHome = animateHome, shimmer = shimmer)
 
+                // ─── Vertically Centered Main 4 Buttons ───
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -301,85 +257,21 @@ fun HomeScreen(
                             onClick = {
                                 onContinueModeClick(resumable.modeId, resumable.level)
                             },
-                            primary = true
+                            primary = true,
+                            iconRes = GameIcons.Play
                         )
-                        if (!af2Enabled) {
-                            HomeButton(text = "PLAY NOW", onClick = onPlayClick)
-                        }
-                    } else if (!af2Enabled) {
+                    } else {
                         HomeButton(
                             text = "PLAY NOW",
                             onClick = onPlayClick,
-                            primary = true
+                            primary = true,
+                            iconRes = GameIcons.Play
                         )
                     }
 
-                    if (af2Enabled) {
-                        Text(
-                            text = "MODES",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = GameColors.TextWhite.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                        modeCards.forEach { card ->
-                            val subtitle = if (card.bestScore > 0) "  •  PB ${card.bestScore}" else ""
-                            HomeButton(
-                                text = card.title.uppercase() + subtitle,
-                                onClick = { onModeClick(card.modeId) },
-                                primary = card.modeId == ModeIds.CAMPAIGN && resumable == null
-                            )
-                        }
-                    } else {
-                        HomeButton(text = "LEVELS MAP", onClick = onLevelsClick)
-                        HomeButton(text = "DAILY REWARDS", onClick = onDailyClick)
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    if (af5Enabled) {
-                        HomeButton(text = "ACHIEVEMENTS", onClick = onAchievementsClick)
-                        HomeButton(text = "THEMES & COSMETICS", onClick = onCosmeticsClick)
-                        HomeButton(text = "STATS", onClick = onStatsClick)
-                    }
-
-                    if (af8Enabled) {
-                        HomeButton(text = "LEADERBOARDS", onClick = onLeaderboardsClick)
-                        val t = tournament
-                        if (t != null && t.isActive) {
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = GameColors.CoinGold.copy(alpha = 0.2f),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.joinTournament()?.let { joined ->
-                                            onTournamentPlay(joined.seed)
-                                        }
-                                    }
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = t.title.uppercase(),
-                                        color = GameColors.CoinGold,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "24h arena • ${t.prizeCoins} coin prize — tap to join",
-                                        color = GameColors.TextWhite.copy(alpha = 0.8f),
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    TextButton(onClick = onSettingsClick) {
-                        Text(
-                            text = stringResource(com.mergeseven.game.R.string.home_settings),
-                            color = GameColors.TextWhite.copy(alpha = 0.6f),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
+                    HomeButton(text = "LEVELS MAP", onClick = onLevelsClick, iconRes = GameIcons.Levels)
+                    HomeButton(text = "DAILY REWARDS", onClick = onDailyClick, iconRes = GameIcons.Daily)
+                    HomeButton(text = stringResource(com.mergeseven.game.R.string.home_settings).uppercase(), onClick = onSettingsClick, iconRes = GameIcons.Settings)
                 }
             }
         }
@@ -423,10 +315,21 @@ private fun IdleTileShimmerRow(shimmer: Float) {
 private fun HomeButton(
     text: String,
     onClick: () -> Unit,
-    primary: Boolean = false
+    primary: Boolean = false,
+    iconRes: Int? = null
 ) {
+    var iconRotationDegrees by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    val animatedRotationDegrees by animateFloatAsState(
+        targetValue = iconRotationDegrees,
+        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "homeBtnIconRotate"
+    )
+
     Button(
-        onClick = onClick,
+        onClick = {
+            iconRotationDegrees += 360f
+            onClick()
+        },
         modifier = Modifier
             .fillMaxWidth()
             .height(if (primary) 58.dp else 48.dp)
@@ -439,13 +342,28 @@ private fun HomeButton(
         ),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = if (primary) 18.sp else 15.sp
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (iconRes != null) {
+                GameIcon(
+                    resId = iconRes,
+                    contentDescription = null,
+                    size = if (primary) 22.dp else 18.dp,
+                    modifier = Modifier.graphicsLayer {
+                        rotationZ = animatedRotationDegrees
+                    }
+                )
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = if (primary) 18.sp else 15.sp
+                )
             )
-        )
+        }
     }
 }
 
