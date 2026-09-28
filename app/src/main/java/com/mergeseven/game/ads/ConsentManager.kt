@@ -38,10 +38,6 @@ class UmpConsentManager @Inject constructor(
     private val consentInformation: ConsentInformation =
         UserMessagingPlatform.getConsentInformation(context)
 
-    init {
-        finish()
-    }
-
     override suspend fun gatherConsent(activity: Activity) {
         val params = ConsentRequestParameters.Builder().build()
         suspendCancellableCoroutine { cont ->
@@ -67,10 +63,7 @@ class UmpConsentManager @Inject constructor(
     }
 
     private fun finish() {
-        val canRequest = consentInformation.canRequestAds() ||
-            consentInformation.consentStatus == ConsentInformation.ConsentStatus.NOT_REQUIRED ||
-            consentInformation.consentStatus == ConsentInformation.ConsentStatus.UNKNOWN
-        _canRequestAds.value = canRequest
+        _canRequestAds.value = consentInformation.canRequestAds()
         _resolved.value = true
     }
 

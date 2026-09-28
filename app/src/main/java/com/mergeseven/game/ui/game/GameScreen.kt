@@ -20,7 +20,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -332,8 +331,6 @@ fun GameScreen(
                             af3Enabled = uiState.af3Enabled,
                             largeTouchTargets = uiState.largeTouchTargets,
                             onBooster = { type -> dispatchBooster(viewModel, type) },
-                            onRotate = { viewModel.onRotateTraySlot(uiState.selectedSlotIndex) },
-                            canRotate = uiState.trayPieces.getOrNull(uiState.selectedSlotIndex) != null,
                             modifier = Modifier.fillMaxWidth()
                         )
                         ThreeOptionBottomTray(
@@ -381,8 +378,6 @@ fun GameScreen(
                     af3Enabled = uiState.af3Enabled,
                     largeTouchTargets = uiState.largeTouchTargets,
                     onBooster = { type -> dispatchBooster(viewModel, type) },
-                    onRotate = { viewModel.onRotateTraySlot(uiState.selectedSlotIndex) },
-                    canRotate = uiState.trayPieces.getOrNull(uiState.selectedSlotIndex) != null,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -1362,14 +1357,7 @@ private fun ThreeOptionBottomTray(
                     color = GameColors.CoinGold.copy(alpha = 0.9f),
                     modifier = Modifier.weight(1f)
                 )
-                // Rotate button — rotates the currently selected tray piece with animated vector icon
-                var rotateDegTarget by remember { mutableFloatStateOf(0f) }
-                val animatedRotateDeg by animateFloatAsState(
-                    targetValue = rotateDegTarget,
-                    animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioMediumBouncy),
-                    label = "trayRotateSpin"
-                )
-
+                // ↻ Rotate button — rotates the currently selected tray piece
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = if (canRotate)
@@ -1383,23 +1371,22 @@ private fun ThreeOptionBottomTray(
                     ),
                     modifier = Modifier
                         .clickable(enabled = canRotate) {
-                            rotateDegTarget += 360f
                             onRotatePiece(selectedSlotIndex)
                         }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        GameIcon(
-                            resId = GameIcons.Rotate,
-                            contentDescription = "Rotate",
-                            size = 18.dp,
-                            modifier = Modifier.graphicsLayer {
-                                rotationZ = animatedRotateDeg
-                                alpha = if (canRotate) 1f else 0.4f
-                            }
+                        Text(
+                            text = "↻",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            ),
+                            color = if (canRotate) GameColors.CoinGold
+                            else GameColors.TextWhite.copy(alpha = 0.35f)
                         )
                         Text(
                             text = "ROTATE",

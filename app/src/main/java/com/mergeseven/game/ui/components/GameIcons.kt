@@ -26,17 +26,13 @@ object GameIcons {
     @DrawableRes val Lock = R.drawable.icon_lock
     @DrawableRes val Check = R.drawable.icon_check
     @DrawableRes val Back = R.drawable.icon_back
-    @DrawableRes val Rotate = R.drawable.icon_rotate
-    @DrawableRes val Levels = R.drawable.icon_levels
-    @DrawableRes val Daily = R.drawable.icon_daily
-    @DrawableRes val Settings = R.drawable.icon_settings
     @DrawableRes val Logo = R.drawable.logo_merge_seven
     @DrawableRes val WoodBackground = R.drawable.bg_wood_main
 
     @DrawableRes
     fun booster(type: BoosterType): Int = when (type) {
         BoosterType.UNDO -> R.drawable.icon_booster_undo
-        BoosterType.SWAP -> R.drawable.icon_booster_rotate
+        BoosterType.SWAP -> R.drawable.icon_booster_swap
         BoosterType.REMOVE -> R.drawable.icon_booster_remove
         BoosterType.RANDOMIZE -> R.drawable.icon_booster_randomize
         BoosterType.CONTINUE -> R.drawable.icon_booster_continue

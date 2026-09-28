@@ -1,8 +1,5 @@
 package com.mergeseven.game.ui.game
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -17,14 +14,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -44,8 +36,6 @@ fun BoosterTray(
     buttons: List<BoosterButtonUi>,
     af3Enabled: Boolean,
     onBooster: (BoosterType) -> Unit,
-    onRotate: (() -> Unit)? = null,
-    canRotate: Boolean = true,
     modifier: Modifier = Modifier,
     largeTouchTargets: Boolean = false
 ) {
@@ -84,21 +74,6 @@ fun BoosterTray(
                 iconSize = iconSize,
                 onClick = { onBooster(btn.type) }
             )
-
-            // Right after UNDO, place the ROTATE button with matching vector icon
-            if (btn.type == BoosterType.UNDO && onRotate != null) {
-                BoosterButton(
-                    type = null,
-                    label = "ROTATE",
-                    enabled = canRotate,
-                    selected = false,
-                    costLabel = null,
-                    iconSize = iconSize,
-                    customIconRes = GameIcons.Rotate,
-                    isRotateIcon = true,
-                    onClick = onRotate
-                )
-            }
         }
     }
 }
@@ -118,23 +93,14 @@ private fun labelFor(type: BoosterType): String = when (type) {
 
 @Composable
 private fun BoosterButton(
-    type: BoosterType?,
+    type: BoosterType,
     label: String,
     enabled: Boolean,
     selected: Boolean,
     costLabel: String?,
     iconSize: Dp,
-    customIconRes: Int? = null,
-    isRotateIcon: Boolean = false,
     onClick: () -> Unit
 ) {
-    var rotationDegreesTarget by remember { mutableFloatStateOf(0f) }
-    val animatedRotationDegrees by animateFloatAsState(
-        targetValue = rotationDegreesTarget,
-        animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "boosterRotation"
-    )
-
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
@@ -146,14 +112,7 @@ private fun BoosterButton(
                     if (costLabel != null) append(", ").append(costLabel)
                 }
             }
-            .clickable(enabled = enabled) {
-                if (isRotateIcon || type == BoosterType.SWAP) {
-                    rotationDegreesTarget += 360f
-                } else {
-                    rotationDegreesTarget += 15f
-                }
-                onClick()
-            }
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 2.dp)
             .heightIn(min = 48.dp)
     ) {
@@ -166,15 +125,10 @@ private fun BoosterButton(
             },
             modifier = Modifier.size(iconSize)
         ) {
-            val iconResId = customIconRes ?: type?.let { GameIcons.booster(it) } ?: GameIcons.Rotate
             GameIcon(
-                resId = iconResId,
-                contentDescription = label,
-                modifier = Modifier
-                    .padding(2.dp)
-                    .graphicsLayer {
-                        rotationZ = animatedRotationDegrees
-                    },
+                resId = GameIcons.booster(type),
+                contentDescription = null,
+                modifier = Modifier.padding(2.dp),
                 size = iconSize - 4.dp
             )
         }
@@ -194,4 +148,3 @@ private fun BoosterButton(
         }
     }
 }
-

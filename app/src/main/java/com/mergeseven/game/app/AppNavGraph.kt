@@ -15,7 +15,6 @@ import com.mergeseven.game.ui.game.GameScreen
 import com.mergeseven.game.ui.home.HomeScreen
 import com.mergeseven.game.ui.leaderboard.LeaderboardScreen
 import com.mergeseven.game.ui.levels.LevelsScreen
-import com.mergeseven.game.ui.privacy.PrivacyPolicyScreen
 import com.mergeseven.game.ui.settings.SettingsScreen
 import com.mergeseven.game.ui.shop.ShopScreen
 import com.mergeseven.game.ui.stats.StatsScreen
@@ -30,7 +29,6 @@ object Routes {
     const val LEVELS = "levels"
     const val DAILY = "daily"
     const val SETTINGS = "settings"
-    const val PRIVACY_POLICY = "privacy_policy"
     const val SHOP = "shop"
     const val ACHIEVEMENTS = "achievements"
     const val COSMETICS = "cosmetics"
@@ -250,18 +248,7 @@ fun AppNavGraph(
                     navController.navigate(Routes.STATS) {
                         launchSingleTop = true
                     }
-                },
-                onPrivacyPolicyClick = {
-                    navController.navigate(Routes.PRIVACY_POLICY) {
-                        launchSingleTop = true
-                    }
                 }
-            )
-        }
-
-        composable(Routes.PRIVACY_POLICY) {
-            PrivacyPolicyScreen(
-                onBackClick = { navController.popBackStack() }
             )
         }
 

@@ -52,21 +52,16 @@ class AdMobAdService @Inject constructor(
 
     private fun adsEnabled(): Boolean =
         featureFlags.isEnabled(Feature.AF9) &&
-            liveOpsGates.adsAllowed()
+            liveOpsGates.adsAllowed() &&
+            consentManager.canRequestAds.value
 
     private fun suppressNonRewarded(): Boolean =
         entitlementStore.removeAdsOrPremium.value
 
     private fun ensureInitialized() {
-        if (adsInitialized) return
-        try {
-            MobileAds.initialize(context) { status ->
-                Log.d(TAG, "MobileAds initialized successfully")
-            }
-            adsInitialized = true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize MobileAds: ${e.message}", e)
-        }
+        if (adsInitialized || !adsEnabled()) return
+        MobileAds.initialize(context) {}
+        adsInitialized = true
     }
 
     override fun isReady(placement: AdPlacement): Boolean {
