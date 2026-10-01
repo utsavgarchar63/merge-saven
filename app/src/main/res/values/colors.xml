@@ -1,33 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Wood / Background palette from App Icon -->
+    <!-- Launch window background; Compose owns the runtime palette. -->
     <color name="wood_dark">#FF4A2518</color>
-    <color name="wood_mid">#FF7A3E26</color>
-    <color name="wood_light">#FFA85D3B</color>
-
-    <!-- Tile colors -->
-    <color name="tile_blue">#FF2CA5E0</color>
-    <color name="tile_green">#FF48D368</color>
-    <color name="tile_red">#FFF0534C</color>
-    <color name="tile_purple">#FF8B5CF6</color>
-    <color name="tile_pink">#FFEC4899</color>
-    <color name="tile_gold">#FFFBBF24</color>
-
-    <!-- Text -->
-    <color name="text_white">#FFFFFFFF</color>
-    <color name="text_dark">#FF28130B</color>
-
-    <!-- UI accents -->
-    <color name="coin_gold">#FFFFD54A</color>
-    <color name="success">#FF48D368</color>
-    <color name="warning">#FFF59E0B</color>
-    <color name="error">#FFEF4444</color>
-
-    <!-- Board -->
-    <color name="board_cell_empty">#33FFFFFF</color>
-    <color name="board_cell_highlight">#66FFD54A</color>
-    <color name="board_cell_invalid">#44EF4444</color>
-
-    <!-- Seed colors (Material You) -->
-    <color name="seed">#FF7A3E26</color>
 </resources>

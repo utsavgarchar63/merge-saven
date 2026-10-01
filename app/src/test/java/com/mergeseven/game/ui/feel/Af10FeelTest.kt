@@ -126,6 +126,22 @@ class JuiceControllerTest {
         assertTrue(state.showComboBanner)
     }
 
+    @Test
+    fun changingToReducedMotionCancelsExistingMergeEffects() {
+        val sources = listOf(Tile.normal(1L, 4, HexCoord(1, 0)), Tile.normal(2L, 4, HexCoord(0, 1)))
+        juice.particles.emitBurst(0f, 0f, 8, Color.White)
+        juice.dispatch(GameResult(emptyState(), listOf(
+            GameEvent.MergeStarted(sources, HexCoord.ORIGIN, 8),
+            GameEvent.MergeCompleted(Tile.normal(3L, 8, HexCoord.ORIGIN), 3, 24L)
+        )))
+        assertEquals(2, juice.uiState.value.mergeFlights.size)
+        juice.setReduceMotion(true)
+        assertEquals(0, juice.particles.activeCount)
+        assertTrue(juice.uiState.value.mergeFlights.isEmpty())
+        assertEquals(0L, juice.uiState.value.hitStopRemainingMs)
+        assertEquals(0f, juice.uiState.value.shakeAmplitudePx, 0f)
+    }
+
     private fun emptyState(): GameState = GameState(
         board = com.mergeseven.game.game.engine.BoardEngine().createBoard(),
         trayPieces = listOf(null, null, null),

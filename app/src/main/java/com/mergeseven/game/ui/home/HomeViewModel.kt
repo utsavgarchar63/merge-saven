@@ -127,7 +127,9 @@ class HomeViewModel @Inject constructor(
                 ActiveGameEntity.DAILY_SLOT to ModeIds.DAILY,
                 ActiveGameEntity.WEEKLY_SLOT to ModeIds.WEEKLY
             )
-            for ((slot, modeId) in slots) {
+            val modesBySlot = slots.toMap()
+            for (slot in gameRepository.recentSlotIds()) {
+                val modeId = modesBySlot[slot] ?: continue
                 val state = gameRepository.loadActiveGame(slot) ?: continue
                 if (!state.isGameOver || state.resultFinished) {
                     _resumableGame.value = ResumableGame(modeId, state.level, state.score)

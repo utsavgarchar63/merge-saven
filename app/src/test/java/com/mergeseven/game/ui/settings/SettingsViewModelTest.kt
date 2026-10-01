@@ -100,6 +100,7 @@ class SettingsViewModelTest {
                 activeGameDao = object : com.mergeseven.game.data.local.dao.ActiveGameDao {
                     override fun observe(slotId: String) = kotlinx.coroutines.flow.flowOf(null)
                     override suspend fun get(slotId: String) = null
+                    override suspend fun recentSlotIds() = emptyList<String>()
                     override suspend fun upsert(entity: com.mergeseven.game.data.local.entity.ActiveGameEntity) = Unit
                     override suspend fun delete(slotId: String) = Unit
                 },

@@ -35,8 +35,8 @@ interface AdService {
     suspend fun showRewarded(activity: android.app.Activity, placement: AdPlacement, onEarned: suspend () -> Unit = {}): AdResult
     suspend fun showInterstitial(activity: android.app.Activity): AdResult
     fun bindBanner(activity: android.app.Activity, container: android.view.ViewGroup)
-    fun pauseBanner() {}
-    fun resumeBanner() {}
-    fun unbindBanner()
+    fun pauseBanner(container: android.view.ViewGroup? = null) {}
+    fun resumeBanner(container: android.view.ViewGroup? = null) {}
+    fun unbindBanner(container: android.view.ViewGroup? = null)
     fun destroy()
 }

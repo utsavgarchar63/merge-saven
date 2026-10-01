@@ -16,6 +16,9 @@ interface ActiveGameDao {
     @Query("SELECT * FROM active_game WHERE slotId = :slotId")
     suspend fun get(slotId: String): ActiveGameEntity?
 
+    @Query("SELECT slotId FROM active_game ORDER BY updatedAt DESC, slotId ASC")
+    suspend fun recentSlotIds(): List<String>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: ActiveGameEntity)
 

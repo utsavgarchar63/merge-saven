@@ -28,6 +28,8 @@ data class DropSnapRequest(
     val createdAtMs: Long = System.currentTimeMillis()
 )
 
+data class MergeFlight(val from: HexCoord, val to: HexCoord, val value: Int)
+
 data class JuiceUiState(
     val reduceMotion: Boolean = false,
     val shakeAmplitudePx: Float = 0f,
@@ -41,6 +43,7 @@ data class JuiceUiState(
     val pendingBurstCells: List<HexCoord> = emptyList(),
     val pendingSparkPairs: List<Pair<HexCoord, HexCoord>> = emptyList(),
     val pendingConfetti: Boolean = false,
+    val mergeFlights: List<MergeFlight> = emptyList(),
     val revision: Long = 0L
 )
 
@@ -81,7 +84,9 @@ class JuiceController @Inject constructor(
     }
 
     fun setReduceMotion(enabled: Boolean) {
-        _uiState.update { it.copy(reduceMotion = enabled) }
+        if (enabled) particles.clear()
+        _uiState.update { if (enabled) it.copy(reduceMotion = true, shakeAmplitudePx = 0f,
+            hitStopRemainingMs = 0L, slowMoScale = 1f, dropSnap = null, mergeFlights = emptyList()) else it.copy(reduceMotion = false) }
     }
 
     fun onLegacyAudio(result: GameResult) {
@@ -109,6 +114,7 @@ class JuiceController @Inject constructor(
         var musicIntensity = _uiState.value.musicIntensity
         val bursts = mutableListOf<HexCoord>()
         val sparks = mutableListOf<Pair<HexCoord, HexCoord>>()
+        val flights = mutableListOf<MergeFlight>()
         var confetti = false
         var dropSnap: DropSnapRequest? = null
 
@@ -129,6 +135,7 @@ class JuiceController @Inject constructor(
                 is GameEvent.MergeStarted -> {
                     if (!reduceMotion) {
                         sparks += event.sourceTiles.map { it.cell to event.destinationCoord }
+                        flights += event.sourceTiles.map { MergeFlight(it.cell, event.destinationCoord, it.value) }
                     }
                 }
                 is GameEvent.MergeCompleted -> {
@@ -180,6 +187,7 @@ class JuiceController @Inject constructor(
                 pendingBurstCells = bursts,
                 pendingSparkPairs = sparks,
                 pendingConfetti = confetti,
+                mergeFlights = flights,
                 revision = it.revision + 1
             )
         }
@@ -236,13 +244,13 @@ class JuiceController @Inject constructor(
             val shakeStart = _uiState.value.shakeAmplitudePx
             val musicStart = _uiState.value.musicIntensity
             while (true) {
-                delay(16L)
+                delay(50L)
                 val elapsed = System.currentTimeMillis() - start
                 val shakeT = (elapsed / Constants.AF10_SHAKE_DECAY_MS.toFloat()).coerceIn(0f, 1f)
                 val bannerDone = elapsed >= Constants.AF10_COMBO_BANNER_MS
                 val slowDone = elapsed >= Constants.AF10_SLOW_MO_MS
                 val musicT = (elapsed / Constants.AF10_MUSIC_INTENSITY_DECAY_MS.toFloat()).coerceIn(0f, 1f)
-                val shake = shakeStart * (1f - shakeT)
+                val shake = if (shakeT >= 1f) 0f else shakeStart
                 val intensity = musicStart * (1f - musicT)
                 audioManager.setMusicIntensity(intensity)
                 _uiState.update {
@@ -250,7 +258,7 @@ class JuiceController @Inject constructor(
                         shakeAmplitudePx = shake,
                         showComboBanner = it.showComboBanner && !bannerDone,
                         slowMoScale = if (slowDone) 1f else it.slowMoScale,
-                        musicIntensity = intensity
+                        musicIntensity = if (musicT >= 1f) 0f else musicStart
                     )
                 }
                 if (shakeT >= 1f && bannerDone && slowDone && musicT >= 1f) break
@@ -268,6 +276,7 @@ class JuiceController @Inject constructor(
         min(1f, (chainLength - 1).coerceAtLeast(0) / 4f)
 
     fun resetSession() {
+        decayJob?.cancel()
         particles.clear()
         frameBudget.reset()
         audioManager.setMusicIntensity(0f)

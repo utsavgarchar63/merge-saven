@@ -164,6 +164,10 @@ class RoomGameRepositoryTest {
 
         override suspend fun get(slotId: String): ActiveGameEntity? = rows.value[slotId]
 
+        override suspend fun recentSlotIds(): List<String> = rows.value.values
+            .sortedWith(compareByDescending<ActiveGameEntity> { it.updatedAt }.thenBy { it.slotId })
+            .map { it.slotId }
+
         override suspend fun upsert(entity: ActiveGameEntity) {
             rows.value = rows.value + (entity.slotId to entity)
         }

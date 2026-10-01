@@ -8,7 +8,8 @@ args=parser.parse_args()
 adb=r"C:\Users\GT\AppData\Local\Android\Sdk\platform-tools\adb.exe"
 cmd=[adb,"-s","emulator-5554"]
 if args.inspect:
-    subprocess.run(cmd+["shell","uiautomator","dump","/sdcard/merge-seven-window.xml"],check=True)
+    dump=subprocess.run(cmd+["shell","uiautomator","dump","/sdcard/merge-seven-window.xml"],check=True,capture_output=True,text=True)
+    if "ERROR" in dump.stdout + dump.stderr: raise SystemExit("UI is changing; retry after the activity settles")
     xml=subprocess.check_output(cmd+["shell","cat","/sdcard/merge-seven-window.xml"])
     for node in ET.fromstring(xml).iter("node"):
         text=node.get("text") or node.get("content-desc")

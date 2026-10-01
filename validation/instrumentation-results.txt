@@ -1,9 +1,10 @@
 
-com.mergeseven.game.data.local.ActiveGamePersistenceTest:...
+com.mergeseven.game.data.local.ActiveGamePersistenceTest:....
 com.mergeseven.game.data.local.GameDatabaseMigrationTest:.......
+com.mergeseven.game.ui.AppNavigationTest:..
 
-Time: 2.246
+Time: 13.251
 
-OK (10 tests)
+OK (13 tests)
 
 

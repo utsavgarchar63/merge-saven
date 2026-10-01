@@ -3,20 +3,8 @@
     <string name="app_name">Merge Seven</string>
 
     <!-- Home Screen -->
-    <string name="home_play">PLAY</string>
-    <string name="home_continue">CONTINUE</string>
-    <string name="home_levels">LEVELS</string>
-    <string name="home_daily">DAILY</string>
-    <string name="home_shop">SHOP</string>
-    <string name="home_settings">SETTINGS</string>
-    <string name="home_best_score">Best Score</string>
 
     <!-- Game Screen -->
-    <string name="game_pause">Pause</string>
-    <string name="game_score">Score</string>
-    <string name="game_level">Level %d</string>
-    <string name="game_coins">Coins</string>
-    <string name="game_target">Target: %d</string>
     <string name="game_tray_hint">Tap or drag</string>
     <string name="game_tray_empty">Empty</string>
     <string name="game_tray_dragging">Dragging</string>
@@ -39,40 +27,11 @@
     <string name="cd_pause">Pause</string>
 
     <!-- Pause Dialog -->
-    <string name="pause_resume">Resume</string>
-    <string name="pause_restart">Restart</string>
-    <string name="pause_settings">Settings</string>
-    <string name="pause_home">Home</string>
 
     <!-- Game Over -->
-    <string name="game_over_title">GAME OVER</string>
-    <string name="game_over_score">Score</string>
-    <string name="game_over_final_score">Final Score: %1$d</string>
-    <string name="game_over_best">Best</string>
-    <string name="game_over_highest_tile">Highest Tile</string>
-    <string name="game_over_moves">Moves</string>
-    <string name="game_over_coins_earned">Coins Earned</string>
-    <string name="game_over_continue">Continue</string>
-    <string name="game_over_continue_cost">CONTINUE · %1$d</string>
-    <string name="game_over_retry">Retry</string>
-    <string name="game_over_home">Home</string>
-    <string name="game_over_watch_ad">Watch Ad + Continue</string>
-    <string name="game_over_play_again">PLAY AGAIN</string>
-    <string name="game_over_share">SHARE RUN</string>
-    <string name="game_over_watch_ghost">WATCH DAILY LEADER</string>
 
     <!-- Level Complete -->
-    <string name="level_complete_title">LEVEL COMPLETE!</string>
-    <string name="level_complete_level">LEVEL %1$d COMPLETE!</string>
-    <string name="level_complete_next">CONTINUE PLAYING</string>
-    <string name="level_complete_continue">CONTINUE PLAYING (INFINITE)</string>
-    <string name="level_complete_fresh_board">START FRESH BOARD</string>
-    <string name="level_complete_replay">PLAY AGAIN</string>
-    <string name="level_complete_home">HOME</string>
-    <string name="level_complete_map">LEVEL MAP</string>
-    <string name="level_complete_coins">+%1$d Coins Earned</string>
     <string name="ghost_loaded">Ghost loaded (%1$d frames)</string>
-    <string name="shop_coins_balance">%1$d coins</string>
 
     <!-- Boosters -->
     <string name="booster_swap">Swap</string>
@@ -108,26 +67,10 @@
     <string name="colourblind_deuteranopia">Deuteranopia</string>
     <string name="colourblind_protanopia">Protanopia</string>
     <string name="colourblind_tritanopia">Tritanopia</string>
-    <string name="settings_language">Language</string>
-    <string name="settings_privacy">Privacy Policy</string>
-    <string name="settings_terms">Terms of Service</string>
-    <string name="settings_support">Support</string>
-    <string name="settings_about">About</string>
-    <string name="settings_version">Version %s</string>
 
     <!-- Tutorial -->
-    <string name="tutorial_welcome">Welcome to Merge Seven!</string>
-    <string name="tutorial_drag">Drag this piece onto the board</string>
-    <string name="tutorial_merge">Three matching tiles become the next number!</string>
-    <string name="tutorial_rotation">Tap to rotate your piece</string>
-    <string name="tutorial_skip">Skip Tutorial</string>
 
     <!-- Shop -->
-    <string name="shop_title">Shop</string>
-    <string name="shop_coins">Coins</string>
-    <string name="shop_boosters">Boosters</string>
-    <string name="shop_remove_ads">Remove Ads</string>
-    <string name="shop_special_packs">Special Packs</string>
 
     <!-- General -->
     <string name="ok">OK</string>
@@ -137,21 +80,6 @@
 
     <!-- AF7 Play Games (placeholder until Console project is linked) -->
     <string name="game_services_project_id" translatable="false">000000000000</string>
-    <string name="cloud_sign_in">Sign in with Play Games</string>
-    <string name="cloud_sign_out">Sign out</string>
-    <string name="cloud_guest">Guest (local only)</string>
-    <string name="cloud_export">Export my data</string>
-    <string name="cloud_delete">Delete Merge Seven data</string>
-    <string name="cloud_delete_body">Removes progress on this device and your cloud save slot. This does not delete your Google account.</string>
 
     <!-- AF9 AdMob (Production IDs) -->
-    <string name="admob_app_id" translatable="false">ca-app-pub-6926810742930516~9728984035</string>
-    <string name="admob_rewarded_unit_id" translatable="false">ca-app-pub-6926810742930516/4988240353</string>
-    <string name="admob_interstitial_unit_id" translatable="false">ca-app-pub-6926810742930516/6590105790</string>
-    <string name="admob_banner_unit_id" translatable="false">ca-app-pub-6926810742930516/8854886068</string>
-    <string name="ad_unavailable">No ad available right now</string>
-    <string name="watch_ad_hint">Watch ad for free hint</string>
-    <string name="watch_ad_double_coins">Watch ad to double coins</string>
-    <string name="watch_ad_extra_daily">Watch ad for an extra daily attempt</string>
-    <string name="offer_starter">Starter Pack</string>
 </resources>

@@ -185,11 +185,34 @@ class GameViewModelSaveResumeTest {
         assertTrue(repository.stored.value?.resultFinished == true)
     }
 
+    @Test
+    fun `zen undo restores a move without consuming coins or charges`() = runTest {
+        val zen = com.mergeseven.game.game.modes.ModeIds.ZEN
+        val previous = savedGame(1, 10L).copy(modeId = zen, targetValue = 0, objectives = emptyList())
+        val saved = previous.copy(score = 24L, moves = 18, previousState = previous)
+        val repository = FakeGameRepository(saved)
+        val viewModel = createViewModel(repository, levelId = 1, modeId = zen)
+        val before = viewModel.uiState.value
+        val undo = before.boosterButtons.first { it.type == com.mergeseven.game.game.model.BoosterType.UNDO }
+        assertTrue(undo.unlimited)
+        assertTrue(undo.owned > 0)
+        assertEquals(0, undo.cost)
+
+        viewModel.onBoosterUndo()
+
+        val after = viewModel.uiState.value
+        assertEquals(10L, after.score)
+        assertEquals(before.coins, after.coins)
+        assertEquals(undo.owned, after.boosterButtons.first { it.type == undo.type }.owned)
+        assertEquals(previous.board.activeTiles().size, after.tiles.size)
+    }
+
     private fun TestScope.createViewModel(
         repository: GameRepository,
         levelId: Int,
         debugCommands: com.mergeseven.game.core.debug.DebugCommands =
-            com.mergeseven.game.core.debug.DebugCommands()
+            com.mergeseven.game.core.debug.DebugCommands(),
+        modeId: String = com.mergeseven.game.game.modes.ModeIds.CAMPAIGN
     ): GameViewModel {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
@@ -223,7 +246,7 @@ class GameViewModelSaveResumeTest {
         )
 
         return GameViewModel(
-            savedStateHandle = SavedStateHandle(mapOf("levelId" to levelId)),
+            savedStateHandle = SavedStateHandle(mapOf("levelId" to levelId, "mode" to modeId)),
             gameEngine = gameEngine,
             audioManager = AudioManager(fakeContext()),
             levelRepository = TestPersistence.levelRepository(),
@@ -234,7 +257,8 @@ class GameViewModelSaveResumeTest {
             analyticsTracker = com.mergeseven.game.core.analytics.NoOpAnalyticsTracker(),
             dateProvider = com.mergeseven.game.core.DateProvider { "2026-09-09" },
             debugCommands = debugCommands,
-            featureFlags = FakeFeatureFlags(enabled = emptySet()),
+            featureFlags = FakeFeatureFlags(enabled = if (modeId == com.mergeseven.game.game.modes.ModeIds.ZEN)
+                setOf(com.mergeseven.game.core.flags.Feature.AF3) else emptySet()),
             boosterInventory = InMemoryBoosterInventoryStore(),
             cachedMoveSolver = com.mergeseven.game.game.solver.CachedMoveSolver(
                 moveSolver = moveSolver,

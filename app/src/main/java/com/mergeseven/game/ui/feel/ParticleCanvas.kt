@@ -16,8 +16,10 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.mergeseven.game.game.engine.HexGeometry
-import com.mergeseven.game.game.model.HexCoord
 import com.mergeseven.game.ui.theme.GameColors
 
 @Composable
@@ -30,24 +32,12 @@ fun ParticleCanvas(
     val ui by juice.uiState.collectAsStateWithLifecycle()
     var boardSize by remember { mutableStateOf(IntSize.Zero) }
 
-    LaunchedEffect(juice) {
-        var lastNanos = 0L
-        while (true) {
-            withFrameNanos { nanos ->
-                if (lastNanos != 0L) {
-                    val dtMs = ((nanos - lastNanos) / 1_000_000f).coerceIn(0f, 50f)
-                    juice.frameBudget.recordFrameMs(dtMs)
-                    val scale = juice.tickFeelClocks(dtMs)
-                    juice.particles.tick((dtMs / 1000f) * scale)
-                    frame++
-                }
-                lastNanos = nanos
-            }
-        }
-    }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
 
-    LaunchedEffect(ui.revision, boardSize) {
+    LaunchedEffect(ui.revision, boardSize, ui.reduceMotion, lifecycle) {
         if (ui.reduceMotion) {
+            juice.particles.clear()
+            frame++
             juice.consumePendingEmits()
             return@LaunchedEffect
         }
@@ -56,7 +46,7 @@ fun ParticleCanvas(
         }
         if (ui.pendingBurstCells.isEmpty() &&
             ui.pendingSparkPairs.isEmpty() &&
-            !ui.pendingConfetti
+            !ui.pendingConfetti && juice.particles.activeCount == 0
         ) {
             return@LaunchedEffect
         }
@@ -66,6 +56,8 @@ fun ParticleCanvas(
         val centerX = width / 2f
         val centerY = height / 2f
         val hexSize = HexGeometry.calculateHexSize(boardRadius, width, height, 8f)
+        // An idle clock has no samples with which to recover from a previous OFF tier.
+        if (juice.particles.activeCount == 0) juice.frameBudget.reset()
         val cap = juice.frameBudget.activeParticleCap()
         juice.setConfettiWidth(width)
 
@@ -93,6 +85,22 @@ fun ParticleCanvas(
             )
         }
         juice.consumePendingEmits()
+        // Only redraw while an effect is alive; lifecycle pauses the frame clock offscreen.
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            var lastNanos = 0L
+            while (juice.particles.activeCount > 0 || juice.uiState.value.hitStopRemainingMs > 0) {
+                withFrameNanos { nanos ->
+                    if (lastNanos != 0L) {
+                        val elapsedMs = (nanos - lastNanos) / 1_000_000f
+                        juice.frameBudget.recordFrameMs(elapsedMs)
+                        val dtMs = elapsedMs.coerceIn(0f, 50f)
+                        juice.particles.tick(dtMs / 1000f * juice.tickFeelClocks(dtMs))
+                        frame++
+                    }
+                    lastNanos = nanos
+                }
+            }
+        }
     }
 
     Canvas(

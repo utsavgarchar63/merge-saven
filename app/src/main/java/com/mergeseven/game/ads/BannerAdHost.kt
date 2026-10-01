@@ -29,6 +29,8 @@ class BannerAdViewModel @Inject constructor(featureFlags: FeatureFlags,
     val revision = gates.revision
     fun adsAllowed() = gates.adsAllowed()
 }
+private class BannerHostOwner { var container: FrameLayout? = null }
+
 @Composable
 fun BannerAdHost(viewModel: BannerAdViewModel = hiltViewModel(), modifier: Modifier = Modifier) {
     val enabled by viewModel.af9Enabled.collectAsStateWithLifecycle()
@@ -38,21 +40,33 @@ fun BannerAdHost(viewModel: BannerAdViewModel = hiltViewModel(), modifier: Modif
     val allowed = remember(revision) { viewModel.adsAllowed() }
     if (!enabled || !consent || !allowed) return
     val owner = LocalLifecycleOwner.current
+    val host = remember { BannerHostOwner() }
     BoxWithConstraints(modifier.fillMaxWidth().padding(top = 12.dp)) {
         val height = AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, maxWidth.value.toInt()).height.dp
         AndroidView(factory = { FrameLayout(it).apply {
+            host.container = this
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         } }, modifier = Modifier.fillMaxWidth().height(height), update = { container ->
-            container.post { viewModel.adService.bindBanner(activity, container) }
+            container.post {
+                if (container === host.container && container.isAttachedToWindow && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+                    viewModel.adService.bindBanner(activity, container)
+            }
         })
     }
     DisposableEffect(owner, viewModel) {
         val observer = LifecycleEventObserver { _, event -> when (event) {
-            Lifecycle.Event.ON_PAUSE -> viewModel.adService.pauseBanner()
-            Lifecycle.Event.ON_RESUME -> viewModel.adService.resumeBanner()
+            Lifecycle.Event.ON_PAUSE -> host.container?.let(viewModel.adService::pauseBanner)
+            Lifecycle.Event.ON_RESUME -> host.container?.let { container ->
+                container.post {
+                    if (container.isAttachedToWindow && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        viewModel.adService.bindBanner(activity, container)
+                        viewModel.adService.resumeBanner(container)
+                    }
+                }
+            }
             else -> Unit
         } }
         owner.lifecycle.addObserver(observer)
-        onDispose { owner.lifecycle.removeObserver(observer); viewModel.adService.unbindBanner() }
+        onDispose { owner.lifecycle.removeObserver(observer); host.container?.let(viewModel.adService::unbindBanner) }
     }
 }

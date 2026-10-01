@@ -77,7 +77,7 @@ fun BoosterTray(
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text(boosterName(btn.type))
                         Text(boosterDescription(btn.type), style = MaterialTheme.typography.bodySmall)
-                        Text(if (btn.owned > 0) "Owned ${btn.owned}" else "${btn.cost} coins", color = GameColors.CoinGold)
+                        Text(if (btn.unlimited) "Unlimited · No coins or charges used" else if (btn.owned > 0) "Owned ${btn.owned}" else "${btn.cost} coins", color = GameColors.CoinGold)
                     }
                 }
             }
@@ -104,9 +104,10 @@ private fun PrimaryBoosterCard(btn: BoosterButtonUi, onBooster: (BoosterType) ->
     modifier: Modifier, stacked: Boolean) {
     Surface(onClick = { onBooster(btn.type) }, enabled = btn.enabled,
         modifier = modifier.heightIn(min = 56.dp).semantics(mergeDescendants = true) {
-            contentDescription = "${boosterName(btn.type)}. ${boosterDescription(btn.type)}. Owned ${btn.owned}. ${btn.cost} coins if no charge."
+            contentDescription = "${boosterName(btn.type)}. ${boosterDescription(btn.type)}. " +
+                if (btn.unlimited) "Unlimited. No coins or charges used." else "Owned ${btn.owned}. ${btn.cost} coins if no charge."
         }, shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color = GameColors.WoodMid) {
-        val quantity = if (btn.owned > 0) "${btn.owned} owned" else "${btn.cost} coins"
+        val quantity = if (btn.unlimited) "Unlimited" else if (btn.owned > 0) "${btn.owned} owned" else "${btn.cost} coins"
         if (stacked) Column(Modifier.padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             GameIcon(GameIcons.booster(btn.type), null, size = 24.dp)
             Text(when(btn.type) {
@@ -114,7 +115,7 @@ private fun PrimaryBoosterCard(btn: BoosterButtonUi, onBooster: (BoosterType) ->
                 BoosterType.REMOVE -> "Clear"
                 else -> labelFor(btn.type)
             }, style = MaterialTheme.typography.labelSmall)
-            Text(if (btn.owned > 0) btn.owned.toString() else "${btn.cost}c",
+            Text(if (btn.unlimited) "Free" else if (btn.owned > 0) btn.owned.toString() else "${btn.cost}c",
                 style = MaterialTheme.typography.labelSmall, color = GameColors.CoinGold)
         } else Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
             GameIcon(GameIcons.booster(btn.type), null, size = 24.dp)

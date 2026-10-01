@@ -27,3 +27,9 @@ Ads-only economy: no purchases, subscriptions, paid products, purchase restorati
 Versioned runtime assets are optimized WebP and vectors. Masters, reference atlases, SVG diagrams, prompts and manifest stay in art, outside the APK. Store files stay in store. Verify transparent edges and adaptive masking; inspect icons at 24–48dp. See art/asset-manifest.json. Device/font/contrast and first-time human usability tests remain release requirements; static contrast tests are only one part of validation.
 
 On compact screens, tutorial instructions use concise prompts. Hints and advanced boosters live in More so the board keeps practical space. Canvas drawing skips nonpositive geometry, and number fitting is a bounded proportional calculation.
+
+## Smooth board presentation
+
+Use short placement springs, 160 ms rotation interpolation and 260 ms merge flights. Keep labels upright and commit engine moves immediately. Reuse normalized Canvas hex paths and bounded text paint caches. Run particle frame clocks only while effects are active; pause them offscreen and cancel them with reduced motion. Read per-frame shake offsets in graphicsLayer. Deduplicate identical drag previews.
+
+Ad inventory is configured exclusively in root `admob.properties`; test is the default for local debug and release QA. Debug always uses Google's demo inventory. Rewarded offers share one loaded SDK slot and retain placement-specific benefits. Banner disposal/pause/resume is scoped to its owning screen. Home resumes the newest valid save by its existing update timestamp.

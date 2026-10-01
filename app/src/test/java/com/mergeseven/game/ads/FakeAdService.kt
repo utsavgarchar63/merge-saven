@@ -35,7 +35,7 @@ class FakeAdService(
         bannerBindCalls++
     }
 
-    override fun unbindBanner() = Unit
+    override fun unbindBanner(container: ViewGroup?) = Unit
 
     override fun destroy() = Unit
 }

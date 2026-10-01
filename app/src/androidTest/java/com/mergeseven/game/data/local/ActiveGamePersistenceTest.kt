@@ -104,6 +104,24 @@ class ActiveGamePersistenceTest {
     }
 
     /** Opens a brand new database instance over the same file, then closes it. */
+    @Test
+    fun homeResumeOrderSurvivesRestartAndUsesNewestMode() = runBlocking {
+        withFreshDatabase { database ->
+            val repository = RoomGameRepository(database.activeGameDao(), dispatchers)
+            repository.saveActiveGame(gameState(), "campaign")
+            repository.saveActiveGame(gameState(), "endless")
+            val dao = database.activeGameDao()
+            dao.upsert(dao.get("campaign")!!.copy(updatedAt = 100L))
+            dao.upsert(dao.get("endless")!!.copy(updatedAt = 200L))
+        }
+        withFreshDatabase { database ->
+            val repository = RoomGameRepository(database.activeGameDao(), dispatchers)
+            assertEquals(listOf("endless", "campaign"), repository.recentSlotIds())
+            repository.clearActiveGame("endless")
+            assertEquals(listOf("campaign"), repository.recentSlotIds())
+        }
+    }
+
     private inline fun withFreshDatabase(block: (GameDatabase) -> Unit) {
         val database = Room.databaseBuilder(context, GameDatabase::class.java, TEST_DB).build()
         try {

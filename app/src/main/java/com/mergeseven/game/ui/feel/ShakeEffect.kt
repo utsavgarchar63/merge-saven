@@ -2,10 +2,10 @@ package com.mergeseven.game.ui.feel
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -19,14 +19,12 @@ import kotlin.random.Random
 fun rememberShakeOffset(
     amplitudePx: Float,
     reduceMotion: Boolean
-): Pair<Float, Float> {
-    var ox by remember { mutableFloatStateOf(0f) }
-    var oy by remember { mutableFloatStateOf(0f) }
+): State<Offset> {
+    val offset = remember { mutableStateOf(Offset.Zero) }
 
     LaunchedEffect(amplitudePx, reduceMotion) {
         if (reduceMotion || amplitudePx <= 0.1f) {
-            ox = 0f
-            oy = 0f
+            offset.value = Offset.Zero
             return@LaunchedEffect
         }
         var elapsed = 0f
@@ -38,22 +36,22 @@ fun rememberShakeOffset(
                     elapsed += dt
                     val decay = (1f - elapsed / 320f).coerceIn(0f, 1f)
                     val mag = amplitudePx * decay
-                    ox = (Random.nextFloat() - 0.5f) * 2f * mag
-                    oy = (Random.nextFloat() - 0.5f) * 2f * mag
+                    var ox = (Random.nextFloat() - 0.5f) * 2f * mag
+                    val oy = (Random.nextFloat() - 0.5f) * 2f * mag
                     // Slight sinusoidal bias so it doesn't look pure noise
                     ox += sin(elapsed / 16f) * mag * 0.25f
+                    offset.value = Offset(ox, oy)
                 }
                 last = nanos
             }
         }
-        ox = 0f
-        oy = 0f
+        offset.value = Offset.Zero
     }
-    return ox to oy
+    return offset
 }
 
-fun Modifier.shakeGraphics(offsetX: Float, offsetY: Float): Modifier =
+fun Modifier.shakeGraphics(offset: State<Offset>): Modifier =
     graphicsLayer {
-        translationX = offsetX
-        translationY = offsetY
+        translationX = offset.value.x
+        translationY = offset.value.y
     }

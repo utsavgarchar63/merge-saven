@@ -25,6 +25,9 @@ interface GameRepository {
     /** One-shot read, for deciding at launch whether to offer "Continue". */
     suspend fun loadActiveGame(slotId: String = ActiveGameEntity.CAMPAIGN_SLOT): GameState?
 
+    /** Newest saved mode first, for the one-tap Home resume action. */
+    suspend fun recentSlotIds(): List<String> = listOf("campaign", "endless", "time_attack", "zen", "daily", "weekly")
+
     suspend fun saveActiveGame(state: GameState, slotId: String = ActiveGameEntity.CAMPAIGN_SLOT)
 
     suspend fun clearActiveGame(slotId: String = ActiveGameEntity.CAMPAIGN_SLOT)
@@ -38,6 +41,9 @@ class RoomGameRepository @Inject constructor(
 
     override fun getActiveGame(slotId: String): Flow<GameState?> =
         activeGameDao.observe(slotId).map { entity -> entity?.let(::decode) }
+
+    override suspend fun recentSlotIds(): List<String> =
+        withContext(dispatchers.io) { activeGameDao.recentSlotIds() }
 
     override suspend fun loadActiveGame(slotId: String): GameState? =
         withContext(dispatchers.io) {

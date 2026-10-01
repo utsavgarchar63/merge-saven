@@ -24,10 +24,7 @@ object GameIcons {
     @DrawableRes val Pause = R.drawable.icon_pause
     @DrawableRes val Play = R.drawable.icon_play
     @DrawableRes val Lock = R.drawable.icon_lock
-    @DrawableRes val Check = R.drawable.icon_check
     @DrawableRes val Back = R.drawable.icon_back
-    @DrawableRes val Logo = R.drawable.logo_merge_seven
-    @DrawableRes val WoodBackground = R.drawable.bg_wood_main
 
     @DrawableRes
     fun booster(type: BoosterType): Int = when (type) {

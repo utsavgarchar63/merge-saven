@@ -4,7 +4,7 @@ Implementation date: 2026-10-01. No commit, push, deployment or store upload is 
 
 ## Before internal testing
 
-- Use the debug APK for local QA; it requests Google test units. Register test devices before inspecting a release build, which retains the production AdMob units.
+- Both local debug and release artifacts request Google test inventory. All IDs and the selected profile are in `admob.properties` (`profile=test`). Debug always uses test units; the profile selects release inventory. Change that single file to production only after verification for an authorized release; register release-QA test devices before checking production inventory.
 - Verify in the AdMob account that app ID `ca-app-pub-6926810742930516~9728984035` and rewarded `/4988240353`, interstitial `/6590105790`, banner `/8854886068` belong to this app, have the correct formats and can serve. Source inspection cannot verify ownership or account status.
 - Review release signing. The existing Gradle configuration selects the available local keystore and can fall back to a debug key; a successful local release build does not establish Play-ready signing. Provision production signing securely and choose a version code above the currently published version.
 - Validate Firebase configuration, account linking, leaderboard sign-in, score upload, cloud restore and conflicting offline changes with real accounts. The AOSP emulator has no Play Games services.

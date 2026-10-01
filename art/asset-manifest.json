@@ -120,30 +120,6 @@
       "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
     },
     {
-      "path": "app/src/main/res/drawable-nodpi/art_share_v2.webp",
-      "dimensions": [
-        256,
-        256
-      ],
-      "bytes": 12868,
-      "format": "WebP",
-      "version": 2,
-      "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
-    },
-    {
-      "path": "app/src/main/res/drawable-nodpi/art_sparkle_v2.webp",
-      "dimensions": [
-        256,
-        256
-      ],
-      "bytes": 11098,
-      "format": "WebP",
-      "version": 2,
-      "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
-    },
-    {
       "path": "app/src/main/res/drawable-nodpi/bg_board_v2.webp",
       "dimensions": [
         720,
@@ -314,9 +290,58 @@
   "pending_release_checks": [
     "Adaptive masks across OEM launchers",
     "24–48dp device visual inspection",
-    "Six genuine implemented-app screenshots",
     "Human art review and device usability testing"
   ],
   "tutorial_use": "Three vector diagrams appear in expandable tutorial help; compact prompts preserve board space. Progress persists through DataStore.",
-  "icon_policy": "Generated emblem retains true alpha. Framed mode/reward artwork intentionally uses opaque walnut backdrops. Functional icons and tile geometry remain vectors/Canvas."
+  "icon_policy": "Generated emblem retains true alpha. Framed mode/reward artwork intentionally uses opaque walnut backdrops. Functional icons and tile geometry remain vectors/Canvas.",
+  "screenshots": [
+    {
+      "path": "store/screenshots/01-home.png",
+      "dimensions": [
+        720,
+        1280
+      ],
+      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+    },
+    {
+      "path": "store/screenshots/02-gameplay.png",
+      "dimensions": [
+        720,
+        1280
+      ],
+      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+    },
+    {
+      "path": "store/screenshots/03-campaign.png",
+      "dimensions": [
+        720,
+        1280
+      ],
+      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+    },
+    {
+      "path": "store/screenshots/04-challenges.png",
+      "dimensions": [
+        720,
+        1280
+      ],
+      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+    },
+    {
+      "path": "store/screenshots/05-rewards.png",
+      "dimensions": [
+        720,
+        1280
+      ],
+      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+    },
+    {
+      "path": "store/screenshots/06-profile.png",
+      "dimensions": [
+        720,
+        1280
+      ],
+      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+    }
+  ]
 }

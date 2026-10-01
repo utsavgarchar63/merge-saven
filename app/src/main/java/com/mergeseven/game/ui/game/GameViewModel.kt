@@ -114,7 +114,8 @@ data class BoosterButtonUi(
     val enabled: Boolean,
     val cost: Int,
     val owned: Int,
-    val selected: Boolean = false
+    val selected: Boolean = false,
+    val unlimited: Boolean = false
 )
 
 enum class AccessibilityAnnounceKind {
@@ -557,6 +558,11 @@ class GameViewModel @Inject constructor(
             audioManager.startMusic()
         }
     }
+    val pauseSoundEnabled = settingsRepository.isSoundEnabled
+    val pauseMusicEnabled = settingsRepository.isMusicEnabled
+    val pauseHapticsEnabled = settingsRepository.isHapticsEnabled
+    fun togglePauseHaptics() { viewModelScope.launch { settingsRepository.setHapticsEnabled(!settingsRepository.isHapticsEnabled.first()) } }
+
     fun togglePauseSound() { viewModelScope.launch { settingsRepository.setSoundEnabled(!settingsRepository.isSoundEnabled.first()) } }
     fun togglePauseMusic() { viewModelScope.launch { settingsRepository.setMusicEnabled(!settingsRepository.isMusicEnabled.first()) } }
     fun replayTutorial() {
@@ -1039,9 +1045,10 @@ class GameViewModel @Inject constructor(
             BoosterButtonUi(
                 type = type,
                 enabled = deny == BoosterDenyReason.OK && !state.isGameOver,
-                cost = liveBoosterCost(type),
+                cost = if (type == BoosterType.UNDO && mode.hud.unlimitedUndo) 0 else liveBoosterCost(type),
                 owned = owned,
-                selected = pending == type
+                selected = pending == type,
+                unlimited = type == BoosterType.UNDO && mode.hud.unlimitedUndo
             )
         }
     }
@@ -1103,8 +1110,16 @@ class GameViewModel @Inject constructor(
         applyState(newState, endReason = null)
     }
 
+    private var previewState: GameState? = null
+    private var previewOrigin: HexCoord? = null
+    private var previewSlot = -1
+
     fun onCellHover(origin: HexCoord?, slotIndex: Int = _uiState.value.selectedSlotIndex) {
         val state = currentGameState ?: return
+        if (previewState === state && previewOrigin == origin && previewSlot == slotIndex) return
+        previewState = state
+        previewOrigin = origin
+        previewSlot = slotIndex
         val piece = state.trayPieces.getOrNull(slotIndex)
 
         if (origin == null || piece == null) {
@@ -1116,8 +1131,10 @@ class GameViewModel @Inject constructor(
         val placementCells = piece.absoluteCells(origin).map { (coord, _) -> coord to canPlace }
         val affected = if (canPlace) {
             val preview = gameEngine.placePiece(state, piece, origin, slotIndex).state
+            val remaining = preview.board.activeTiles().associateBy { it.id }
             state.board.activeTiles().filter { tile ->
-                preview.board.activeTiles().none { it.id == tile.id && it.value == tile.value && it.cell == tile.cell }
+                val after = remaining[tile.id]
+                after == null || after.value != tile.value || after.cell != tile.cell
             }.map { it.cell to true }
         } else emptyList()
         val hovered = (placementCells + affected).distinctBy { it.first }

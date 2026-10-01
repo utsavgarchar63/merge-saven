@@ -1,5 +1,6 @@
 package com.mergeseven.game.ui.settings
 
+import androidx.compose.ui.res.painterResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import android.content.Intent
@@ -304,9 +305,15 @@ fun SettingsScreen(
 
                         if (privacyRequired) OutlinedButton(
                             onClick = { (context as? android.app.Activity)?.let(viewModel::showPrivacyOptions) },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Ad privacy options") }
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                Icon(painterResource(R.drawable.icon_privacy), null)
+                                Spacer(Modifier.width(8.dp)); Text("Ad privacy options")
+                            }
                         OutlinedButton(onClick = { viewModel.replayTutorial(); onReplayTutorial() },
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Replay how to play") }
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                Icon(painterResource(R.drawable.icon_help), null)
+                                Spacer(Modifier.width(8.dp)); Text("Replay how to play")
+                            }
 
                         Text(
                             text = "Reset saved user data (coins, stars, daily streak) back to starting defaults.",

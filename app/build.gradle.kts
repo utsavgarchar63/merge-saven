@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -14,6 +16,16 @@ tasks.configureEach {
     if (name.startsWith("uploadCrashlytics")) enabled = false
 }
 
+// One source of truth for manifest and all ad formats, including release QA.
+val adMobSettings = Properties().apply {
+    rootProject.file("admob.properties").inputStream().use { load(it) }
+}
+val adMobProfile = adMobSettings.getProperty("profile")
+require(adMobProfile in setOf("test", "production")) { "admob.properties: profile must be test or production" }
+fun adMobId(format: String, profile: String = adMobProfile): String = requireNotNull(adMobSettings.getProperty("$profile.$format")) {
+    "Missing $profile.$format in admob.properties"
+}.also { require(it.startsWith("ca-app-pub-")) { "Invalid AdMob ID for $format" } }
+
 android {
     namespace = "com.mergeseven.game"
     compileSdk = 36
@@ -26,6 +38,12 @@ android {
         versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        resValue("string", "admob_app_id", adMobId("app"))
+        resValue("string", "admob_rewarded_unit_id", adMobId("rewarded"))
+        resValue("string", "admob_interstitial_unit_id", adMobId("interstitial"))
+        resValue("string", "admob_banner_unit_id", adMobId("banner"))
+        buildConfigField("boolean", "TEST_ADS", (adMobProfile == "test").toString())
+
     }
 
     sourceSets {
@@ -80,6 +98,12 @@ android {
 
     buildTypes {
         debug {
+            // Debug stays on demo inventory even when a future release selects production.
+            resValue("string", "admob_app_id", adMobId("app", "test"))
+            resValue("string", "admob_rewarded_unit_id", adMobId("rewarded", "test"))
+            resValue("string", "admob_interstitial_unit_id", adMobId("interstitial", "test"))
+            resValue("string", "admob_banner_unit_id", adMobId("banner", "test"))
+            buildConfigField("boolean", "TEST_ADS", "true")
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
         }

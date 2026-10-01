@@ -35,7 +35,7 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel(), onBackClick: () -> Un
             Image(painterResource(R.drawable.art_coins_v2), null, Modifier.size(80.dp))
             Text("A little coin boost", style = MaterialTheme.typography.titleLarge)
             Text("${viewModel.claimsLeft()} of 3 optional coin rewards left today")
-            GoldButton(if (busy) "Claiming reward…" else if (AdPlacement.FUNDS_COINS in availability) "Watch ad · Get 100 coins" else "Ad unavailable · Try again",
+            GoldButton(if (busy) "Claiming reward…" else if (AdPlacement.FUNDS_COINS in availability) "Watch ad · Get 100 coins" else "Get 100 coins · Try ad again",
                 enabled = !busy && activity != null && viewModel.claimsLeft() > 0) { activity?.let(viewModel::watchEarnAd) }
             Text("Ads are optional. Campaign levels and daily quests also earn coins.", style = MaterialTheme.typography.bodySmall)
         }

@@ -6,7 +6,6 @@ import android.view.ViewGroup
 import com.google.android.gms.ads.*
 import com.google.android.gms.ads.interstitial.*
 import com.google.android.gms.ads.rewarded.*
-import com.mergeseven.game.BuildConfig
 import com.mergeseven.game.R
 import com.mergeseven.game.core.analytics.AnalyticsTracker
 import com.mergeseven.game.core.flags.Feature
@@ -38,10 +37,9 @@ class AdMobAdService @Inject constructor(
     override val fullscreenShowing = showing.asStateFlow()
     private var initialized = false
     private val requested = mutableSetOf<AdPlacement>()
-    private val loading = mutableSetOf<AdPlacement>()
+    private val loadGate = AdLoadGate()
     private val loadedAt = mutableMapOf<AdPlacement, Long>()
-    private val lastAttempt = mutableMapOf<AdPlacement, Long>()
-    private val rewarded = mutableMapOf<AdPlacement, RewardedAd>()
+    private var rewarded: RewardedAd? = null
     private var interstitial: InterstitialAd? = null
     private var banner: AdView? = null
     private var bannerContainer: ViewGroup? = null
@@ -59,25 +57,35 @@ class AdMobAdService @Inject constructor(
     private fun enabled() = consentManager.canRequestAds.value &&
         featureFlags.isEnabled(Feature.AF9) && liveOpsGates.adsAllowed()
     private fun initialize() { if (!initialized) { MobileAds.initialize(context) {}; initialized = true } }
-    private fun unit(placement: AdPlacement): String = if (BuildConfig.DEBUG) when (placement) {
-        AdPlacement.BANNER -> "ca-app-pub-3940256099942544/6300978111"
-        AdPlacement.INTERSTITIAL -> "ca-app-pub-3940256099942544/1033173712"
-        else -> "ca-app-pub-3940256099942544/5224354917"
-    } else context.getString(when (placement) {
+    private fun unit(placement: AdPlacement): String = context.getString(when (placement) {
         AdPlacement.BANNER -> R.string.admob_banner_unit_id
         AdPlacement.INTERSTITIAL -> R.string.admob_interstitial_unit_id
         else -> R.string.admob_rewarded_unit_id
     })
     override fun isReady(placement: AdPlacement): Boolean = enabled() && placement in ready.value &&
-        (placement == AdPlacement.BANNER || System.currentTimeMillis() - (loadedAt[placement] ?: 0) < 3_600_000)
+        (placement == AdPlacement.BANNER || System.currentTimeMillis() - (loadedAt[inventoryKey(placement)] ?: 0) < 3_600_000)
     private fun telemetry(name: String, p: AdPlacement, extra: Map<String, Any?> = emptyMap()) =
         analytics.logEvent(name, mapOf("placement" to p.name.lowercase()) + extra)
+    private fun inventoryPlacements(p: AdPlacement): Set<AdPlacement> =
+        if (inventoryKey(p) == AdPlacement.FUNDS_COINS) rewardedPlacements else setOf(p)
     private fun loaded(p: AdPlacement) {
-        loading.remove(p); loadedAt[p] = System.currentTimeMillis(); ready.value += p
+        loadGate.finished(p)
+        val key = inventoryKey(p)
+        val timestamp = System.currentTimeMillis()
+        loadedAt[key] = timestamp
+        ready.value += inventoryPlacements(p)
         telemetry("ad_loaded", p)
+        if (p != AdPlacement.BANNER) scope.launch {
+            delay(3_600_000L)
+            if (loadedAt[key] == timestamp) {
+                ready.value -= inventoryPlacements(p)
+                loadedAt.remove(key)
+                if (key == AdPlacement.FUNDS_COINS) rewarded = null else interstitial = null
+            }
+        }
     }
     private fun failed(p: AdPlacement, error: LoadAdError) {
-        loading.remove(p); ready.value -= p
+        loadGate.finished(p); ready.value -= inventoryPlacements(p)
         telemetry("ad_load_failed", p, mapOf("code" to error.code))
     }
     private fun paid(p: AdPlacement, value: AdValue) = telemetry("ad_paid", p,
@@ -86,10 +94,10 @@ class AdMobAdService @Inject constructor(
     override fun preload(placement: AdPlacement) {
         scope.launch {
             requested += placement
-            if (!enabled() || placement == AdPlacement.BANNER || isReady(placement) || placement in loading) return@launch
+            if (!enabled() || placement == AdPlacement.BANNER || isReady(placement)) return@launch
             val now = System.currentTimeMillis()
-            if (now - (lastAttempt[placement] ?: 0) < 30_000) return@launch
-            initialize(); loading += placement; lastAttempt[placement] = now
+            if (!loadGate.tryBegin(placement, now)) return@launch
+            initialize()
             val token = generation
             telemetry("ad_load_started", placement)
             if (placement == AdPlacement.INTERSTITIAL) {
@@ -104,7 +112,7 @@ class AdMobAdService @Inject constructor(
                 RewardedAd.load(context, unit(placement), AdRequest.Builder().build(), object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) {
                         if (token != generation || !enabled()) return
-                        rewarded[placement] = ad; ad.setOnPaidEventListener { paid(placement, it) }; loaded(placement)
+                        rewarded = ad; loaded(placement)
                     }
                     override fun onAdFailedToLoad(error: LoadAdError) { if (token == generation) failed(placement, error) }
                 })
@@ -117,8 +125,11 @@ class AdMobAdService @Inject constructor(
                 preload(placement); return@withContext AdResult.NoFill
             }
             try {
-                val ad = rewarded.remove(placement) ?: return@withContext AdResult.NoFill
-                ready.value -= placement; showing.value = true
+                val ad = rewarded ?: return@withContext AdResult.NoFill
+                rewarded = null
+                loadedAt.remove(AdPlacement.FUNDS_COINS)
+                ready.value -= rewardedPlacements; showing.value = true
+                ad.setOnPaidEventListener { paid(placement, it) }
                 suspendCancellableCoroutine<AdResult> { cont ->
                     var earnedJob: Deferred<Boolean>? = null
                     ad.fullScreenContentCallback = object : FullScreenContentCallback() {
@@ -129,12 +140,13 @@ class AdMobAdService @Inject constructor(
                                 exposure.fullscreenClosed(); showing.value = false
                                 val earned = earnedJob?.await() == true
                                 if (cont.isActive) cont.resume(if (earned) AdResult.Rewarded else AdResult.Dismissed)
-                                lastAttempt.remove(placement); preload(placement)
+                                loadGate.allowRetry(placement); preload(placement)
                             }
                         }
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
                             showing.value = false; telemetry("ad_show_failed", placement, mapOf("code" to error.code))
                             if (cont.isActive) cont.resume(AdResult.Failed("Ad unavailable"))
+                            loadGate.allowRetry(placement); preload(placement)
                         }
                     }
                     ad.show(activity) {
@@ -152,6 +164,7 @@ class AdMobAdService @Inject constructor(
         try {
             val ad = interstitial ?: return@withContext AdResult.NoFill
             interstitial = null; ready.value -= AdPlacement.INTERSTITIAL; showing.value = true
+            loadedAt.remove(AdPlacement.INTERSTITIAL)
             suspendCancellableCoroutine<AdResult> { cont ->
                 ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                     override fun onAdImpression() { telemetry("ad_impression", AdPlacement.INTERSTITIAL) }
@@ -163,12 +176,14 @@ class AdMobAdService @Inject constructor(
                         scope.launch {
                             exposure.fullscreenClosed(); showing.value = false
                             if (cont.isActive) cont.resume(AdResult.Completed)
-                            lastAttempt.remove(AdPlacement.INTERSTITIAL); preload(AdPlacement.INTERSTITIAL)
+                            loadGate.allowRetry(AdPlacement.INTERSTITIAL); preload(AdPlacement.INTERSTITIAL)
                         }
                     }
                     override fun onAdFailedToShowFullScreenContent(error: AdError) {
                         showing.value = false
+                        telemetry("ad_show_failed", AdPlacement.INTERSTITIAL, mapOf("code" to error.code))
                         if (cont.isActive) cont.resume(AdResult.Failed("Ad unavailable"))
+                        loadGate.allowRetry(AdPlacement.INTERSTITIAL); preload(AdPlacement.INTERSTITIAL)
                     }
                 }
                 ad.show(activity)
@@ -177,18 +192,20 @@ class AdMobAdService @Inject constructor(
     }
     override fun bindBanner(activity: Activity, container: ViewGroup) {
         scope.launch {
-            if (!enabled() || !container.isAttachedToWindow || activity.isDestroyed) { unbindBanner(); return@launch }
+            if (!enabled()) { unbindBanner(); return@launch }
+            if (!container.isAttachedToWindow || activity.isDestroyed) { unbindBanner(container); return@launch }
             if (bannerContainer === container && banner != null) return@launch
             unbindBanner(); initialize()
             val density = activity.resources.displayMetrics.density
             val width = ((container.width.takeIf { it > 0 } ?: activity.resources.displayMetrics.widthPixels) / density).toInt()
             val token = generation
-            val ad = AdView(activity).apply {
+            val ad = AdView(activity)
+            ad.apply {
                 setAdSize(AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, width))
                 adUnitId = unit(AdPlacement.BANNER)
                 adListener = object : AdListener() {
-                    override fun onAdLoaded() { if (token == generation) loaded(AdPlacement.BANNER) }
-                    override fun onAdFailedToLoad(error: LoadAdError) { failed(AdPlacement.BANNER, error) }
+                    override fun onAdLoaded() { if (token == generation && banner === ad && bannerContainer === container) loaded(AdPlacement.BANNER) }
+                    override fun onAdFailedToLoad(error: LoadAdError) { if (banner === ad) failed(AdPlacement.BANNER, error) }
                     override fun onAdImpression() { telemetry("ad_impression", AdPlacement.BANNER) }
                 }
                 setOnPaidEventListener { paid(AdPlacement.BANNER, it) }
@@ -197,14 +214,18 @@ class AdMobAdService @Inject constructor(
             ad.loadAd(AdRequest.Builder().build())
         }
     }
-    override fun unbindBanner() {
+    override fun unbindBanner(container: ViewGroup?) {
+        if (container != null && bannerContainer !== container) return
         banner?.destroy(); bannerContainer?.removeAllViews(); banner = null; bannerContainer = null
         ready.value -= AdPlacement.BANNER
     }
-    override fun pauseBanner() { banner?.pause() }
-    override fun resumeBanner() { if (enabled()) banner?.resume() else unbindBanner() }
+    override fun pauseBanner(container: ViewGroup?) { if (container == null || bannerContainer === container) banner?.pause() }
+    override fun resumeBanner(container: ViewGroup?) {
+        if (container != null && bannerContainer !== container) return
+        if (enabled()) banner?.resume() else unbindBanner()
+    }
     private fun clearInventory() {
-        generation++; rewarded.clear(); interstitial = null; loading.clear(); loadedAt.clear()
+        generation++; rewarded = null; interstitial = null; loadGate.clear(); loadedAt.clear()
         ready.value = emptySet(); unbindBanner()
     }
     override fun destroy() { scope.launch { clearInventory() } }

@@ -24,7 +24,7 @@ No lives, paid energy, subscription benefit or mandatory ads. Normal modes remai
 
 ## Ad placements and policy
 
-Keep production configuration in strings.xml:
+Keep all test and production configuration in root `admob.properties`. The checked-in profile is `test`, including local release QA artifacts:
 
 | Format | Value |
 |---|---|
@@ -33,7 +33,7 @@ Keep production configuration in strings.xml:
 | Interstitial | ca-app-pub-6926810742930516/6590105790 |
 | Banner | ca-app-pub-6926810742930516/8854886068 |
 
-App ID is not an ad unit. Debug always uses Google test units. Verify unit ownership, format, app association and serving in AdMob before release. Register release QA test devices.
+App ID is not an ad unit. Gradle generates the manifest/resource values from this one file; ad service code contains no duplicated IDs. Debug always uses test inventory; the profile selects release inventory. Adaptive test banners use Google's `/9214589741` demo unit. Change `profile` only for a separately authorized release after verifying ownership, format, app association and serving in AdMob. Register release QA test devices before inspecting production inventory.
 
 | Optional rewarded placement | Benefit | Initial cap |
 |---|---|---|
