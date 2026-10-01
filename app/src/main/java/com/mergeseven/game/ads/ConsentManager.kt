@@ -21,6 +21,8 @@ import kotlin.coroutines.resume
 interface ConsentManager {
     val canRequestAds: StateFlow<Boolean>
     val resolved: StateFlow<Boolean>
+    val privacyOptionsRequired: StateFlow<Boolean> get() = kotlinx.coroutines.flow.MutableStateFlow(false)
+    suspend fun showPrivacyOptions(activity: Activity) {}
     suspend fun gatherConsent(activity: Activity)
 }
 
@@ -34,6 +36,18 @@ class UmpConsentManager @Inject constructor(
 
     private val _resolved = MutableStateFlow(false)
     override val resolved: StateFlow<Boolean> = _resolved.asStateFlow()
+
+    private val _privacyOptionsRequired = MutableStateFlow(false)
+    override val privacyOptionsRequired = _privacyOptionsRequired.asStateFlow()
+
+    override suspend fun showPrivacyOptions(activity: Activity) {
+        suspendCancellableCoroutine<Unit> { cont ->
+            UserMessagingPlatform.showPrivacyOptionsForm(activity) {
+                finish()
+                if (cont.isActive) cont.resume(Unit)
+            }
+        }
+    }
 
     private val consentInformation: ConsentInformation =
         UserMessagingPlatform.getConsentInformation(context)
@@ -63,6 +77,7 @@ class UmpConsentManager @Inject constructor(
     }
 
     private fun finish() {
+        _privacyOptionsRequired.value = consentInformation.privacyOptionsRequirementStatus == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
         _canRequestAds.value = consentInformation.canRequestAds()
         _resolved.value = true
     }

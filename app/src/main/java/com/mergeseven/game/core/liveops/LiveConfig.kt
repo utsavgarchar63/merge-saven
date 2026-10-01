@@ -15,6 +15,7 @@ interface LiveConfig {
     fun spawnWeights(): Map<Int, Int>
     fun boosterCost(type: BoosterType): Int
     fun hintCost(): Int
+    fun adPolicy(): com.mergeseven.game.ads.AdPolicyConfig = com.mergeseven.game.ads.AdPolicyConfig()
     fun adFrequency(): Long
     fun featureFlagOverride(feature: Feature): Boolean?
     fun killSwitches(): KillSwitches
@@ -54,6 +55,14 @@ class ParsedLiveConfig(
     override fun hintCost(): Int {
         val base = costMap()["HINT"] ?: Constants.HINT_COST
         return (base * abBoosterPriceMult()).toInt().coerceAtLeast(0)
+    }
+
+    override fun adPolicy(): com.mergeseven.game.ads.AdPolicyConfig {
+        val parsed = runCatching {
+        LiveConfigDefaults.json.decodeFromString<com.mergeseven.game.ads.AdPolicyConfig>(
+            strings()["ad_policy_json"].orEmpty()).bounded()
+        }.getOrDefault(com.mergeseven.game.ads.AdPolicyConfig())
+        return parsed.copy(frequency = maxOf(parsed.frequency, adFrequency().coerceIn(3, 100).toInt()))
     }
 
     override fun adFrequency(): Long =

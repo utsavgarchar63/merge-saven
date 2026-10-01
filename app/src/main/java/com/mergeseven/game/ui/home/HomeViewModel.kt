@@ -8,9 +8,6 @@ import com.mergeseven.game.ads.AdResult
 import com.mergeseven.game.ads.AdService
 import com.mergeseven.game.ads.BannerAdHost
 import com.mergeseven.game.ads.InterstitialPolicy
-import com.mergeseven.game.billing.OfferEngine
-import com.mergeseven.game.billing.PurchaseGranter
-import com.mergeseven.game.billing.RemoteOffer
 import com.mergeseven.game.competitive.Tournament
 import com.mergeseven.game.competitive.TournamentRepository
 import com.mergeseven.game.core.analytics.AnalyticsEvents
@@ -57,8 +54,7 @@ class HomeViewModel @Inject constructor(
     private val analyticsTracker: AnalyticsTracker,
     private val featureFlags: FeatureFlags,
     private val settingsRepository: SettingsRepository,
-    private val offerEngine: OfferEngine,
-    private val purchaseGranter: PurchaseGranter,
+    private val levelRepository: com.mergeseven.game.data.repository.LevelRepository,
     private val adService: AdService,
     private val adPreloader: AdPreloader,
     private val interstitialPolicy: InterstitialPolicy
@@ -81,11 +77,7 @@ class HomeViewModel @Inject constructor(
 
     val tournament: StateFlow<Tournament?> = tournamentRepository.current
 
-    private val _remoteOffer = MutableStateFlow<RemoteOffer?>(null)
-    val remoteOffer: StateFlow<RemoteOffer?> = _remoteOffer.asStateFlow()
-
-    private val _stipendMessage = MutableStateFlow<String?>(null)
-    val stipendMessage: StateFlow<String?> = _stipendMessage.asStateFlow()
+    val nextCampaignLevel = levelRepository.highestUnlockedLevel
 
     val modeCards: StateFlow<List<ModeCardUi>> = modeRecordsStore.records
         .map { records ->
@@ -108,31 +100,7 @@ class HomeViewModel @Inject constructor(
     init {
         viewModelScope.launch { modeRecordsStore.load() }
         viewModelScope.launch { refreshResumable() }
-        viewModelScope.launch {
-            if (featureFlags.isEnabled(Feature.AF9)) {
-                _remoteOffer.value = offerEngine.currentOffer()
-                if (purchaseGranter.claimPremiumDailyStipend()) {
-                    _stipendMessage.value = "Premium daily coins claimed"
-                }
-            }
-        }
-    }
-
-    fun onReturnedFromSession(activity: android.app.Activity, sessionWon: Boolean) {
-        viewModelScope.launch {
-            interstitialPolicy.onSessionEnded()
-            val decision = interstitialPolicy.evaluate(
-                sessionWon = sessionWon,
-                inTutorial = false,
-                suppressAds = false
-            )
-            if (decision.allow) {
-                adPreloader.warmInterstitial()
-                if (adService.showInterstitial(activity) is AdResult.Completed) {
-                    interstitialPolicy.onInterstitialShown()
-                }
-            }
-        }
+        adPreloader.warmInterstitial()
     }
 
     fun refreshTournament() {
@@ -161,7 +129,7 @@ class HomeViewModel @Inject constructor(
             )
             for ((slot, modeId) in slots) {
                 val state = gameRepository.loadActiveGame(slot) ?: continue
-                if (!state.isGameOver) {
+                if (!state.isGameOver || state.resultFinished) {
                     _resumableGame.value = ResumableGame(modeId, state.level, state.score)
                     return@launch
                 }

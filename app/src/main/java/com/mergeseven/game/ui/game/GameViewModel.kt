@@ -17,6 +17,10 @@ import com.mergeseven.game.competitive.SessionReplayRecorder
 import com.mergeseven.game.competitive.ShareRunData
 import com.mergeseven.game.competitive.ShareRunUseCase
 import com.mergeseven.game.competitive.SubmitStatus
+import com.mergeseven.game.economy.RewardRules
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import com.mergeseven.game.core.Constants
 import android.content.Intent
 import com.mergeseven.game.core.DateProvider
@@ -91,6 +95,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.random.Random
@@ -130,6 +135,10 @@ data class AccessibilityAnnouncement(
  * UI State exposed to the GameScreen.
  */
 data class GameUiState(
+    val adBusy: Boolean = false,
+    val baseRewardCoins: Int = 0,
+    val tutorialStep: Int = 0,
+    val tutorialActive: Boolean = false,
     val isLoading: Boolean = true,
     val level: Int = 1,
     val score: Long = 0,
@@ -165,6 +174,7 @@ data class GameUiState(
     val af4Enabled: Boolean = false,
     val hintCells: List<HexCoord> = emptyList(),
     val canUseHint: Boolean = false,
+    val hintCoinCost: Int = Constants.HINT_COST,
     val showDeadlockWarning: Boolean = false,
     val hintsUsedThisRun: Int = 0,
     val boardThemeId: String = "wood",
@@ -246,12 +256,15 @@ class GameViewModel @Inject constructor(
     val juiceControllerPublic: JuiceController get() = juiceController
 
     private var currentGameState: GameState? = null
+    private var nextLevelBusy = false
     private var sessionEndedHandled = false
     private var timerJob: Job? = null
     private var hintPrefetchJob: Job? = null
     private var lastHintAtMs: Long = 0L
     private var hintsUsedThisRun: Int = 0
     private var deadlockWarningSuppressed: Boolean = false
+    private fun rankedMode() = featureFlags.isEnabled(Feature.AF8) && mode.id in setOf(ModeIds.DAILY, ModeIds.WEEKLY)
+
     private var sessionStartedAtMs: Long = 0L
     private var currentSessionSeed: Long = 0L
 
@@ -290,6 +303,11 @@ class GameViewModel @Inject constructor(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST
     )
+    private val saveMutex = kotlinx.coroutines.sync.Mutex()
+
+    private suspend fun saveCurrentGame() = saveMutex.withLock {
+        currentGameState?.let { gameRepository.saveActiveGame(it, mode.saveSlotId) }
+    }
 
     init {
         debugCommands.registerGameSession()
@@ -299,9 +317,12 @@ class GameViewModel @Inject constructor(
         viewModelScope.launch { boosterInventory.loadAndSeed() }
 
         viewModelScope.launch {
-            val saved = gameRepository.loadActiveGame(mode.saveSlotId)
+            userDataRepository.awaitReady()
+            levelRepository.awaitReady()
+            val loaded = gameRepository.loadActiveGame(mode.saveSlotId)
+            val saved = loaded?.let { if (it.runId.isEmpty()) it.copy(runId = "legacy:${it.modeId}:${it.rng.seed}:${it.level}") else it }
             val canResume = saved != null &&
-                !saved.isGameOver &&
+                (!saved.isGameOver || saved.resultFinished) &&
                 saved.modeId == mode.id &&
                 (mode.id != ModeIds.CAMPAIGN || saved.level == selectedLevelId) &&
                 dailyWeeklyStillValid(saved)
@@ -313,13 +334,33 @@ class GameViewModel @Inject constructor(
                 )
                 sessionReplayRecorder.markIncomplete()
                 currentSessionSeed = saved.rng.seed
-                applyState(outcome.state, outcome.endReason)
+                if (saved.resultFinished) {
+                    sessionEndedHandled = true
+                    updateUiFromState(saved, saved.resultWon, if (saved.resultWon) com.mergeseven.game.game.objectives.StarRating.compute(saved) else 0, saved.isGameOver)
+                    grantResult(saved)
+                } else applyState(outcome.state, outcome.endReason)
                 if (outcome.endReason == null) restartTimerIfNeeded()
             } else {
                 startNewGame(selectedLevelId)
             }
         }
 
+        viewModelScope.launch {
+            adService.availability.collect { currentGameState?.let { refreshPresentation(it) } }
+        }
+        viewModelScope.launch {
+            settingsRepository.tutorialStep.collect { step -> _uiState.update { it.copy(tutorialStep = step) } }
+        }
+        viewModelScope.launch {
+            settingsRepository.isTutorialCompleted.collect { completed ->
+                _uiState.update { it.copy(tutorialActive = !completed && mode.id == ModeIds.CAMPAIGN) }
+            }
+        }
+        viewModelScope.launch { settingsRepository.isSoundEnabled.collect { audioManager.setSoundEnabled(it) } }
+        viewModelScope.launch { settingsRepository.isMusicEnabled.collect { enabled ->
+            audioManager.setMusicEnabled(enabled)
+            if (_uiState.value.isPaused || _uiState.value.adBusy) audioManager.pauseMusic()
+        } }
         audioManager.startMusic()
         juiceController.bind(viewModelScope)
         juiceController.af10Enabled = featureFlags.isEnabled(Feature.AF10)
@@ -383,11 +424,12 @@ class GameViewModel @Inject constructor(
 
     private fun forceGameOverFromDebug() {
         val state = currentGameState ?: return
-        if (state.isGameOver || _uiState.value.isLevelComplete) return
+        if (state.isGameOver || _uiState.value.isLevelComplete || _uiState.value.adBusy || _uiState.value.isPaused) return
         handleEnded(state.copy(isGameOver = true), ModeEndReason.LOST)
     }
 
     fun startNewGame(levelId: Int = selectedLevelId) {
+        audioManager.setGameplayPaused(false)
         sessionEndedHandled = false
         hintsUsedThisRun = 0
         lastHintAtMs = 0L
@@ -405,7 +447,7 @@ class GameViewModel @Inject constructor(
             navSeed != -1L -> navSeed
             mode.id == ModeIds.DAILY -> {
                 val date = dateProvider.today()
-                if (featureFlags.isEnabled(Feature.AF4)) {
+                if (featureFlags.isEnabled(Feature.AF4) && !featureFlags.isEnabled(Feature.AF8)) {
                     dailySeedValidator.resolveSeed(date, targetScore)
                 } else {
                     ModeSeeds.dailySeed(date)
@@ -427,7 +469,7 @@ class GameViewModel @Inject constructor(
             targetScore = targetScore,
             gameEngine = gameEngine
         )
-        val initial = decorateAf4Spawn(mode.createSession(ctx))
+        val initial = decorateAf4Spawn(mode.createSession(ctx)).copy(runId = java.util.UUID.randomUUID().toString())
         currentSessionSeed = seed
         sessionReplayRecorder.start(seed = seed, level = initial.level)
         updateCrashContext(initial, "session_start")
@@ -471,13 +513,16 @@ class GameViewModel @Inject constructor(
                 )
 
                 val nextState = current.copy(
+                    runId = java.util.UUID.randomUUID().toString(),
+                    resultFinished = false, resultWon = false, baseRewardCoins = 0, rewardedHintsUsed = 0,
                     level = nextLevelId,
                     targetValue = nextTarget,
                     objectives = nextObjectives,
-                    isGameOver = false
+                    isGameOver = false, previousState = null
                 )
 
                 sessionEndedHandled = false
+                sessionStartedAtMs = System.currentTimeMillis()
                 currentGameState = nextState
                 updateCrashContext(nextState, "next_level_continue")
                 applyState(nextState, endReason = null)
@@ -490,24 +535,57 @@ class GameViewModel @Inject constructor(
         startNewGame(nextLevel)
     }
 
+    private fun recordActivePlaytime() {
+        if (sessionStartedAtMs <= 0) return
+        val elapsed = (System.currentTimeMillis() - sessionStartedAtMs).coerceAtLeast(0)
+        sessionStartedAtMs = 0
+        userDataRepository.recordLifetimeStats(playtimeDeltaMs = elapsed)
+        persistenceScope.launch { interstitialPolicy.addPlaytime(elapsed) }
+    }
+
+    private fun refreshPresentation(state: GameState) = updateUiFromState(state,
+        _uiState.value.isLevelComplete, _uiState.value.starsEarned, _uiState.value.isGameOver)
+
+    private var screenForeground = true
+
+    fun onForeground() {
+        screenForeground = true
+        audioManager.setGameplayPaused(_uiState.value.isPaused || _uiState.value.adBusy)
+        if (!_uiState.value.isPaused && !_uiState.value.adBusy) {
+            sessionStartedAtMs = if (screenForeground && currentGameState?.resultFinished != true) System.currentTimeMillis() else 0
+            restartTimerIfNeeded()
+            audioManager.startMusic()
+        }
+    }
+    fun togglePauseSound() { viewModelScope.launch { settingsRepository.setSoundEnabled(!settingsRepository.isSoundEnabled.first()) } }
+    fun togglePauseMusic() { viewModelScope.launch { settingsRepository.setMusicEnabled(!settingsRepository.isMusicEnabled.first()) } }
+    fun replayTutorial() {
+        viewModelScope.launch { settingsRepository.setTutorialStep(0); settingsRepository.setTutorialCompleted(false) }
+        onResume()
+    }
+    fun skipTutorial() { viewModelScope.launch { settingsRepository.setTutorialCompleted(true); analyticsTracker.logEvent("tutorial_skipped", mapOf("step" to _uiState.value.tutorialStep)) } }
+
     fun onPause() {
+        audioManager.setGameplayPaused(true)
+        recordActivePlaytime()
         _uiState.update { it.copy(isPaused = true) }
         audioManager.pauseMusic()
         timerJob?.cancel()
     }
 
     fun onResume() {
+        if (_uiState.value.adBusy || adService.fullscreenShowing.value) return
+        sessionStartedAtMs = if (screenForeground && currentGameState?.resultFinished != true) System.currentTimeMillis() else 0
+        audioManager.setGameplayPaused(false)
         _uiState.update { it.copy(isPaused = false) }
         audioManager.startMusic()
         restartTimerIfNeeded()
     }
 
     fun onStopped() {
-        if (featureFlags.isEnabled(Feature.AF5) && sessionStartedAtMs > 0L) {
-            val elapsed = System.currentTimeMillis() - sessionStartedAtMs
-            userDataRepository.recordLifetimeStats(playtimeDeltaMs = elapsed)
-            sessionStartedAtMs = System.currentTimeMillis()
-        }
+        screenForeground = false
+        audioManager.setGameplayPaused(true)
+        recordActivePlaytime()
         audioManager.pauseMusic()
         timerJob?.cancel()
         persistNow()
@@ -515,12 +593,12 @@ class GameViewModel @Inject constructor(
 
     private fun restartTimerIfNeeded() {
         timerJob?.cancel()
-        if (!mode.hud.showTimer) return
+        if (!screenForeground || !mode.hud.showTimer || _uiState.value.isPaused || _uiState.value.adBusy) return
         timerJob = viewModelScope.launch {
             while (isActive) {
                 delay(TIMER_TICK_MS)
                 val state = currentGameState ?: continue
-                if (state.isGameOver || _uiState.value.isLevelComplete) break
+                if (state.isGameOver || _uiState.value.isLevelComplete || _uiState.value.isPaused || _uiState.value.adBusy) break
                 val outcome = mode.onTimerTick(state, TIMER_TICK_MS, gameEngine)
                 applyState(outcome.state, outcome.endReason)
                 if (outcome.endReason != null) break
@@ -547,6 +625,13 @@ class GameViewModel @Inject constructor(
         val effects = mode.onSessionEnded(gameState, endReason)
         val isComplete = endReason == ModeEndReason.WON
         val stars = effects.starsEarned
+        val firstClear = mode.id == ModeIds.CAMPAIGN &&
+            levelRepository.getLevels().none { it.rule.level == gameState.level && it.isCompleted } &&
+            !userDataRepository.rewardClaimed("level:${gameState.level}:first")
+        val resultCoins = RewardRules.resultCoins(mode.id, isComplete, firstClear, gameState.moves, gameState.score)
+        var finished = gameState.copy(resultFinished = true, resultWon = isComplete, baseRewardCoins = resultCoins)
+        recordActivePlaytime()
+        persistenceScope.launch { interstitialPolicy.finishSession(finished.runId, isComplete && mode.id == ModeIds.CAMPAIGN) }
 
         if (isComplete && mode.id == ModeIds.CAMPAIGN) {
             levelRepository.completeLevel(gameState.level, gameState.score, stars)
@@ -554,9 +639,6 @@ class GameViewModel @Inject constructor(
             audioManager.playSoundCombo()
             if (featureFlags.isEnabled(Feature.AF7)) {
                 cloudUploadTrigger.requestUpload(UploadReason.LEVEL_COMPLETE)
-            }
-            if (featureFlags.isEnabled(Feature.AF3)) {
-                persistenceScope.launch { boosterInventory.grant(BoosterType.UNDO, 1) }
             }
             if (featureFlags.isEnabled(Feature.AF5)) {
                 userDataRepository.addXp(Constants.XP_LEVEL_CLEAR)
@@ -582,11 +664,7 @@ class GameViewModel @Inject constructor(
         }
 
         if (featureFlags.isEnabled(Feature.AF5)) {
-            val elapsed = if (sessionStartedAtMs > 0L) {
-                System.currentTimeMillis() - sessionStartedAtMs
-            } else {
-                0L
-            }
+            val elapsed = 0L
             userDataRepository.recordLifetimeStats(
                 biggestTile = gameState.board.activeTiles().maxOfOrNull { it.value } ?: 0,
                 playtimeDeltaMs = elapsed
@@ -613,7 +691,9 @@ class GameViewModel @Inject constructor(
             }
         }
         if (effects.finishDailyAttempt) {
+            val before = userDataRepository.coins()
             userDataRepository.finishDailyAttempt(gameState.score.toInt())
+            finished = finished.copy(baseRewardCoins = (userDataRepository.coins() - before).coerceAtLeast(0))
         }
         if (effects.finishWeeklyAttempt) {
             userDataRepository.finishWeeklyAttempt(
@@ -636,12 +716,15 @@ class GameViewModel @Inject constructor(
         )
 
         updateUiFromState(
-            gameState = gameState,
+            gameState = finished,
             isComplete = isComplete,
             stars = stars,
             isGameOver = !isComplete
         )
-        clearSave()
+        persistenceScope.launch {
+            saveCurrentGame()
+            grantResult(finished)
+        }
 
         if (featureFlags.isEnabled(Feature.AF8)) {
             viewModelScope.launch {
@@ -692,6 +775,84 @@ class GameViewModel @Inject constructor(
 
     fun dismissScoreSubmitStatus() {
         _uiState.update { it.copy(scoreSubmitStatus = null) }
+    }
+
+    private suspend fun grantResult(state: GameState) {
+        val key = "${state.runId}:result:${state.resultWon}"
+        if (mode.id == ModeIds.DAILY) {
+            if (!userDataRepository.rewardClaimed(key) && state.baseRewardCoins > 0 && !userDataRepository.userProfile.value.dailyChallenge.isCompleted)
+                userDataRepository.finishDailyAttempt(state.score.toInt())
+            userDataRepository.claimReward(key, 0)
+            if (currentGameState?.runId == state.runId) refreshPresentation(currentGameState!!)
+            return
+        }
+        val first = state.resultWon && mode.id == ModeIds.CAMPAIGN && state.baseRewardCoins == 100
+        if (first && !userDataRepository.rewardClaimed(key) && userDataRepository.rewardClaimed("level:${state.level}:first")) {
+            val replay = state.copy(baseRewardCoins = 30)
+            userDataRepository.claimReward(key, 30, source = "run_result")
+            if (currentGameState?.runId == state.runId) {
+                refreshPresentation(replay)
+                saveCurrentGame()
+            }
+            return
+        }
+        userDataRepository.claimReward(key, state.baseRewardCoins,
+            extraKey = if (first) "level:${state.level}:first" else null, source = "run_result")
+        if (first) boosterInventory.grantOnce(BoosterType.UNDO, 1, "level:${state.level}:undo")
+        if (currentGameState?.runId == state.runId) refreshPresentation(currentGameState!!)
+    }
+
+    fun advanceTutorial() {
+        val next = (_uiState.value.tutorialStep + 1).coerceAtMost(3)
+        _uiState.update { it.copy(tutorialStep = next) }
+        viewModelScope.launch {
+            settingsRepository.setTutorialStep(next)
+            analyticsTracker.logEvent("tutorial_step_completed", mapOf("step" to next))
+            if (next == 3) {
+                settingsRepository.setTutorialCompleted(true)
+                analyticsTracker.logEvent(AnalyticsEvents.TUTORIAL_COMPLETED)
+            }
+        }
+    }
+
+    fun nextLevelAfterAd(activity: android.app.Activity?, keepBoard: Boolean) {
+        if (nextLevelBusy || _uiState.value.adBusy || !_uiState.value.isLevelComplete) return
+        nextLevelBusy = true
+        viewModelScope.launch {
+            try {
+                currentGameState?.takeIf { it.resultFinished }?.let { grantResult(it) }
+                userDataRepository.flush()
+                if (activity != null) maybeShowInterstitial(activity, true)
+                onNextLevel(keepBoard)
+            } finally { nextLevelBusy = false }
+        }
+    }
+
+    private fun runRewardAd(activity: android.app.Activity, placement: AdPlacement, onEarned: suspend () -> Unit) {
+        if (_uiState.value.adBusy || !featureFlags.isEnabled(Feature.AF9) || mode.hud.suppressAds) return
+        adService.preload(placement)
+        if (!adService.isReady(placement)) {
+            _uiState.update { it.copy(adStatusMessage = "No ad available right now. You can keep playing.") }
+            return
+        }
+        _uiState.update { it.copy(adBusy = true, adStatusMessage = null) }
+        viewModelScope.launch {
+            val wasPaused = _uiState.value.isPaused
+            onPause()
+            try {
+                saveCurrentGame()
+                userDataRepository.flush()
+                val result = adService.showRewarded(activity, placement, onEarned)
+                _uiState.update { it.copy(adStatusMessage = when (result) {
+                    AdResult.Rewarded -> "Reward received"
+                    AdResult.Dismissed -> "Ad closed. No reward was claimed."
+                    else -> "No ad available right now. You can keep playing."
+                }) }
+            } finally {
+                _uiState.update { it.copy(adBusy = false) }
+                if (!wasPaused) onResume()
+            }
+        }
     }
 
     private fun updateUiFromState(
@@ -797,12 +958,12 @@ class GameViewModel @Inject constructor(
                 boosterButtons = buildBoosterButtons(synced, af3, currentState.pendingBooster),
                 continueCoinCost = continueCost,
                 canCoinContinue = canCoinContinue,
-                canRewardedContinue = canRewarded,
+                canRewardedContinue = canRewarded && !rankedMode() && featureFlags.isEnabled(Feature.AF9) && !mode.hud.suppressAds && !userDataRepository.rewardClaimed("${synced.runId}:continue"),
                 pendingBooster = currentState.pendingBooster,
                 af4Enabled = af4,
                 af8Enabled = af8,
                 hintCells = if (af4) currentState.hintCells else emptyList(),
-                canUseHint = canHint,
+                canUseHint = canHint, hintCoinCost = hintCost,
                 showDeadlockWarning = showDeadlock,
                 hintsUsedThisRun = hintsUsedThisRun,
                 boardThemeId = if (featureFlags.isEnabled(Feature.AF5)) {
@@ -817,11 +978,12 @@ class GameViewModel @Inject constructor(
                     null
                 },
                 af9Enabled = featureFlags.isEnabled(Feature.AF9),
-                canDoubleCoins = featureFlags.isEnabled(Feature.AF9) && isComplete,
-                canWatchHintAd = featureFlags.isEnabled(Feature.AF9) &&
+                baseRewardCoins = synced.baseRewardCoins,
+                canDoubleCoins = featureFlags.isEnabled(Feature.AF9) && isComplete && synced.baseRewardCoins > 0 && !userDataRepository.rewardClaimed("${synced.runId}:double"),
+                canWatchHintAd = !rankedMode() && featureFlags.isEnabled(Feature.AF9) &&
                     featureFlags.isEnabled(Feature.AF4) &&
                     !isGameOver &&
-                    !isComplete,
+                    !isComplete && !mode.hud.suppressAds && synced.rewardedHintsUsed < RewardRules.HINT_AD_RUN_LIMIT,
                 af11Enabled = af11Enabled,
                 colourblindMode = colourblindMode,
                 largeTouchTargets = largeTouchTargets,
@@ -833,6 +995,7 @@ class GameViewModel @Inject constructor(
         }
         if (af4 && !isGameOver && !isComplete) {
             prefetchHint(synced)
+            if (!rankedMode() && !mode.hud.suppressAds && featureFlags.isEnabled(Feature.AF9)) adPreloader.warmHint()
         } else {
             cachedMoveSolver.invalidate()
         }
@@ -905,12 +1068,12 @@ class GameViewModel @Inject constructor(
 
     private fun persistNow() {
         val state = currentGameState ?: return
-        if (state.isGameOver) return
+        if (state.isGameOver && !state.resultFinished) return
         val undoDepth = if (mode.hud.unlimitedUndo) ZenMode.UNDO_DEPTH else Constants.MAX_UNDO_HISTORY
         persistenceScope.launch {
             // Snapshot depth is applied inside toSnapshot default; for Zen we need deeper history
             // in-memory — persist uses MAX_UNDO_HISTORY unless we pass via repository.
-            gameRepository.saveActiveGame(state, mode.saveSlotId)
+            saveCurrentGame()
         }
         // Keep in-memory undo deep for Zen regardless of disk cap.
         if (mode.hud.unlimitedUndo) {
@@ -926,12 +1089,15 @@ class GameViewModel @Inject constructor(
 
     fun onSelectTraySlot(index: Int) {
         val state = currentGameState ?: return
+        if (_uiState.value.isPaused || _uiState.value.adBusy || state.resultFinished) return
         if (index !in state.trayPieces.indices) return
         _uiState.update { it.copy(selectedSlotIndex = index) }
     }
 
     fun onRotateTraySlot(index: Int) {
         val state = currentGameState ?: return
+        if (_uiState.value.isPaused || _uiState.value.adBusy || state.resultFinished) return
+        if (_uiState.value.tutorialActive && _uiState.value.tutorialStep == 1) advanceTutorial()
         sessionReplayRecorder.recordRotate(index)
         val newState = gameEngine.rotateTrayPiece(state, index)
         applyState(newState, endReason = null)
@@ -947,9 +1113,14 @@ class GameViewModel @Inject constructor(
         }
 
         val canPlace = gameEngine.canPlace(state, piece, origin)
-        val hovered = piece.absoluteCells(origin).map { (coord, _) ->
-            coord to canPlace
-        }
+        val placementCells = piece.absoluteCells(origin).map { (coord, _) -> coord to canPlace }
+        val affected = if (canPlace) {
+            val preview = gameEngine.placePiece(state, piece, origin, slotIndex).state
+            state.board.activeTiles().filter { tile ->
+                preview.board.activeTiles().none { it.id == tile.id && it.value == tile.value && it.cell == tile.cell }
+            }.map { it.cell to true }
+        } else emptyList()
+        val hovered = (placementCells + affected).distinctBy { it.first }
         _uiState.update { it.copy(hoveredCells = hovered) }
     }
 
@@ -969,6 +1140,7 @@ class GameViewModel @Inject constructor(
     }
 
     fun onCellTapped(cell: HexCoord) {
+        if (_uiState.value.isPaused || _uiState.value.adBusy || currentGameState?.resultFinished == true) return
         val pending = _uiState.value.pendingBooster
         if (pending != null) {
             executeBooster(pending, target = cell)
@@ -989,10 +1161,11 @@ class GameViewModel @Inject constructor(
         boardHeight: Float = 0f
     ) {
         val state = currentGameState ?: return
-        if (state.isGameOver || _uiState.value.isLevelComplete) return
+        if (state.isGameOver || _uiState.value.isLevelComplete || _uiState.value.adBusy || _uiState.value.isPaused) return
         val piece = state.trayPieces.getOrNull(slotIndex) ?: return
         if (!gameEngine.canPlace(state, piece, origin)) {
             announce(AccessibilityAnnounceKind.INVALID)
+            _uiState.update { it.copy(adStatusMessage = "That piece will not fit. Try another space or rotate it.") }
             juiceController.onInvalidPlacement()
             return
         }
@@ -1008,6 +1181,8 @@ class GameViewModel @Inject constructor(
         )
         val hadMerge = result.events.any { it is com.mergeseven.game.game.model.GameEvent.MergeCompleted }
         val hadChain = result.events.any { it is com.mergeseven.game.game.model.GameEvent.ChainCompleted }
+        if (_uiState.value.tutorialActive && (_uiState.value.tutorialStep == 0 ||
+            (_uiState.value.tutorialStep == 2 && hadMerge))) advanceTutorial()
         if (hadMerge) {
             analyticsTracker.logEvent(
                 AnalyticsEvents.MERGE_COMPLETED,
@@ -1144,7 +1319,7 @@ class GameViewModel @Inject constructor(
     fun onHintClick() {
         if (!featureFlags.isEnabled(Feature.AF4)) return
         val state = currentGameState ?: return
-        if (state.isGameOver || _uiState.value.isLevelComplete) return
+        if (state.isGameOver || _uiState.value.isLevelComplete || _uiState.value.adBusy || _uiState.value.isPaused) return
         val now = System.currentTimeMillis()
         if (hintsUsedThisRun >= Constants.MAX_HINTS_PER_RUN) return
         if (now - lastHintAtMs < Constants.HINT_COOLDOWN_MS) return
@@ -1158,24 +1333,18 @@ class GameViewModel @Inject constructor(
     }
 
     fun onHintWithRewardedAd(activity: android.app.Activity) {
-        if (!featureFlags.isEnabled(Feature.AF4)) return
-        if (!featureFlags.isEnabled(Feature.AF9)) {
-            onHintClick()
-            return
-        }
+        if (rankedMode()) return
         val state = currentGameState ?: return
-        if (state.isGameOver || _uiState.value.isLevelComplete) return
-        if (hintsUsedThisRun >= Constants.MAX_HINTS_PER_RUN) return
-        viewModelScope.launch {
-            adPreloader.warmHint()
-            analyticsTracker.logEvent(AnalyticsEvents.REWARD_AD_STARTED, mapOf("source" to "hint"))
-            when (adService.showRewarded(activity, AdPlacement.FREE_HINT)) {
-                AdResult.Rewarded -> {
-                    analyticsTracker.logEvent(AnalyticsEvents.REWARD_AD_COMPLETED, mapOf("source" to "hint"))
-                    deliverHint(refundOnMiss = false)
-                }
-                else -> _uiState.update { it.copy(adStatusMessage = "No ad available") }
-            }
+        if (!featureFlags.isEnabled(Feature.AF4) || state.isGameOver || _uiState.value.isLevelComplete ||
+            state.rewardedHintsUsed >= RewardRules.HINT_AD_RUN_LIMIT) return
+        val key = "${state.runId}:hint:${state.rewardedHintsUsed}"
+        runRewardAd(activity, AdPlacement.FREE_HINT) {
+            if (userDataRepository.rewardClaimed(key)) return@runRewardAd
+            if (currentGameState?.runId != state.runId) return@runRewardAd
+            currentGameState = currentGameState?.copy(rewardedHintsUsed = state.rewardedHintsUsed + 1)
+            deliverHint(false)
+            currentGameState?.let { gameRepository.saveActiveGame(it, mode.saveSlotId) }
+            userDataRepository.claimReward(key, 0)
         }
     }
 
@@ -1209,6 +1378,7 @@ class GameViewModel @Inject constructor(
     }
 
     private fun applyHint(hint: MoveHint) {
+        sessionReplayRecorder.markIncomplete()
         val state = currentGameState ?: return
         val piece = state.trayPieces.getOrNull(hint.slotIndex)?.copy(rotation = hint.rotation)
             ?: return
@@ -1299,95 +1469,73 @@ class GameViewModel @Inject constructor(
     fun confirmPendingBooster() {
         val type = _uiState.value.confirmBooster ?: return
         _uiState.update { it.copy(confirmBooster = null) }
-        executeBooster(type, target = null)
-    }
-
-    fun onRewardedCoinsStub() {
-        // Legacy entry; prefer onWatchFundsAd when AF9 is on.
-        userDataRepository.addCoins(Constants.INSUFFICIENT_FUNDS_REWARD_COINS)
-        _uiState.update { it.copy(showInsufficientFunds = false, coins = userDataRepository.coins()) }
-        currentGameState = currentGameState?.copy(coins = userDataRepository.coins())
+        if (BoosterCatalog.spec(type).requiresTargetCell) _uiState.update { it.copy(pendingBooster = type) }
+        else executeBooster(type, target = null)
     }
 
     fun onWatchFundsAd(activity: android.app.Activity) {
-        if (!featureFlags.isEnabled(Feature.AF9)) {
-            onRewardedCoinsStub()
-            return
+        val prefix = "${dateProvider.today()}:coin:"
+        if (userDataRepository.rewardCount(prefix) >= RewardRules.COIN_AD_DAILY_LIMIT) {
+            _uiState.update { it.copy(adStatusMessage = "Today's coin rewards are claimed. Earn more by playing.") }; return
         }
-        viewModelScope.launch {
-            analyticsTracker.logEvent(AnalyticsEvents.REWARD_AD_STARTED, mapOf("source" to "funds"))
-            when (adService.showRewarded(activity, AdPlacement.FUNDS_COINS)) {
-                AdResult.Rewarded -> {
-                    analyticsTracker.logEvent(AnalyticsEvents.REWARD_AD_COMPLETED, mapOf("source" to "funds"))
-                    userDataRepository.addCoins(Constants.INSUFFICIENT_FUNDS_REWARD_COINS)
-                    _uiState.update {
-                        it.copy(showInsufficientFunds = false, coins = userDataRepository.coins())
-                    }
-                    currentGameState = currentGameState?.copy(coins = userDataRepository.coins())
-                }
-                else -> _uiState.update { it.copy(adStatusMessage = "No ad available") }
+        val key = prefix + java.util.UUID.randomUUID()
+        runRewardAd(activity, AdPlacement.INSUFFICIENT_COINS) {
+            if (userDataRepository.claimReward(key, 50, prefix, RewardRules.COIN_AD_DAILY_LIMIT)) {
+                _uiState.update { it.copy(showInsufficientFunds = false, coins = userDataRepository.coins()) }
+                currentGameState = currentGameState?.copy(coins = userDataRepository.coins())
             }
         }
     }
 
     fun onContinueWithCoins() {
-        viewModelScope.launch { executeContinue(rewarded = false) }
-    }
-
-    fun onContinueWithRewardedAd() {
-        viewModelScope.launch { executeContinue(rewarded = true) }
+        if (!_uiState.value.adBusy) viewModelScope.launch { executeContinue(false) }
     }
 
     fun onContinueWithRewardedAd(activity: android.app.Activity) {
-        if (!featureFlags.isEnabled(Feature.AF9)) {
-            onContinueWithRewardedAd()
-            return
-        }
-        viewModelScope.launch {
-            analyticsTracker.logEvent(AnalyticsEvents.REWARD_AD_STARTED, mapOf("source" to "continue"))
-            when (adService.showRewarded(activity, AdPlacement.CONTINUE)) {
-                AdResult.Rewarded -> executeContinue(rewarded = true)
-                else -> _uiState.update { it.copy(adStatusMessage = "No ad available") }
+        if (rankedMode()) return
+        val state = currentGameState ?: return
+        if (!state.isGameOver || state.rewardedContinuesUsed >= Constants.REWARDED_CONTINUE_LIMIT) return
+        val key = "${state.runId}:continue"
+        if (userDataRepository.rewardClaimed(key)) return
+        runRewardAd(activity, AdPlacement.CONTINUE) {
+            if (currentGameState?.runId == state.runId && !userDataRepository.rewardClaimed(key)) {
+                executeContinue(true)
+                currentGameState?.let { gameRepository.saveActiveGame(it, mode.saveSlotId) }
+                userDataRepository.claimReward(key, 0)
             }
         }
     }
 
     fun onDoubleCoinsAd(activity: android.app.Activity) {
-        if (!featureFlags.isEnabled(Feature.AF9)) return
-        if (!_uiState.value.isLevelComplete && !_uiState.value.isGameOver) return
-        viewModelScope.launch {
-            analyticsTracker.logEvent(AnalyticsEvents.REWARD_AD_STARTED, mapOf("source" to "double_coins"))
-            when (adService.showRewarded(activity, AdPlacement.DOUBLE_COINS)) {
-                AdResult.Rewarded -> {
-                    analyticsTracker.logEvent(AnalyticsEvents.REWARD_AD_COMPLETED, mapOf("source" to "double_coins"))
-                    val grant = Constants.REWARDED_COIN_GRANT
-                    userDataRepository.addCoins(grant)
-                    _uiState.update {
-                        it.copy(coins = userDataRepository.coins(), canDoubleCoins = false)
-                    }
-                }
-                else -> _uiState.update { it.copy(adStatusMessage = "No ad available") }
-            }
+        val state = currentGameState ?: return
+        if (!state.resultWon || state.baseRewardCoins <= 0) return
+        val key = "${state.runId}:double"
+        if (userDataRepository.rewardClaimed(key)) return
+        runRewardAd(activity, AdPlacement.DOUBLE_COINS) {
+            userDataRepository.claimReward(key, state.baseRewardCoins)
+            if (currentGameState?.runId == state.runId) refreshPresentation(currentGameState!!)
         }
     }
 
-    fun dismissAdStatus() {
-        _uiState.update { it.copy(adStatusMessage = null) }
-    }
+    fun dismissAdStatus() { _uiState.update { it.copy(adStatusMessage = null) } }
 
-    /** Call when leaving a finished session toward Home (AF9-03). */
+    /** Called only by Next Level; no load or wait at the transition. */
     suspend fun maybeShowInterstitial(activity: android.app.Activity, sessionWon: Boolean) {
-        interstitialPolicy.onSessionEnded()
-        val decision = interstitialPolicy.evaluate(
-            sessionWon = sessionWon,
-            inTutorial = false,
-            suppressAds = mode.hud.suppressAds
-        )
-        if (!decision.allow) return
-        adPreloader.warmInterstitial()
-        when (adService.showInterstitial(activity)) {
-            AdResult.Completed -> interstitialPolicy.onInterstitialShown()
-            else -> Unit
+        if (mode.id != ModeIds.CAMPAIGN || !sessionWon || !adService.isReady(AdPlacement.INTERSTITIAL)) return
+        val state = currentGameState ?: return
+        interstitialPolicy.finishSession(state.runId, true)
+        val decision = interstitialPolicy.evaluate(true, !settingsRepository.isTutorialCompleted.first(), mode.hud.suppressAds)
+        if (decision.allow) {
+            _uiState.update { it.copy(adBusy = true) }
+            audioManager.setGameplayPaused(true)
+            try {
+                saveCurrentGame()
+                adService.showInterstitial(activity)
+            } finally {
+                _uiState.update { it.copy(adBusy = false) }
+                audioManager.setGameplayPaused(false)
+                audioManager.startMusic()
+            }
         }
     }
 
@@ -1397,7 +1545,7 @@ class GameViewModel @Inject constructor(
 
     private fun requestBooster(type: BoosterType) {
         val state = currentGameState ?: return
-        if (state.isGameOver || _uiState.value.isLevelComplete) return
+        if (state.isGameOver || _uiState.value.isLevelComplete || _uiState.value.adBusy || _uiState.value.isPaused) return
         val af3 = featureFlags.isEnabled(Feature.AF3)
         val spec = BoosterCatalog.spec(type)
 
@@ -1431,18 +1579,14 @@ class GameViewModel @Inject constructor(
         }
         if (deny != BoosterDenyReason.OK) return
 
-        if (spec.requiresTargetCell) {
-            _uiState.update { it.copy(pendingBooster = type) }
-            return
-        }
-
         if (boosterInventory.count(type) <= 0 &&
             !(type == BoosterType.UNDO && mode.hud.unlimitedUndo)
         ) {
             _uiState.update { it.copy(confirmBooster = type) }
             return
         }
-        executeBooster(type, target = null)
+        if (spec.requiresTargetCell) _uiState.update { it.copy(pendingBooster = type) }
+        else executeBooster(type, target = null)
     }
 
     private fun executeBooster(type: BoosterType, target: HexCoord?, free: Boolean = false) {
@@ -1475,6 +1619,8 @@ class GameViewModel @Inject constructor(
             when (type) {
                 BoosterType.UNDO -> {
                     var next = gameEngine.undo(state)
+                    if (next !== state) next = next.copy(runId = state.runId, rewardedHintsUsed = state.rewardedHintsUsed,
+                        continuesUsed = state.continuesUsed, rewardedContinuesUsed = state.rewardedContinuesUsed)
                     if (af3 && !mode.hud.unlimitedUndo && next !== state) {
                         next = next.copy(undosUsedThisRun = state.undosUsedThisRun + 1)
                     }
@@ -1560,7 +1706,7 @@ class GameViewModel @Inject constructor(
             rewarded = rewarded
         )
         sessionEndedHandled = false
-        applyState(result.state.copy(coins = userDataRepository.coins()), null)
+        applyState(result.state.copy(coins = userDataRepository.coins(), resultFinished = false, resultWon = false), null)
         analyticsTracker.logEvent(
             AnalyticsEvents.CONTINUE_USED,
             mapOf(
@@ -1577,6 +1723,7 @@ class GameViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         debugCommands.unregisterGameSession()
+        audioManager.setGameplayPaused(false)
         timerJob?.cancel()
         persistNow()
         audioManager.pauseMusic()

@@ -5,6 +5,7 @@ import com.mergeseven.game.data.local.store.LevelProgressStore
 import com.mergeseven.game.di.PersistenceScope
 import com.mergeseven.game.game.rules.LevelPool
 import com.mergeseven.game.game.rules.LevelRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +37,9 @@ class LevelRepository @Inject constructor(
     @PersistenceScope private val scope: CoroutineScope
 ) {
 
+    private val ready = CompletableDeferred<Unit>()
+    suspend fun awaitReady() = ready.await()
+
     private val progress = MutableStateFlow<Map<Int, LevelProgress>>(emptyMap())
 
     val highestUnlockedLevel: Flow<Int> = progress.map { it.highestUnlocked() }
@@ -44,6 +48,7 @@ class LevelRepository @Inject constructor(
         scope.launch {
             val stored = store.load()
             progress.update { local -> mergeProgress(stored, local) }
+            ready.complete(Unit)
         }
     }
 

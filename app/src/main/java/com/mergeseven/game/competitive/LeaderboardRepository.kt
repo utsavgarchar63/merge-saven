@@ -28,13 +28,15 @@ interface LeaderboardRepository {
 @Singleton
 class PlayGamesLeaderboardRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val auth: PlayGamesAuth
+    private val auth: PlayGamesAuth,
+    private val foregroundActivity: com.mergeseven.game.core.ForegroundActivity
 ) : LeaderboardRepository {
 
     private val mutex = Mutex()
     private val cache = mutableMapOf<Pair<LeaderboardId, LeaderboardScope>, List<LeaderboardEntry>>()
 
     private fun findActivity(ctx: Context): Activity? {
+        foregroundActivity.current()?.let { return it }
         var c = ctx
         while (c is ContextWrapper) {
             if (c is Activity) return c

@@ -1,0 +1,9 @@
+
+com.mergeseven.game.data.local.ActiveGamePersistenceTest:...
+com.mergeseven.game.data.local.GameDatabaseMigrationTest:.......
+
+Time: 2.246
+
+OK (10 tests)
+
+

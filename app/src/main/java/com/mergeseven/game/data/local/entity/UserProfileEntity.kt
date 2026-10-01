@@ -25,7 +25,9 @@ data class UserProfileEntity(
     val totalMerges: Int = 0,
     val biggestTile: Int = 0,
     val longestChain: Int = 0,
-    val playtimeMs: Long = 0L
+    val playtimeMs: Long = 0L,
+    @androidx.room.ColumnInfo(defaultValue = "'{}'")
+    val rewardClaimsJson: String = "{}"
 ) {
     companion object {
         const val SINGLETON_ID = 1

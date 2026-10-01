@@ -38,9 +38,9 @@ class HapticManager @Inject constructor(
     fun playFail() = vibrate(FAIL)
 
     private fun vibrate(effect: VibrationEffect?) {
-        if (!isEnabled || effect == null) return
+        if (!isEnabled || effect == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val v = vibrator ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !v.hasVibrator()) return
+        if (!v.hasVibrator()) return
         runCatching { v.vibrate(effect) }
     }
 

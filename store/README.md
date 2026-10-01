@@ -1,10 +1,14 @@
-# Store & share art
+# Local store and sharing artwork
 
-Generated masters for Play Console and AF8 share flow. Upload manually to Play Console; do not ship `feature_graphic.png` inside the APK.
+No files have been uploaded or published.
 
-| File | Use |
-|------|-----|
-| `feature_graphic.png` | Play Store feature graphic (resize/crop to 1024×500 if needed) |
-| `share_result_card.png` | AF8-06 result share card template |
+| File | Dimensions | Purpose |
+|---|---|---|
+| app_icon_v2.png | 512 × 512 | Store icon, generated emblem with a composed walnut background |
+| feature_graphic_v2.png | 1024 × 500 | Store feature art with Nunito title composed separately |
+| share_result_card_v2.png | 1080 × 1080 | Source master for the dynamic in-game score card |
+| screenshots/ | Actual emulator captures | Six screenshots of the implemented app; debug test ads are visible where served |
 
-Runtime assets live under `app/src/main/res/` and `app/src/main/assets/art/`.
+Artwork masters and generation/export records are in `art/`. Runtime exports are in `app/src/main/res/drawable-nodpi/`; store graphics, contact sheets and source masters are excluded from the APK. Launcher icon masking still needs review on representative OEM launchers.
+
+Before submission, replace debug test-ad captures with approved release-QA screenshots, verify current Play Console screenshot requirements, complete the privacy/data-safety and target-audience declarations, and review the local release checklist. Publishing requires a separate request.

@@ -1,5 +1,6 @@
 package com.mergeseven.game.data.local.store
 
+import androidx.room.withTransaction
 import com.mergeseven.game.core.DispatcherProvider
 import com.mergeseven.game.data.local.dao.UserProfileDao
 import com.mergeseven.game.data.local.entity.DailyChallengeEmbedded
@@ -9,6 +10,8 @@ import com.mergeseven.game.data.model.DailyChallengeState
 import com.mergeseven.game.data.model.DailyQuest
 import com.mergeseven.game.data.model.UserProfile
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,13 +26,15 @@ interface UserProfileStore {
     /** Returns the stored profile, or null on first run. */
     suspend fun load(): UserProfile?
 
+    suspend fun saveWithBooster(profile: UserProfile, type: com.mergeseven.game.game.model.BoosterType) { save(profile) }
     suspend fun save(profile: UserProfile)
 }
 
 @Singleton
 class RoomUserProfileStore @Inject constructor(
     private val dao: UserProfileDao,
-    private val dispatchers: DispatcherProvider
+    private val dispatchers: DispatcherProvider,
+    private val database: com.mergeseven.game.data.local.GameDatabase
 ) : UserProfileStore {
 
     override suspend fun load(): UserProfile? = withContext(dispatchers.io) {
@@ -50,8 +55,20 @@ class RoomUserProfileStore @Inject constructor(
             totalMerges = entity.totalMerges,
             biggestTile = entity.biggestTile,
             longestChain = entity.longestChain,
-            playtimeMs = entity.playtimeMs
+            playtimeMs = entity.playtimeMs,
+            rewardClaims = runCatching { Json.decodeFromString<Map<String, Int>>(entity.rewardClaimsJson) }.getOrDefault(emptyMap())
         )
+    }
+
+    override suspend fun saveWithBooster(profile: UserProfile, type: com.mergeseven.game.game.model.BoosterType) = withContext(dispatchers.io) {
+        database.withTransaction {
+            dao.save(profile.toEntity(), profile.dailyQuests.mapIndexed { i, quest -> quest.toEntity(i) })
+            val id = com.mergeseven.game.game.boosters.BoosterCatalog.unlockId(type)
+            val old = database.unlockDao().get(id)
+            database.unlockDao().upsert(com.mergeseven.game.data.local.entity.UnlockEntity(id,
+                com.mergeseven.game.data.local.entity.UnlockEntity.CATEGORY_BOOSTER, (old?.quantity ?: 0) + 1,
+                System.currentTimeMillis()))
+        }
     }
 
     override suspend fun save(profile: UserProfile) = withContext(dispatchers.io) {
@@ -103,7 +120,8 @@ private fun UserProfile.toEntity() = UserProfileEntity(
     totalMerges = totalMerges,
     biggestTile = biggestTile,
     longestChain = longestChain,
-    playtimeMs = playtimeMs
+    playtimeMs = playtimeMs,
+    rewardClaimsJson = Json.encodeToString(rewardClaims)
 )
 
 private fun DailyChallengeEmbedded.toDomain() = DailyChallengeState(

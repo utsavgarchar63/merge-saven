@@ -4,6 +4,11 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.graphics.toArgb
+import com.mergeseven.game.ui.components.WoodPanel
+import com.mergeseven.game.ui.components.GoldButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -92,17 +98,25 @@ fun GameScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val juiceState by viewModel.juiceUiState.collectAsStateWithLifecycle()
-    val boardTheme = BoardThemes.of(uiState.boardThemeId)
+    val boardTheme = BoardThemes.of(if (uiState.modeId == ModeIds.ZEN) "zen" else uiState.boardThemeId)
     val tileTheme = TileThemes.of(uiState.tileThemeId).withColourblindMode(uiState.colourblindMode)
     val configuration = LocalConfiguration.current
     val layoutDirection = LocalLayoutDirection.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val compactHelp = configuration.screenHeightDp < 700 || LocalDensity.current.fontScale > 1.2f
+    var showTutorialHelp by remember { mutableStateOf(false) }
+    val tutorialMessage = when (uiState.tutorialStep) {
+        0 -> "Tap a tray piece, then tap the board to place it. You can also drag a piece onto the board."
+        1 -> "Tap Rotate to turn the selected piece before placing it."
+        else -> "Connect three matching numbers: 2 + 2 + 2 becomes 4. Chains merge again!"
+    }
     val isTablet = configuration.screenWidthDp >= 600
-    val useSidePane = uiState.af11Enabled && (isLandscape || isTablet)
+    val useSidePane = isLandscape || isTablet
 
     // Flush the board to disk whenever the screen leaves the foreground; the debounced autosave
     // may still be pending, and the process can be killed at any time after this point.
     LifecycleStartEffect(viewModel) {
+        viewModel.onForeground()
         onStopOrDispose { viewModel.onStopped() }
     }
 
@@ -141,10 +155,11 @@ fun GameScreen(
             .onGloballyPositioned { coords ->
                 rootWindowOffset = coords.positionInWindow()
             }
-            .pointerInput(uiState.trayPieces, rootWindowOffset, trayBounds, layoutDirection) {
+            .pointerInput(uiState.trayPieces, uiState.isPaused, uiState.adBusy, uiState.isLevelComplete, uiState.isGameOver, rootWindowOffset, trayBounds, layoutDirection) {
                 awaitPointerEventScope {
                     while (true) {
                         val down = awaitFirstDown(requireUnconsumed = false)
+                        if (uiState.isPaused || uiState.adBusy || uiState.isLevelComplete || uiState.isGameOver) continue
                         val globalTouchPos = down.position + rootWindowOffset
                         val currentTrayBounds = trayBounds
 
@@ -163,9 +178,9 @@ fun GameScreen(
 
                         if (slotIdx == null) continue
 
-                        // Start dragging instantly on touch down frame 1
-                        draggingSlotIndex = slotIdx
-                        dragGlobalPosition = globalTouchPos
+                        // Keep taps available to selection and rotation buttons. Start a drag
+                        // only after touch slop, then consume movement.
+                        var dragStarted = false
                         viewModel.onSelectTraySlot(slotIdx)
 
                         val pointerId = down.id
@@ -174,6 +189,12 @@ fun GameScreen(
                             val change = event.changes.firstOrNull { it.id == pointerId } ?: break
 
                             val currentGlobalPos = change.position + rootWindowOffset
+                            if (!dragStarted && change.pressed &&
+                                (change.position - down.position).getDistance() > viewConfiguration.touchSlop) {
+                                dragStarted = true
+                                draggingSlotIndex = slotIdx
+                                dragGlobalPosition = currentGlobalPos
+                            }
 
                             if (!change.pressed) {
                                 // Finger released anywhere on screen!
@@ -219,6 +240,7 @@ fun GameScreen(
                                 break
                             }
 
+                            if (!dragStarted) continue
                             change.consume()
                             dragGlobalPosition = currentGlobalPos
 
@@ -283,6 +305,20 @@ fun GameScreen(
                 onPauseClick = { viewModel.onPause() }
             )
 
+        if (uiState.tutorialActive && !uiState.isLevelComplete && !uiState.isGameOver && !uiState.isPaused) {
+            Surface(onClick = { showTutorialHelp = true }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                color = GameColors.WoodDark, shape = RoundedCornerShape(16.dp)) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (compactHelp) when (uiState.tutorialStep) {
+                        0 -> "1 · Place"
+                        1 -> "2 · Rotate"
+                        else -> "3 · Merge"
+                    } else "${uiState.tutorialStep + 1} · $tutorialMessage",
+                        Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    TextButton({ viewModel.skipTutorial() }) { Text("Skip") }
+                }
+            }
+        }
             if (announcementText != null) {
                 Text(
                     text = announcementText,
@@ -312,6 +348,7 @@ fun GameScreen(
                         onFocusedCellChange = { focusedCell = it },
                         onBoardBounds = { boardBounds = it },
                         onCellTapped = viewModel::onCellTapped,
+                         onCellHovered = viewModel::onCellHover,
                         onPlace = { cell -> viewModel.onDropOnCell(cell) },
                         onSelectTraySlot = viewModel::onSelectTraySlot,
                         onClearDropSnap = viewModel::clearDropSnap,
@@ -323,14 +360,15 @@ fun GameScreen(
                         modifier = Modifier
                             .weight(0.9f)
                             .fillMaxHeight()
-                            .padding(start = 8.dp)
+                            .padding(start = 8.dp).verticalScroll(rememberScrollState())
                     ) {
-                        GameHintRow(uiState = uiState, viewModel = viewModel)
                         BoosterTray(
                             buttons = uiState.boosterButtons,
                             af3Enabled = uiState.af3Enabled,
                             largeTouchTargets = uiState.largeTouchTargets,
+                            verticalLayout = true,
                             onBooster = { type -> dispatchBooster(viewModel, type) },
+                            extraContent = { dismiss -> GameHintRow(uiState = uiState, viewModel = viewModel, onAction = dismiss) },
                             modifier = Modifier.fillMaxWidth()
                         )
                         ThreeOptionBottomTray(
@@ -361,6 +399,7 @@ fun GameScreen(
                     onFocusedCellChange = { focusedCell = it },
                     onBoardBounds = { boardBounds = it },
                     onCellTapped = viewModel::onCellTapped,
+                         onCellHovered = viewModel::onCellHover,
                     onPlace = { cell -> viewModel.onDropOnCell(cell) },
                     onSelectTraySlot = viewModel::onSelectTraySlot,
                     onClearDropSnap = viewModel::clearDropSnap,
@@ -371,13 +410,13 @@ fun GameScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                GameHintRow(uiState = uiState, viewModel = viewModel)
 
                 BoosterTray(
                     buttons = uiState.boosterButtons,
                     af3Enabled = uiState.af3Enabled,
                     largeTouchTargets = uiState.largeTouchTargets,
                     onBooster = { type -> dispatchBooster(viewModel, type) },
+                            extraContent = { dismiss -> GameHintRow(uiState = uiState, viewModel = viewModel, onAction = dismiss) },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -451,19 +490,21 @@ fun GameScreen(
             val activity = context as? android.app.Activity
             LevelCompleteDialog(
                 level = uiState.level,
+                isCampaign = uiState.modeId == ModeIds.CAMPAIGN,
                 score = uiState.score,
                 starsEarned = uiState.starsEarned,
                 af8Enabled = uiState.af8Enabled,
                 submitStatus = uiState.scoreSubmitStatus,
                 canDoubleCoins = uiState.canDoubleCoins,
+                baseRewardCoins = uiState.baseRewardCoins, adBusy = uiState.adBusy,
                 onShare = {
                     viewModel.createShareIntent()?.let { intent ->
                         context.startActivity(Intent.createChooser(intent, "Share run"))
                     }
                 },
                 onDoubleCoins = { activity?.let { viewModel.onDoubleCoinsAd(it) } },
-                onNextLevel = { viewModel.onNextLevel(keepBoard = true) },
-                onNextLevelFresh = { viewModel.onNextLevel(keepBoard = false) },
+                onNextLevel = { viewModel.nextLevelAfterAd(activity, true) },
+                onNextLevelFresh = { viewModel.nextLevelAfterAd(activity, false) },
                 onNavigateHome = onNavigateHome,
                 onReplay = { viewModel.startNewGame() }
             )
@@ -475,6 +516,7 @@ fun GameScreen(
             val activity = context as? android.app.Activity
             GameOverDialog(
                 score = uiState.score,
+                baseRewardCoins = uiState.baseRewardCoins, adBusy = uiState.adBusy, onHome = onNavigateHome,
                 af3Enabled = uiState.af3Enabled,
                 af8Enabled = uiState.af8Enabled,
                 submitStatus = uiState.scoreSubmitStatus,
@@ -492,8 +534,6 @@ fun GameScreen(
                 onContinueRewarded = {
                     if (activity != null && uiState.af9Enabled) {
                         viewModel.onContinueWithRewardedAd(activity)
-                    } else {
-                        viewModel.onContinueWithRewardedAd()
                     }
                 },
                 onRestart = { viewModel.startNewGame() }
@@ -517,8 +557,6 @@ fun GameScreen(
                 onWatchAd = {
                     if (activity != null && uiState.af9Enabled) {
                         viewModel.onWatchFundsAd(activity)
-                    } else {
-                        viewModel.onRewardedCoinsStub()
                     }
                 },
                 onDismiss = { viewModel.dismissInsufficientFunds() }
@@ -535,346 +573,90 @@ fun GameScreen(
         }
 
         // ─── Pause Overlay ──────────────────────────────
-        if (uiState.isPaused) {
+        if (uiState.isPaused && !uiState.adBusy) {
             PauseDialog(
                 onResume = { viewModel.onResume() },
-                onHome = onNavigateHome
+                onHome = { viewModel.onStopped(); onNavigateHome() },
+                onRestart = { viewModel.startNewGame(); viewModel.onResume() },
+                onSound = { viewModel.togglePauseSound() }, onMusic = { viewModel.togglePauseMusic() },
+                onHelp = { viewModel.replayTutorial() }
             )
         }
+        if (showTutorialHelp) AlertDialog(onDismissRequest = { showTutorialHelp = false },
+            title = { Text("How to play · Step ${uiState.tutorialStep + 1}") },
+            text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Image(painterResource(when (uiState.tutorialStep) {
+                    0 -> R.drawable.tutorial_placement_v2
+                    1 -> R.drawable.tutorial_rotation_v2
+                    else -> R.drawable.tutorial_merge_v2
+                }), tutorialMessage, Modifier.fillMaxWidth().height(160.dp))
+                Text(tutorialMessage)
+            } }, confirmButton = { TextButton({ showTutorialHelp = false }) { Text("Try it") } })
+        uiState.adStatusMessage?.let { message ->
+            Surface(Modifier.align(Alignment.TopCenter).padding(16.dp), color = GameColors.WoodDark,
+                shape = RoundedCornerShape(16.dp)) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(message, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    TextButton(viewModel::dismissAdStatus) { Text("OK") }
+                }
+            }
+        }
+
         } // statusBars padded content
     }
 }
 
 @Composable
-private fun PauseDialog(
-    onResume: () -> Unit,
-    onHome: () -> Unit
-) {
-    androidx.activity.compose.BackHandler { onResume() }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.72f))
-            // Consume all touches so the game board can't be interacted with while paused
-            .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } },
-        contentAlignment = Alignment.Center
-    ) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = GameColors.WoodDark.copy(alpha = 0.96f),
-            border = androidx.compose.foundation.BorderStroke(
-                2.dp,
-                androidx.compose.ui.graphics.Brush.horizontalGradient(
-                    listOf(GameColors.CoinGold, GameColors.TileGold, GameColors.CoinGold)
-                )
-            ),
-            shadowElevation = 16.dp,
-            modifier = Modifier
-                .padding(horizontal = 32.dp)
-                .fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 28.dp, vertical = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Pause icon badge
-                Surface(
-                    shape = CircleShape,
-                    color = GameColors.WoodMid.copy(alpha = 0.8f),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, GameColors.CoinGold.copy(alpha = 0.6f)),
-                    modifier = Modifier.size(64.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        GameIcon(
-                            resId = GameIcons.Pause,
-                            contentDescription = null,
-                            tint = GameColors.CoinGold,
-                            size = 30.dp
-                        )
-                    }
-                }
-
-                Text(
-                    text = "GAME PAUSED",
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 2.sp
-                    ),
-                    color = GameColors.CoinGold
-                )
-
-                Text(
-                    text = "Take a breath — your board is safe",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = GameColors.TextWhite.copy(alpha = 0.65f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Resume button
-                Button(
-                    onClick = onResume,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = GameColors.CoinGold,
-                        contentColor = Color.Black
-                    ),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    GameIcon(
-                        resId = GameIcons.Play,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        size = 20.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "RESUME",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                    )
-                }
-
-                // Go Home button
-                OutlinedButton(
-                    onClick = onHome,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.5.dp, GameColors.WoodLight.copy(alpha = 0.8f)),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    GameIcon(
-                        resId = GameIcons.Back,
-                        contentDescription = null,
-                        tint = GameColors.TextWhite.copy(alpha = 0.8f),
-                        size = 18.dp
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "GO HOME",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 1.sp
-                        ),
-                        color = GameColors.TextWhite.copy(alpha = 0.8f)
-                    )
-                }
-            }
+private fun PauseDialog(onResume: () -> Unit, onHome: () -> Unit, onRestart: () -> Unit,
+    onSound: () -> Unit, onMusic: () -> Unit, onHelp: () -> Unit) {
+    var confirmRestart by remember { mutableStateOf(false) }
+    ResultSurface {
+        Text("Take a breath", style = MaterialTheme.typography.headlineMedium)
+        Text("Your board is safe. Pick up where you left off.")
+        GoldButton("Resume", onClick = onResume)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onSound, Modifier.weight(1f).heightIn(min = 48.dp)) { Text("Sound") }
+            OutlinedButton(onMusic, Modifier.weight(1f).heightIn(min = 48.dp)) { Text("Music") }
+        }
+        TextButton(onHelp, Modifier.fillMaxWidth()) { Text("How to play") }
+        OutlinedButton({ confirmRestart = true }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Restart this run") }
+        TextButton(onHome, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Save and go Home") }
+    }
+    if (confirmRestart) AlertDialog(onDismissRequest = { confirmRestart = false },
+        title = { Text("Start again?") }, text = { Text("This board will be replaced. Your coins and progress are kept.") },
+        confirmButton = { TextButton({ confirmRestart = false; onRestart() }) { Text("Restart") } },
+        dismissButton = { TextButton({ confirmRestart = false }) { Text("Keep playing") } })
+}
+@Composable
+private fun ResultSurface(content: @Composable ColumnScope.() -> Unit) {
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.82f)), contentAlignment = Alignment.Center) {
+        Column(Modifier.padding(20.dp).widthIn(max = 480.dp).fillMaxWidth().verticalScroll(rememberScrollState())) {
+            WoodPanel(content = content)
         }
     }
 }
 
 @Composable
-private fun LevelCompleteDialog(
-    level: Int,
-    score: Long,
-    starsEarned: Int,
-    af8Enabled: Boolean = false,
-    submitStatus: String? = null,
-    canDoubleCoins: Boolean = false,
-    onShare: () -> Unit = {},
-    onDoubleCoins: () -> Unit = {},
-    onNextLevel: () -> Unit,
-    onNextLevelFresh: (() -> Unit)? = null,
-    onNavigateHome: () -> Unit,
-    onReplay: () -> Unit
-) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        visible = true
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(animationSpec = tween(300)) + scaleIn(animationSpec = spring(dampingRatio = 0.65f, stiffness = 400f)),
-        exit = fadeOut()
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.8f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Card(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = GameColors.WoodMid),
-                border = androidx.compose.foundation.BorderStroke(3.dp, GameColors.CoinGold)
-            ) {
-                Column(
-                    modifier = Modifier.padding(28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Header Badge
-                    Surface(
-                        shape = CircleShape,
-                        color = GameColors.CoinGold,
-                        modifier = Modifier.size(64.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            GameIcon(
-                                resId = GameIcons.Check,
-                                contentDescription = "Success",
-                                tint = Color.Black,
-                                size = 36.dp
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = stringResource(R.string.level_complete_level, level),
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        color = GameColors.CoinGold
-                    )
-
-                    // Animated Star Rating
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        for (i in 1..3) {
-                            val isStarred = i <= starsEarned
-                            val starScale by animateFloatAsState(
-                                targetValue = if (isStarred && visible) 1f else 0.2f,
-                                animationSpec = spring(dampingRatio = 0.5f, stiffness = 300f),
-                                label = "starScale$i"
-                            )
-                            StarIcon(
-                                tint = if (isStarred) GameColors.CoinGold else GameColors.TextWhite.copy(alpha = 0.25f),
-                                size = (36f * starScale).dp,
-                                modifier = Modifier.padding(horizontal = 4.dp)
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = GameColors.WoodDark.copy(alpha = 0.5f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Score Achieved",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = GameColors.TextWhite.copy(alpha = 0.7f)
-                            )
-                            Text(
-                                text = "$score PTS",
-                                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                                color = GameColors.TextWhite
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                CoinIcon(size = 20.dp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "+50 Coins Earned",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = GameColors.CoinGold
-                                )
-                            }
-                        }
-                    }
-
-                    if (submitStatus != null) {
-                        Text(
-                            text = submitStatus,
-                            color = GameColors.TextWhite.copy(alpha = 0.8f),
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-                    if (af8Enabled) {
-                        OutlinedButton(
-                            onClick = onShare,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(stringResource(R.string.game_over_share), color = GameColors.CoinGold, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    if (canDoubleCoins) {
-                        OutlinedButton(
-                            onClick = onDoubleCoins,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(stringResource(R.string.watch_ad_double_coins), color = GameColors.CoinGold, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    // Action Buttons
-                    Button(
-                        onClick = onNextLevel,
-                        colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            GameIcon(
-                                resId = GameIcons.Play,
-                                contentDescription = null,
-                                tint = Color.Black,
-                                size = 24.dp
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = stringResource(R.string.level_complete_continue),
-                                color = Color.Black,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        if (onNextLevelFresh != null) {
-                            OutlinedButton(
-                                onClick = onNextLevelFresh,
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, GameColors.WoodLight),
-                                modifier = Modifier.weight(1f).padding(end = 4.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.level_complete_fresh_board),
-                                    color = GameColors.TextWhite,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-
-                        OutlinedButton(
-                            onClick = onNavigateHome,
-                            border = androidx.compose.foundation.BorderStroke(1.5.dp, GameColors.WoodLight),
-                            modifier = Modifier.weight(1f).padding(horizontal = 4.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.level_complete_map),
-                                color = GameColors.TextWhite,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
-            }
+private fun LevelCompleteDialog(level: Int, isCampaign: Boolean, score: Long, starsEarned: Int,
+    af8Enabled: Boolean = false, submitStatus: String? = null, canDoubleCoins: Boolean = false,
+    baseRewardCoins: Int = 0, adBusy: Boolean = false, onShare: () -> Unit = {}, onDoubleCoins: () -> Unit = {},
+    onNextLevel: () -> Unit, onNextLevelFresh: (() -> Unit)? = null, onNavigateHome: () -> Unit, onReplay: () -> Unit) {
+    ResultSurface {
+        Image(painterResource(R.drawable.art_celebration_v2), null, Modifier.size(80.dp).align(Alignment.CenterHorizontally))
+        Text("Beautiful merge!", style = MaterialTheme.typography.headlineMedium)
+        Text(if (isCampaign) "Level $level complete · $starsEarned stars" else "Challenge complete")
+        Text("Score $score", style = MaterialTheme.typography.titleLarge, color = GameColors.CoinGold)
+        Text("+$baseRewardCoins coins earned")
+        submitStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        GoldButton(if (adBusy) "Finishing…" else if (isCampaign) "Next level" else "Back to Home", !adBusy, if (isCampaign) onNextLevel else onNavigateHome)
+        if (canDoubleCoins) OutlinedButton(onDoubleCoins, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy) {
+            Text("Watch ad · Get $baseRewardCoins extra coins")
+        }
+        if (isCampaign && onNextLevelFresh != null) TextButton(onNextLevelFresh, Modifier.fillMaxWidth(), enabled = !adBusy) { Text("Next level with a fresh board") }
+        Row {
+            TextButton(onReplay, Modifier.weight(1f), enabled = !adBusy) { Text("Replay") }
+            TextButton(onNavigateHome, Modifier.weight(1f), enabled = !adBusy) { Text("Home") }
+            if (af8Enabled) TextButton(onShare, enabled = !adBusy) { Text("Share") }
         }
     }
 }
@@ -891,6 +673,7 @@ private fun GameTopBar(
     timeRemainingMs: Long = 0L,
     onPauseClick: () -> Unit
 ) {
+    val compact = LocalConfiguration.current.screenHeightDp < 700 && LocalDensity.current.fontScale > 1.2f
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -923,7 +706,7 @@ private fun GameTopBar(
                     else -> "Level $level"
                 }
                 Text(
-                    text = header,
+                    text = if (compact) "$header · $score" else header,
                     style = MaterialTheme.typography.titleSmall,
                     color = if (showTimer && timeRemainingMs < 30_000L) {
                         GameColors.Error
@@ -931,7 +714,7 @@ private fun GameTopBar(
                         GameColors.TextWhite.copy(alpha = 0.8f)
                     }
                 )
-                Text(
+                if (!compact) Text(
                     text = "$score",
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Bold
@@ -1029,50 +812,25 @@ private fun dispatchBooster(viewModel: GameViewModel, type: BoosterType) {
 }
 
 @Composable
-private fun GameHintRow(uiState: GameUiState, viewModel: GameViewModel) {
-    if (!uiState.af4Enabled) return
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (uiState.showDeadlockWarning) {
-            Text(
-                text = stringResource(R.string.game_deadlock_warning),
-                color = GameColors.Warning,
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { viewModel.dismissDeadlockWarning() }
-            )
-        } else {
-            Spacer(modifier = Modifier.weight(1f))
-        }
-        Button(
-            onClick = { viewModel.onHintClick() },
-            enabled = uiState.canUseHint,
-            colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold)
-        ) {
-            Text(
-                text = stringResource(R.string.game_hint, Constants.HINT_COST),
-                color = Color.Black,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.labelMedium
-            )
-        }
-        if (uiState.canWatchHintAd) {
-            val activity = LocalContext.current as? android.app.Activity
-            TextButton(
-                onClick = { activity?.let { viewModel.onHintWithRewardedAd(it) } },
-                enabled = activity != null
-            ) {
-                Text(
-                    stringResource(R.string.game_hint_ad),
-                    color = GameColors.CoinGold,
-                    style = MaterialTheme.typography.labelMedium
-                )
+private fun GameHintRow(uiState: GameUiState, viewModel: GameViewModel, onAction: () -> Unit = {}) {
+    if (!uiState.af4Enabled || uiState.tutorialActive) return
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (uiState.showDeadlockWarning) Text(stringResource(R.string.game_deadlock_warning),
+            color = GameColors.Warning, style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.clickable { viewModel.dismissDeadlockWarning() })
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { onAction(); viewModel.onHintClick() }, enabled = uiState.canUseHint && !uiState.adBusy,
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold)) {
+                Text(stringResource(R.string.game_hint, uiState.hintCoinCost), color = Color.Black,
+                    style = MaterialTheme.typography.labelMedium)
+            }
+            if (uiState.canWatchHintAd) {
+                val activity = LocalContext.current as? android.app.Activity
+                OutlinedButton(onClick = { onAction(); activity?.let(viewModel::onHintWithRewardedAd) },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp), enabled = activity != null && !uiState.adBusy) {
+                    Text(stringResource(R.string.game_hint_ad), style = MaterialTheme.typography.labelMedium)
+                }
             }
         }
     }
@@ -1088,6 +846,7 @@ private fun GameBoardSection(
     onFocusedCellChange: (HexCoord?) -> Unit,
     onBoardBounds: (Rect) -> Unit,
     onCellTapped: (HexCoord) -> Unit,
+    onCellHovered: (HexCoord?) -> Unit,
     onPlace: (HexCoord) -> Unit,
     onSelectTraySlot: (Int) -> Unit,
     onClearDropSnap: (Long) -> Unit,
@@ -1099,17 +858,16 @@ private fun GameBoardSection(
     )
     Box(
         modifier = modifier
-            .shakeGraphics(shakeX, shakeY)
-            .onGloballyPositioned { coordinates ->
-                onBoardBounds(coordinates.boundsInRoot())
-            },
+            .shakeGraphics(shakeX, shakeY).clipToBounds(),
         contentAlignment = Alignment.Center
     ) {
         if (uiState.isLoading) {
             CircularProgressIndicator(color = GameColors.CoinGold)
         } else {
             val boardPadding = if (uiState.largeTouchTargets) 4f else 8f
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            val boardSize = minOf(maxWidth, maxHeight, 600.dp).coerceAtLeast(1.dp)
+            Box(Modifier.size(boardSize), contentAlignment = Alignment.Center) {
                 HexBoardCanvas(
                     playableCells = uiState.boardCells,
                     tiles = uiState.tiles,
@@ -1121,32 +879,10 @@ private fun GameBoardSection(
                     focusedCell = if (uiState.af11Enabled) focusedCell else null,
                     colourblindMode = uiState.colourblindMode,
                     largeTouchTargets = uiState.largeTouchTargets,
-                    modifier = if (uiState.pendingBooster != null) {
-                        Modifier.pointerInput(uiState.pendingBooster, uiState.boardCells, boardPadding) {
-                            detectTapGestures { offset ->
-                                val boardW = size.width.toFloat()
-                                val boardH = size.height.toFloat()
-                                val hexSize = HexGeometry.calculateHexSize(
-                                    uiState.boardRadius,
-                                    boardW,
-                                    boardH,
-                                    boardPadding
-                                )
-                                val cell = HexGeometry.nearestCell(
-                                    offset.x,
-                                    offset.y,
-                                    hexSize,
-                                    boardW / 2f,
-                                    boardH / 2f,
-                                    uiState.boardCells,
-                                    hexSize * 2.2f
-                                )
-                                if (cell != null) onCellTapped(cell)
-                            }
-                        }
-                    } else {
-                        Modifier
-                    }
+                    onCellTapped = onCellTapped,
+                    onCellHovered = onCellHovered,
+                    onBoardBounds = onBoardBounds
+
                 )
                 ParticleCanvas(
                     juice = juice,
@@ -1188,6 +924,7 @@ private fun GameBoardSection(
                     )
                 }
             }
+            }
         }
     }
 }
@@ -1204,15 +941,32 @@ private fun HexBoardCanvas(
     focusedCell: HexCoord? = null,
     colourblindMode: ColourblindMode = ColourblindMode.OFF,
     largeTouchTargets: Boolean = false,
+    onCellTapped: (HexCoord) -> Unit,
+    onCellHovered: (HexCoord?) -> Unit,
+    onBoardBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
     val boardPad = if (largeTouchTargets) 8.dp else 16.dp
     Canvas(
         modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
+            .fillMaxSize()
             .padding(boardPad)
+            .onGloballyPositioned { onBoardBounds(it.boundsInRoot()) }
+            .pointerInput(playableCells, boardRadius, largeTouchTargets) {
+                fun cellAt(offset: Offset): HexCoord? {
+                    val hexSize = HexGeometry.calculateHexSize(boardRadius, size.width.toFloat(), size.height.toFloat(), if (largeTouchTargets) 4f else 8f)
+                    return HexGeometry.nearestCell(offset.x, offset.y, hexSize, size.width / 2f, size.height / 2f, playableCells, hexSize)
+                }
+                detectTapGestures(
+                    onPress = { offset ->
+                        onCellHovered(cellAt(offset))
+                        tryAwaitRelease()
+                        onCellHovered(null)
+                    },
+                    onTap = { offset -> cellAt(offset)?.let(onCellTapped) }
+                )
+            }
     ) {
         val centerX = size.width / 2f
         val centerY = size.height / 2f
@@ -1330,20 +1084,19 @@ private fun ThreeOptionBottomTray(
     onTrayPositioned: (Rect) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val trayHeight = if (largeTouchTargets) 120.dp else 100.dp
+    val narrow = LocalConfiguration.current.screenWidthDp < 360
+    val trayHeight = if (largeTouchTargets) 96.dp else if (narrow) 64.dp else 80.dp
     // Whether the selected slot actually has a piece to rotate
     val canRotate = trayPieces.getOrNull(selectedSlotIndex) != null
 
     Surface(
-        modifier = modifier.onGloballyPositioned { coords ->
-            onTrayPositioned(coords.boundsInRoot())
-        },
+        modifier = modifier,
         shape = RoundedCornerShape(20.dp),
         color = GameColors.WoodMid.copy(alpha = 0.7f),
         border = androidx.compose.foundation.BorderStroke(2.dp, GameColors.WoodLight)
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = if (narrow) 6.dp else 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(
@@ -1370,6 +1123,7 @@ private fun ThreeOptionBottomTray(
                         else GameColors.WoodLight.copy(alpha = 0.25f)
                     ),
                     modifier = Modifier
+                        .heightIn(min = 48.dp).widthIn(min = 88.dp)
                         .clickable(enabled = canRotate) {
                             onRotatePiece(selectedSlotIndex)
                         }
@@ -1405,7 +1159,7 @@ private fun ThreeOptionBottomTray(
             Spacer(modifier = Modifier.height(6.dp))
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().onGloballyPositioned { onTrayPositioned(it.boundsInRoot()) },
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1510,104 +1264,28 @@ private fun PieceTrayOptionCard(
 }
 
 @Composable
-private fun GameOverDialog(
-    score: Long,
-    af3Enabled: Boolean,
-    af8Enabled: Boolean = false,
-    submitStatus: String? = null,
-    continueCost: Int,
-    canCoinContinue: Boolean,
-    canRewardedContinue: Boolean,
-    showGhost: Boolean = false,
-    onShare: () -> Unit = {},
-    onWatchGhost: () -> Unit = {},
-    onContinueCoins: () -> Unit,
-    onContinueRewarded: () -> Unit,
-    onRestart: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.75f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            modifier = Modifier
-                .padding(32.dp)
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = GameColors.WoodMid)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.game_over_title),
-                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                    color = GameColors.TextWhite
-                )
-
-                Text(
-                    text = stringResource(R.string.game_over_final_score, score),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = GameColors.CoinGold
-                )
-
-                if (submitStatus != null) {
-                    Text(
-                        text = submitStatus,
-                        color = GameColors.TextWhite.copy(alpha = 0.8f),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-                if (af8Enabled) {
-                    OutlinedButton(onClick = onShare, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.game_over_share), color = GameColors.CoinGold, fontWeight = FontWeight.Bold)
-                    }
-                }
-                if (showGhost) {
-                    TextButton(onClick = onWatchGhost) {
-                        Text(stringResource(R.string.game_over_watch_ghost), color = GameColors.TextWhite)
-                    }
-                }
-
-                if (af3Enabled && canCoinContinue) {
-                    Button(
-                        onClick = onContinueCoins,
-                        colors = ButtonDefaults.buttonColors(containerColor = GameColors.Success)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.game_over_continue_cost, continueCost),
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-                if (af3Enabled && canRewardedContinue) {
-                    OutlinedButton(onClick = onContinueRewarded) {
-                        Text(
-                            text = stringResource(R.string.game_over_watch_ad),
-                            color = GameColors.TextWhite,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = onRestart,
-                    colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold)
-                ) {
-                    Text(
-                        text = stringResource(R.string.game_over_play_again),
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                }
-            }
+private fun GameOverDialog(score: Long, af3Enabled: Boolean, af8Enabled: Boolean = false,
+    submitStatus: String? = null, continueCost: Int, canCoinContinue: Boolean, canRewardedContinue: Boolean,
+    baseRewardCoins: Int = 0, adBusy: Boolean = false, onHome: () -> Unit = {}, showGhost: Boolean = false,
+    onShare: () -> Unit = {}, onWatchGhost: () -> Unit = {}, onContinueCoins: () -> Unit,
+    onContinueRewarded: () -> Unit, onRestart: () -> Unit) {
+    ResultSurface {
+        Text("A good run", style = MaterialTheme.typography.headlineMedium)
+        Text("The board has no room for your next piece. Try a fresh approach.")
+        Text("Score $score", style = MaterialTheme.typography.titleLarge, color = GameColors.CoinGold)
+        if (baseRewardCoins > 0) Text("+$baseRewardCoins coins earned")
+        submitStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        GoldButton("Play again", !adBusy, onRestart)
+        if (af3Enabled && canCoinContinue) OutlinedButton(onContinueCoins, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy) {
+            Text("Continue · $continueCost coins or owned charge")
+        }
+        if (af3Enabled && canRewardedContinue) OutlinedButton(onContinueRewarded, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy) {
+            Text("Watch ad · Clear space and continue")
+        }
+        Row {
+            TextButton(onHome, Modifier.weight(1f), enabled = !adBusy) { Text("Home") }
+            if (af8Enabled) TextButton(onShare, enabled = !adBusy) { Text("Share") }
+            if (showGhost) TextButton(onWatchGhost, enabled = !adBusy) { Text("Watch replay") }
         }
     }
 }
@@ -1766,6 +1444,7 @@ private fun DrawScope.drawHexTile(
     showShapeCue: Boolean = false,
     fontScale: Float = 1f
 ) {
+    if (!size.isFinite() || size <= 0f) return
     val tileSize = size * 0.9f
 
     val shadowPath = hexPath(centerX + 2f, centerY + 3f, tileSize)
@@ -1791,14 +1470,18 @@ private fun DrawScope.drawHexTile(
         }
         val textSize = (baseText * fontScale).coerceAtMost(tileSize * 0.72f)
         val paint = android.graphics.Paint().apply {
-            this.color = android.graphics.Color.WHITE
+            this.color = GameColors.textOnTile(color).toArgb()
             this.textSize = textSize
             this.textAlign = android.graphics.Paint.Align.CENTER
             this.isFakeBoldText = true
             this.isAntiAlias = true
         }
-        val textY = centerY + textSize / 3f
-        drawText("$value", centerX, textY, paint)
+        val label = value.toString()
+        val measuredWidth = paint.measureText(label)
+        val maxWidth = tileSize * 1.45f
+        if (measuredWidth > maxWidth && measuredWidth > 0f) paint.textSize *= maxWidth / measuredWidth
+        val textY = centerY - (paint.ascent() + paint.descent()) / 2f
+        drawText(label, centerX, textY, paint)
     }
 }
 

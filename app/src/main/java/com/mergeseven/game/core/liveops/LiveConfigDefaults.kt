@@ -33,7 +33,7 @@ object LiveConfigDefaults {
     )
 
     fun featureFlags(): Map<String, Boolean> =
-        Feature.entries.associate { it.name to false }
+        Feature.entries.associate { it.name to true }
 
     fun killSwitches(): KillSwitches = KillSwitches()
 
@@ -47,13 +47,7 @@ object LiveConfigDefaults {
 
     fun adFrequency(): Long = 3L
 
-    fun offersJson(): String = """
-        [
-          {"id":"starter","productId":"coins_500","title":"Starter Pack","subtitle":"500 coins to get going","kind":"starter","minDaysAway":0,"maxStreak":1},
-          {"id":"comeback","productId":"coins_2000","title":"Welcome Back","subtitle":"2000 coins after time away","kind":"comeback","minDaysAway":3,"maxStreak":1},
-          {"id":"streak_save","productId":"pack_undo","title":"Streak Save","subtitle":"Undo pack when streak is at risk","kind":"streak_save","minDaysAway":0,"maxStreak":1}
-        ]
-    """.trimIndent()
+    fun offersJson(): String = "[]"
 
     fun defaultStringMap(): Map<String, String> = mapOf(
         LiveConfigKeys.SPAWN_WEIGHTS_JSON to json.encodeToString(
@@ -62,6 +56,7 @@ object LiveConfigDefaults {
         LiveConfigKeys.LEVEL_TARGETS_JSON to "{}",
         LiveConfigKeys.BOOSTER_COSTS_JSON to json.encodeToString(boosterCosts()),
         LiveConfigKeys.AD_FREQUENCY to adFrequency().toString(),
+        "ad_policy_json" to json.encodeToString(com.mergeseven.game.ads.AdPolicyConfig()),
         LiveConfigKeys.FEATURE_FLAGS_JSON to json.encodeToString(featureFlags()),
         LiveConfigKeys.KILL_SWITCHES_JSON to json.encodeToString(killSwitches()),
         LiveConfigKeys.AB_DIFFICULTY_PROFILE to abDifficultyProfile(),
@@ -75,7 +70,6 @@ object LiveConfigDefaults {
 @Serializable
 data class KillSwitches(
     val kill_ads: Boolean = false,
-    val kill_iap: Boolean = false,
     val kill_af1: Boolean = false,
     val kill_af2: Boolean = false,
     val kill_af3: Boolean = false,

@@ -9,8 +9,8 @@ import androidx.compose.runtime.Composable
  * Uses a dark color scheme with warm wood tones.
  */
 private val MergeSevenColorScheme = darkColorScheme(
-    primary = GameColors.WoodLight,
-    onPrimary = GameColors.TextWhite,
+    primary = GameColors.CoinGold,
+    onPrimary = GameColors.TextDark,
     primaryContainer = GameColors.WoodMid,
     onPrimaryContainer = GameColors.TextWhite,
 

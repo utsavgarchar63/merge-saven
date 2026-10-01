@@ -20,7 +20,7 @@ data class BoardTheme(
 object BoardThemes {
     val Wood = BoardTheme(
         id = CosmeticCatalog.BOARD_WOOD,
-        backgroundRes = GameIcons.WoodBackground,
+        backgroundRes = com.mergeseven.game.R.drawable.bg_board_v2,
         overlayColor = GameColors.WoodDark.copy(alpha = 0.35f),
         cellEmpty = GameColors.BoardCellEmpty,
         cellHighlight = GameColors.BoardCellHighlight,
@@ -28,9 +28,11 @@ object BoardThemes {
         cellInvalid = GameColors.BoardCellInvalid
     )
 
+    val Zen = Wood.copy(id = "zen", backgroundRes = com.mergeseven.game.R.drawable.bg_zen_v2)
+
     val Marble = BoardTheme(
         id = CosmeticCatalog.BOARD_MARBLE,
-        backgroundRes = GameIcons.WoodBackground,
+        backgroundRes = com.mergeseven.game.R.drawable.bg_board_v2,
         overlayColor = Color(0xFF4A5568).copy(alpha = 0.55f),
         cellEmpty = Color(0x44E2E8F0),
         cellHighlight = Color(0x88CBD5E1),
@@ -40,7 +42,7 @@ object BoardThemes {
 
     val Neon = BoardTheme(
         id = CosmeticCatalog.BOARD_NEON,
-        backgroundRes = GameIcons.WoodBackground,
+        backgroundRes = com.mergeseven.game.R.drawable.bg_board_v2,
         overlayColor = Color(0xFF0F172A).copy(alpha = 0.65f),
         cellEmpty = Color(0x3322D3EE),
         cellHighlight = Color(0x88A855F7),
@@ -50,7 +52,7 @@ object BoardThemes {
 
     val Seasonal = BoardTheme(
         id = CosmeticCatalog.BOARD_SEASONAL,
-        backgroundRes = GameIcons.WoodBackground,
+        backgroundRes = com.mergeseven.game.R.drawable.bg_board_v2,
         overlayColor = Color(0xFF7C2D12).copy(alpha = 0.45f),
         cellEmpty = Color(0x33FDBA74),
         cellHighlight = Color(0x88FBBF24),
@@ -59,6 +61,7 @@ object BoardThemes {
     )
 
     fun of(id: String): BoardTheme = when (id) {
+        "zen" -> Zen
         CosmeticCatalog.BOARD_MARBLE -> Marble
         CosmeticCatalog.BOARD_NEON -> Neon
         CosmeticCatalog.BOARD_SEASONAL -> Seasonal

@@ -19,6 +19,16 @@ class GameStateSnapshotTest {
     private val boardEngine = BoardEngine()
 
     @Test
+    fun `earned result metadata survives process death`() {
+        val original = gameState().copy(runId = "stable-run", resultFinished = true,
+            resultWon = true, baseRewardCoins = 30, rewardedHintsUsed = 3)
+        val restored = decode(encode(original.toSnapshot()))
+        assertEquals(original, restored)
+        assertEquals("stable-run", restored.runId)
+        assertEquals(30, restored.baseRewardCoins)
+    }
+
+    @Test
     fun `round trip through json preserves the whole game`() {
         val original = gameState()
 

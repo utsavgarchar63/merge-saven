@@ -18,7 +18,7 @@ data class LevelsUiState(
     val selectedLevel: LevelItem? = null,
     val totalStars: Int = 0,
     val highestUnlockedLevel: Int = 1,
-    val coins: Int = 250
+    val coins: Int = 100
 )
 
 @HiltViewModel

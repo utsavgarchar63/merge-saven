@@ -104,8 +104,7 @@ class SettingsViewModelTest {
                     override suspend fun delete(slotId: String) = Unit
                 },
                 scope = kotlinx.coroutines.CoroutineScope(testDispatcher)
-            ),
-            billingRepository = com.mergeseven.game.billing.FakeBillingRepository()
+            )
         )
     }
 
@@ -155,11 +154,11 @@ class SettingsViewModelTest {
 
         viewModel.onResetClicked()
         userDataRepository.addCoins(500)
-        assertEquals(750, userDataRepository.userProfile.value.coins)
+        assertEquals(600, userDataRepository.userProfile.value.coins)
 
         viewModel.confirmResetData()
         assertFalse(viewModel.uiState.value.showResetDialog)
-        assertEquals(250, userDataRepository.userProfile.value.coins)
+        assertEquals(100, userDataRepository.userProfile.value.coins)
     }
 
     @Test

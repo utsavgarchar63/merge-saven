@@ -23,6 +23,18 @@ class AudioManager @Inject constructor(
     private var midPlayer: MediaPlayer? = null
     private var highPlayer: MediaPlayer? = null
     private var soundPool: SoundPool? = null
+    private var gameplayPaused = false
+    private var appForeground = false
+
+    fun setAppForeground(foreground: Boolean) {
+        appForeground = foreground
+        if (!foreground) pauseMusic()
+    }
+
+    fun setGameplayPaused(paused: Boolean) {
+        gameplayPaused = paused
+        if (paused) pauseMusic()
+    }
 
     private var soundPlaceId: Int = 0
     private var soundMergeId: Int = 0
@@ -99,7 +111,7 @@ class AudioManager @Inject constructor(
     }
 
     fun startMusic() {
-        if (!isMusicEnabled) return
+        if (!isMusicEnabled || gameplayPaused || !appForeground) return
         try {
             if (mediaPlayer == null) {
                 initMusicPlayer()

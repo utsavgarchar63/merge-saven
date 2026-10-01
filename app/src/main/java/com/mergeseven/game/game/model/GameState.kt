@@ -11,6 +11,11 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class GameState(
+    val runId: String = "",
+    val baseRewardCoins: Int = 0,
+    val resultWon: Boolean = false,
+    val resultFinished: Boolean = false,
+    val rewardedHintsUsed: Int = 0,
     val board: BoardState,
     val trayPieces: List<TilePiece?>,
     val score: Long,

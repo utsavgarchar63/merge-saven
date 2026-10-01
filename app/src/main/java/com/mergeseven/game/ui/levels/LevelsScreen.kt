@@ -62,7 +62,7 @@ fun LevelsScreen(
 
             // ─── Level Grid ──────────────────────────────
             LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
+                columns = GridCells.Adaptive(96.dp),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -70,11 +70,16 @@ fun LevelsScreen(
                     .weight(1f)
                     .fillMaxWidth()
             ) {
-                items(uiState.levels) { levelItem ->
-                    LevelNodeCard(
-                        levelItem = levelItem,
-                        onClick = { viewModel.onSelectLevel(levelItem) }
-                    )
+                uiState.levels.chunked(10).forEachIndexed { chapter, levels ->
+                    item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                        Column(Modifier.padding(vertical = 8.dp)) {
+                            Text("Chapter ${chapter + 1}", style = MaterialTheme.typography.titleLarge)
+                            Text("Levels ${levels.first().rule.level}–${levels.last().rule.level}", color = GameColors.CoinGold)
+                        }
+                    }
+                    items(levels, key = { it.rule.level }) { levelItem ->
+                        LevelNodeCard(levelItem, onClick = { viewModel.onSelectLevel(levelItem) })
+                    }
                 }
             }
         }
@@ -109,7 +114,7 @@ private fun LevelsTopBar(
         IconButton(
             onClick = onBackClick,
             modifier = Modifier
-                .size(40.dp)
+                .size(48.dp)
                 .background(GameColors.WoodMid, CircleShape)
         ) {
             GameIcon(

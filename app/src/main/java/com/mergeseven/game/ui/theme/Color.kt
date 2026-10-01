@@ -13,9 +13,9 @@ object GameColors {
     // ──────────────────────────────────────────────
     // Wood / Background (Harmonized to App Icon)
     // ──────────────────────────────────────────────
-    val WoodDark = Color(0xFF4A2518)
-    val WoodMid = Color(0xFF7A3E26)
-    val WoodLight = Color(0xFFA85D3B)
+    val WoodDark = Color(0xFF28180F)
+    val WoodMid = Color(0xFF3E281B)
+    val WoodLight = Color(0xFF8B6347)
 
     // ──────────────────────────────────────────────
     // Tile Colors (mapped to tile values)
@@ -91,6 +91,13 @@ object GameColors {
      * Returns the text color for a tile (ensuring contrast).
      */
     fun tileTextColor(value: Int): Color {
-        return TextWhite
+        return textOnTile(tileColor(value))
+    }
+
+    fun textOnTile(fill: Color): Color = if ((fill.luminanceValue() + 0.05f) / 0.05f >= 4.5f) Color.Black else Color.White
+
+    private fun Color.luminanceValue(): Float {
+        fun linear(c: Float) = if (c <= 0.04045f) c / 12.92f else Math.pow(((c + 0.055f) / 1.055f).toDouble(), 2.4).toFloat()
+        return 0.2126f * linear(red) + 0.7152f * linear(green) + 0.0722f * linear(blue)
     }
 }

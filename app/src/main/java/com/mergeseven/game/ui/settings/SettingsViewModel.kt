@@ -12,7 +12,6 @@ import com.mergeseven.game.cloud.ConflictChoice
 import com.mergeseven.game.cloud.PlayGamesAuth
 import com.mergeseven.game.cloud.ProgressSummary
 import com.mergeseven.game.cloud.UploadReason
-import com.mergeseven.game.billing.BillingRepository
 import com.mergeseven.game.core.analytics.AnalyticsEvents
 import com.mergeseven.game.core.analytics.AnalyticsTracker
 import com.mergeseven.game.core.audio.AudioManager
@@ -82,8 +81,12 @@ class SettingsViewModel @Inject constructor(
     private val cloudSyncCoordinator: CloudSyncCoordinator,
     private val accountDataExporter: AccountDataExporter,
     private val accountDeletionService: AccountDeletionService,
-    private val billingRepository: BillingRepository
+    private val consentManager: com.mergeseven.game.ads.ConsentManager = com.mergeseven.game.ads.FakeConsentManager(false)
 ) : ViewModel() {
+
+    val privacyOptionsRequired = consentManager.privacyOptionsRequired
+    fun showPrivacyOptions(activity: android.app.Activity) { viewModelScope.launch { consentManager.showPrivacyOptions(activity) } }
+    fun replayTutorial() { viewModelScope.launch { settingsRepository.setTutorialStep(0); settingsRepository.setTutorialCompleted(false) } }
 
     private val _showResetDialog = MutableStateFlow(false)
     private val _showDebugMenu = MutableStateFlow(false)
@@ -305,7 +308,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _showResetDialog.update { false }
             settingsRepository.resetSettings()
-            userDataRepository.addCoins(-userDataRepository.userProfile.value.coins + 250)
+            userDataRepository.addCoins(-userDataRepository.userProfile.value.coins + 100)
             userDataRepository.addStars(-userDataRepository.userProfile.value.totalStars)
             audioManager.playSoundCombo()
         }
@@ -368,18 +371,6 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             cloudSyncCoordinator.resolveFreshRestore(useCloud)
             _freshRestoreCloud.value = null
-        }
-    }
-
-    fun restorePurchases() {
-        viewModelScope.launch {
-            if (!featureFlags.isEnabled(Feature.AF9)) {
-                _cloudStatusMessage.value = "AF9 off"
-                return@launch
-            }
-            val ids = billingRepository.restorePurchases()
-            _cloudStatusMessage.value =
-                if (ids.isEmpty()) "No purchases to restore" else "Restored ${ids.size} purchase(s)"
         }
     }
 

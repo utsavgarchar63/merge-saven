@@ -17,10 +17,17 @@ import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.resetMain
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class DailyViewModelTest {
+    @After fun tearDown() { Dispatchers.resetMain() }
 
     private lateinit var userDataRepository: UserDataRepository
     private lateinit var audioManager: AudioManager
@@ -28,6 +35,7 @@ class DailyViewModelTest {
 
     @Before
     fun setup() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
         userDataRepository = TestPersistence.userDataRepository()
         audioManager = AudioManager(fakeContext())
         viewModel = DailyViewModel(

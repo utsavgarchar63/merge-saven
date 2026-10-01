@@ -10,8 +10,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import com.mergeseven.game.ads.ConsentManager
 import com.mergeseven.game.app.AppNavGraph
-import com.mergeseven.game.billing.BillingRepository
-import com.mergeseven.game.billing.EntitlementStore
 import com.mergeseven.game.core.audio.AudioManager
 import com.mergeseven.game.core.flags.Feature
 import com.mergeseven.game.core.flags.FeatureFlags
@@ -28,21 +26,22 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var consentManager: ConsentManager
     @Inject lateinit var featureFlags: FeatureFlags
-    @Inject lateinit var billingRepository: BillingRepository
-    @Inject lateinit var entitlementStore: EntitlementStore
     @Inject lateinit var audioManager: AudioManager
+    @Inject lateinit var foregroundActivity: com.mergeseven.game.core.ForegroundActivity
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        foregroundActivity.attach(this)
+        enableEdgeToEdge(
+            statusBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.rgb(40, 24, 15))
+        )
 
         setContent {
             MergeSevenTheme {
                 LaunchedEffect(Unit) {
                     if (featureFlags.isEnabled(Feature.AF9)) {
                         consentManager.gatherConsent(this@MainActivity)
-                        entitlementStore.load()
-                        billingRepository.start()
                     }
                 }
                 Surface(
@@ -57,12 +56,18 @@ class MainActivity : ComponentActivity() {
     /** Start background music whenever the app comes to the foreground. */
     override fun onResume() {
         super.onResume()
+        audioManager.setAppForeground(true)
         audioManager.startMusic()
     }
 
     /** Pause music whenever the app goes to the background or loses focus. */
     override fun onPause() {
         super.onPause()
-        audioManager.pauseMusic()
+        audioManager.setAppForeground(false)
+    }
+
+    override fun onDestroy() {
+        foregroundActivity.detach(this)
+        super.onDestroy()
     }
 }

@@ -32,7 +32,9 @@ class CloudSnapshotApplier @Inject constructor(
 
     /** Overwrite local with [snapshot] as-is (still used after mergeSafe produced the blob). */
     suspend fun applyExact(snapshot: CloudSnapshot) {
+        userDataRepository.awaitReady()
         userDataRepository.replaceFromCloud(snapshot.profile.toDomain())
+        userDataRepository.flush()
 
         val existingLevels = levelProgressStore.load()
         val levelNumbers = (existingLevels.keys + snapshot.levels.map { it.levelNumber }).toSet()
@@ -99,7 +101,8 @@ class CloudSnapshotApplier @Inject constructor(
             totalMerges = max(p.totalMerges, o.totalMerges),
             biggestTile = max(p.biggestTile, o.biggestTile),
             longestChain = max(p.longestChain, o.longestChain),
-            playtimeMs = max(p.playtimeMs, o.playtimeMs)
+            playtimeMs = max(p.playtimeMs, o.playtimeMs),
+            rewardClaims = o.rewardClaims + p.rewardClaims
         )
 
         val levelsByNumber = LinkedHashMap<Int, LevelProgressPayload>()
@@ -142,7 +145,7 @@ class CloudSnapshotApplier @Inject constructor(
     }
 
     suspend fun wipeMetaProgress() {
-        userDataRepository.replaceFromCloud(com.mergeseven.game.data.model.UserProfile())
+        userDataRepository.replaceFromCloud(com.mergeseven.game.data.model.UserProfile(), clearClaims = true)
         levelProgressDao.clear()
         unlockDao.clearAll()
     }

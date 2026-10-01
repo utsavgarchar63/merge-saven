@@ -20,7 +20,7 @@ object CosmeticCatalog {
     const val TILE_MARBLE = "tile_marble"
     const val TILE_NEON = "tile_neon"
     const val TILE_SEASONAL = "tile_seasonal"
-    /** AF9-08 Premium exclusive. */
+    /** Legacy ID retained for save compatibility; earned through play. */
     const val TILE_PREMIUM = "tile_premium"
     const val BOARD_WOOD = "wood"
     const val BOARD_MARBLE = "board_marble"
@@ -32,7 +32,7 @@ object CosmeticCatalog {
         CosmeticDef(TILE_MARBLE, "Marble Tiles", CosmeticKind.TILE, coinCost = 150, unlockAtLevel = 3),
         CosmeticDef(TILE_NEON, "Neon Tiles", CosmeticKind.TILE, coinCost = 200, unlockAtLevel = 5),
         CosmeticDef(TILE_SEASONAL, "Seasonal Tiles", CosmeticKind.TILE, coinCost = 180, unlockAtLevel = 0),
-        CosmeticDef(TILE_PREMIUM, "Premium Tiles", CosmeticKind.TILE, coinCost = 0, unlockAtLevel = 0),
+        CosmeticDef(TILE_PREMIUM, "Golden Tiles", CosmeticKind.TILE, coinCost = 250, unlockAtLevel = 12),
         CosmeticDef(BOARD_WOOD, "Wood Board", CosmeticKind.BOARD, coinCost = 0, startingOwned = true),
         CosmeticDef(BOARD_MARBLE, "Marble Board", CosmeticKind.BOARD, coinCost = 200, unlockAtLevel = 8),
         CosmeticDef(BOARD_NEON, "Neon Board", CosmeticKind.BOARD, coinCost = 250, unlockAtLevel = 10),

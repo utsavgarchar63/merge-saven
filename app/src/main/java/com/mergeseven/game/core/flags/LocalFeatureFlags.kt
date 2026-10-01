@@ -22,8 +22,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * DataStore-backed flags for DEBUG builds. In release, every read is hard-false and writes are
- * no-ops — preferences on disk cannot turn a phase on.
+ * DataStore overrides are for debug tools only. Release defaults enable the shipping
+ * features and ignore local preferences; RemoteFeatureFlags applies production kill switches.
  */
 @Singleton
 class LocalFeatureFlags(
@@ -55,14 +55,15 @@ class LocalFeatureFlags(
     }
 
     override fun isEnabled(feature: Feature): Boolean {
-        return overrides.value[feature] ?: true
+        return if (!isDebug) true else overrides.value[feature] ?: true
     }
 
     override fun observe(feature: Feature): Flow<Boolean> {
-        return overrides.asStateFlow().map { it[feature] ?: true }
+        return if (!isDebug) flowOf(true) else overrides.asStateFlow().map { it[feature] ?: true }
     }
 
     override suspend fun setEnabled(feature: Feature, enabled: Boolean) {
+        if (!isDebug) return
         overrides.update { it + (feature to enabled) }
         dataStore.edit { prefs ->
             prefs[key(feature)] = enabled
@@ -70,7 +71,7 @@ class LocalFeatureFlags(
     }
 
     override fun snapshot(): Map<Feature, Boolean> {
-        return overrides.value.toMap()
+        return if (!isDebug) allOn() else overrides.value.toMap()
     }
 
     private fun key(feature: Feature) = booleanPreferencesKey(feature.name)

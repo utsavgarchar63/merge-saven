@@ -54,7 +54,8 @@ internal fun UserProfile.toPayload() = UserProfilePayload(
     totalMerges = totalMerges,
     biggestTile = biggestTile,
     longestChain = longestChain,
-    playtimeMs = playtimeMs
+    playtimeMs = playtimeMs,
+    rewardClaims = rewardClaims
 )
 
 internal fun DailyQuest.toPayload() = DailyQuestPayload(
@@ -102,7 +103,8 @@ internal fun UserProfilePayload.toDomain() = UserProfile(
     totalMerges = totalMerges,
     biggestTile = biggestTile,
     longestChain = longestChain,
-    playtimeMs = playtimeMs
+    playtimeMs = playtimeMs,
+    rewardClaims = rewardClaims
 )
 
 internal fun DailyQuestPayload.toDomain() = DailyQuest(

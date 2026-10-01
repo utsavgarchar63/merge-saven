@@ -17,13 +17,13 @@
     <string name="game_level">Level %d</string>
     <string name="game_coins">Coins</string>
     <string name="game_target">Target: %d</string>
-    <string name="game_tray_hint">Drag any piece to board</string>
+    <string name="game_tray_hint">Tap or drag</string>
     <string name="game_tray_empty">Empty</string>
     <string name="game_tray_dragging">Dragging</string>
     <string name="game_tray_slot">Tray slot %1$d</string>
     <string name="game_deadlock_warning">Board is tight — consider a hint</string>
     <string name="game_hint">Hint %d</string>
-    <string name="game_hint_ad">AD</string>
+    <string name="game_hint_ad">Watch ad · Get one hint</string>
     <string name="game_achievement">Achievement: %s</string>
     <string name="game_place_action">Place piece</string>
     <string name="game_booster_target_action">Use booster on cell</string>
@@ -72,9 +72,6 @@
     <string name="level_complete_map">LEVEL MAP</string>
     <string name="level_complete_coins">+%1$d Coins Earned</string>
     <string name="ghost_loaded">Ghost loaded (%1$d frames)</string>
-    <string name="shop_subtitle_af9">Coins, boosters, and Remove Ads</string>
-    <string name="shop_subtitle_af9_off">Purchases arrive when AF9 is enabled — browse the catalog now.</string>
-    <string name="shop_ad_free">Ad-free active · rewarded ads still optional</string>
     <string name="shop_coins_balance">%1$d coins</string>
 
     <!-- Boosters -->
@@ -112,7 +109,6 @@
     <string name="colourblind_protanopia">Protanopia</string>
     <string name="colourblind_tritanopia">Tritanopia</string>
     <string name="settings_language">Language</string>
-    <string name="settings_restore_purchases">Restore Purchases</string>
     <string name="settings_privacy">Privacy Policy</string>
     <string name="settings_terms">Terms of Service</string>
     <string name="settings_support">Support</string>
@@ -148,7 +144,7 @@
     <string name="cloud_delete">Delete Merge Seven data</string>
     <string name="cloud_delete_body">Removes progress on this device and your cloud save slot. This does not delete your Google account.</string>
 
-    <!-- AF9 AdMob / Billing (Production IDs) -->
+    <!-- AF9 AdMob (Production IDs) -->
     <string name="admob_app_id" translatable="false">ca-app-pub-6926810742930516~9728984035</string>
     <string name="admob_rewarded_unit_id" translatable="false">ca-app-pub-6926810742930516/4988240353</string>
     <string name="admob_interstitial_unit_id" translatable="false">ca-app-pub-6926810742930516/6590105790</string>
@@ -158,5 +154,4 @@
     <string name="watch_ad_double_coins">Watch ad to double coins</string>
     <string name="watch_ad_extra_daily">Watch ad for an extra daily attempt</string>
     <string name="offer_starter">Starter Pack</string>
-    <string name="premium_stipend_claimed">Daily premium stipend claimed</string>
 </resources>

@@ -123,6 +123,35 @@ class GameDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate3To4PreservesWalletAndAddsEmptyClaims() {
+        helper.createDatabase(TEST_DB, 3).apply {
+            execSQL("""INSERT INTO user_profile (id, coins, totalStars, currentStreak, claimedDays, lastLoginDate,
+                challenge_dateSeed, challenge_title, challenge_targetScore, challenge_isCompleted,
+                challenge_bestScore, challenge_coinsReward, challenge_starsReward, challenge_attempts,
+                xp, playerLevel, equippedTileThemeId, equippedBoardThemeId, totalMerges, biggestTile, longestChain, playtimeMs)
+                VALUES (1,777,12,3,'[1,2]','2026-01-01','','DAILY',3000,0,900,500,5,1,150,3,'classic','wood',30,128,3,12000)""")
+            close()
+        }
+        helper.runMigrationsAndValidate(TEST_DB,4,true,*ALL_MIGRATIONS).use { db ->
+            db.query("SELECT coins, totalStars, xp, rewardClaimsJson FROM user_profile WHERE id=1").use { c ->
+                assertTrue(c.moveToFirst()); assertEquals(777,c.getInt(0)); assertEquals(12,c.getInt(1))
+                assertEquals(150,c.getInt(2)); assertEquals("{}",c.getString(3))
+            }
+        }
+    }
+
+    @Test fun boosterGrantOnceIsTransactional() = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(InstrumentationRegistry.getInstrumentation().targetContext,
+            GameDatabase::class.java).build()
+        val dao = db.unlockDao()
+        dao.upsert(UnlockEntity("booster_undo","booster",3,1))
+        assertTrue(dao.grantOnce("reward:level:1","booster_undo",1))
+        org.junit.Assert.assertFalse(dao.grantOnce("reward:level:1","booster_undo",1))
+        assertEquals(4,dao.get("booster_undo")!!.quantity)
+        db.close()
+    }
+
+    @Test
     fun writesAndReadsBackOnTheCurrentSchema() = runBlocking {
         val database = Room.inMemoryDatabaseBuilder(
             InstrumentationRegistry.getInstrumentation().targetContext,

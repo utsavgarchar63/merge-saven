@@ -24,7 +24,6 @@ playServiceAds = "23.6.0"
 playServicesAuth = "21.2.0"
 playServicesGames = "20.1.2"
 userMessagingPlatform = "3.1.0"
-billing = "8.0.0"
 serialization = "1.7.3"
 desugarJdkLibs = "2.1.4"
 
@@ -89,8 +88,6 @@ user-messaging-platform = { group = "com.google.android.ump", name = "user-messa
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 play-services-games = { group = "com.google.android.gms", name = "play-services-games-v2", version.ref = "playServicesGames" }
 
-# Billing
-billing = { group = "com.android.billingclient", name = "billing-ktx", version.ref = "billing" }
 
 # Java 8+ API desugaring (required for java.time on minSdk 24)
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugarJdkLibs" }

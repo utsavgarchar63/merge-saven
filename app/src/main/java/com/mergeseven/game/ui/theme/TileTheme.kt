@@ -9,7 +9,7 @@ import com.mergeseven.game.meta.CosmeticCatalog
 interface TileTheme {
     val id: String
     fun tileColor(value: Int): Color
-    fun tileTextColor(value: Int): Color = Color.White
+    fun tileTextColor(value: Int): Color = GameColors.textOnTile(tileColor(value))
     val strokeAlpha: Float get() = 0.70f
     val highlightAlpha: Float get() = 0.15f
 }
@@ -39,7 +39,7 @@ object SeasonalTileTheme : TileTheme {
         warmShift(GameColors.tileColor(value))
 }
 
-object PremiumTileTheme : TileTheme {
+object GoldenTileTheme : TileTheme {
     override val id: String = CosmeticCatalog.TILE_PREMIUM
     override fun tileColor(value: Int): Color =
         goldShift(GameColors.tileColor(value))
@@ -51,7 +51,7 @@ object TileThemes {
         CosmeticCatalog.TILE_MARBLE -> MarbleTileTheme
         CosmeticCatalog.TILE_NEON -> NeonTileTheme
         CosmeticCatalog.TILE_SEASONAL -> SeasonalTileTheme
-        CosmeticCatalog.TILE_PREMIUM -> PremiumTileTheme
+        CosmeticCatalog.TILE_PREMIUM -> GoldenTileTheme
         else -> ClassicTileTheme
     }
 }

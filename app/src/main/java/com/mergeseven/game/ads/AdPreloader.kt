@@ -11,6 +11,7 @@ class AdPreloader @Inject constructor(
     fun warmGameOver() {
         adService.preload(AdPlacement.CONTINUE)
         adService.preload(AdPlacement.FUNDS_COINS)
+        adService.preload(AdPlacement.INSUFFICIENT_COINS)
         adService.preload(AdPlacement.DOUBLE_COINS)
     }
 

@@ -14,7 +14,7 @@ class NoOpAdService : AdService {
         loadAttempts++
     }
 
-    override suspend fun showRewarded(activity: Activity, placement: AdPlacement): AdResult =
+    override suspend fun showRewarded(activity: Activity, placement: AdPlacement, onEarned: suspend () -> Unit): AdResult =
         AdResult.NoFill
 
     override suspend fun showInterstitial(activity: Activity): AdResult = AdResult.NoFill

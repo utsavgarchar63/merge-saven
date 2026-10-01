@@ -28,10 +28,7 @@ class ResultCardRenderer @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     fun render(data: ShareRunData): Bitmap {
-        val template = runCatching {
-            context.assets.open("art/share_result_card.png").use { BitmapFactory.decodeStream(it) }
-        }.getOrNull()
-            ?: BitmapFactory.decodeResource(context.resources, android.R.drawable.dialog_holo_light_frame)
+        val template = BitmapFactory.decodeResource(context.resources, com.mergeseven.game.R.drawable.share_result_card_v2)
 
         val mutable = template.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(mutable)

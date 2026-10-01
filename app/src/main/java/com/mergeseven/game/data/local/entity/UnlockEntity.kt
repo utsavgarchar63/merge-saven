@@ -23,7 +23,7 @@ data class UnlockEntity(
         const val CATEGORY_ACHIEVEMENT = "achievement"
         const val CATEGORY_MILESTONE = "milestone"
         const val CATEGORY_MODE_RECORD = "mode_record"
-        /** AF9: Remove Ads / Premium entitlements. */
+        /** Legacy save category retained only for additive migration compatibility. */
         const val CATEGORY_ENTITLEMENT = "entitlement"
     }
 }

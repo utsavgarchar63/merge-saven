@@ -6,6 +6,7 @@ package com.mergeseven.game.ads
 enum class AdPlacement {
     CONTINUE,
     FUNDS_COINS,
+    INSUFFICIENT_COINS,
     FREE_HINT,
     EXTRA_DAILY,
     DOUBLE_COINS,
@@ -25,11 +26,17 @@ sealed class AdResult {
  * App-facing ad API. Implementations must not load before consent resolves.
  */
 interface AdService {
+    val availability: kotlinx.coroutines.flow.StateFlow<Set<AdPlacement>>
+        get() = kotlinx.coroutines.flow.MutableStateFlow(emptySet())
+    val fullscreenShowing: kotlinx.coroutines.flow.StateFlow<Boolean>
+        get() = kotlinx.coroutines.flow.MutableStateFlow(false)
     fun isReady(placement: AdPlacement): Boolean
     fun preload(placement: AdPlacement)
-    suspend fun showRewarded(activity: android.app.Activity, placement: AdPlacement): AdResult
+    suspend fun showRewarded(activity: android.app.Activity, placement: AdPlacement, onEarned: suspend () -> Unit = {}): AdResult
     suspend fun showInterstitial(activity: android.app.Activity): AdResult
     fun bindBanner(activity: android.app.Activity, container: android.view.ViewGroup)
+    fun pauseBanner() {}
+    fun resumeBanner() {}
     fun unbindBanner()
     fun destroy()
 }

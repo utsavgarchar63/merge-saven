@@ -135,6 +135,7 @@ class ActiveGamePersistenceTest {
             coins = 640,
             level = 6,
             targetValue = 512,
+            objectives = listOf(com.mergeseven.game.game.objectives.LevelObjective.ReachValue("reach_target", 512)),
             moves = 88,
             isPaused = false,
             isGameOver = false,

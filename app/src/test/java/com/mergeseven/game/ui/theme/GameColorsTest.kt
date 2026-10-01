@@ -38,4 +38,14 @@ class GameColorsTest {
         // Trailing zeros = 24. Index = (24 - 1) % 8 = 23 % 8 = 7 -> TileOrange
         assertEquals(GameColors.TileOrange, GameColors.tileColor(16777216))
     }
+    @Test fun tileLabelsMeetContrastAcrossAllValues() {
+        fun linear(v: Float) = if(v <= 0.04045f) v/12.92f else Math.pow(((v+0.055)/1.055),2.4).toFloat()
+        fun luminance(c: androidx.compose.ui.graphics.Color) = 0.2126f*linear(c.red)+0.7152f*linear(c.green)+0.0722f*linear(c.blue)
+        for (power in 1..29) {
+            val fill = GameColors.tileColor(1 shl power)
+            val text = GameColors.tileTextColor(1 shl power)
+            val a=luminance(fill); val b=luminance(text)
+            org.junit.Assert.assertTrue("Unreadable value ${1 shl power}",(maxOf(a,b)+0.05)/(minOf(a,b)+0.05)>=4.5)
+        }
+    }
 }

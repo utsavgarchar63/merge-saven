@@ -11,6 +11,11 @@ import com.mergeseven.game.data.model.UserProfile
 import com.mergeseven.game.data.model.defaultDailyQuests
 import com.mergeseven.game.di.PersistenceScope
 import com.mergeseven.game.meta.XpCurve
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,13 +40,16 @@ class UserDataRepository @Inject constructor(
     @PersistenceScope private val scope: CoroutineScope,
     private val dateProvider: DateProvider,
     private val featureFlags: FeatureFlags,
-    private val cloudEconomyNotifier: CloudEconomyNotifier
+    private val cloudEconomyNotifier: CloudEconomyNotifier,
+    private val analytics: com.mergeseven.game.core.analytics.AnalyticsTracker = com.mergeseven.game.core.analytics.NoOpAnalyticsTracker()
 ) {
 
     private val _userProfile = MutableStateFlow(UserProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
 
     private val lock = Any()
+    private val ready = CompletableDeferred<Unit>()
+    private val diskMutex = Mutex()
 
     @Volatile
     private var hydrated = false
@@ -57,15 +65,16 @@ class UserDataRepository @Inject constructor(
                 val result = pendingMutations.fold(base) { profile, mutation -> mutation(profile) }
                 pendingMutations.clear()
                 hydrated = true
+                _userProfile.value = result
                 result
             }
-            _userProfile.value = replayed
-            store.save(replayed)
+            flush()
+            ready.complete(Unit)
             checkDailyLogin()
         }
     }
 
-    fun addCoins(amount: Int) = mutate(notifyEconomy = amount != 0) { profile ->
+    fun addCoins(amount: Int) = mutate(notifyEconomy = amount != 0, source = "game_reward") { profile ->
         profile.copy(coins = profile.coins + amount)
     }
 
@@ -76,7 +85,7 @@ class UserDataRepository @Inject constructor(
     fun trySpendCoins(amount: Int): Boolean {
         if (amount <= 0) return true
         var spent = false
-        mutate(notifyEconomy = false) { profile ->
+        mutate(notifyEconomy = false, source = "coin_spend") { profile ->
             if (profile.coins < amount) {
                 spent = false
                 profile
@@ -132,7 +141,7 @@ class UserDataRepository @Inject constructor(
     }
 
     fun claimDailyReward(day: Int, coinsReward: Int, starsReward: Int) =
-        mutate(notifyEconomy = true) { profile ->
+        mutate(notifyEconomy = true, source = "daily_login") { profile ->
             if (day in profile.claimedDays) return@mutate profile
 
             val nextStreak = if (day >= profile.currentStreak && day < FINAL_STREAK_DAY) {
@@ -167,7 +176,7 @@ class UserDataRepository @Inject constructor(
         )
     }
 
-    fun claimQuestReward(questId: String) = mutate(notifyEconomy = true) { profile ->
+    fun claimQuestReward(questId: String) = mutate(notifyEconomy = true, source = "quest") { profile ->
         val quest = profile.dailyQuests.firstOrNull { it.id == questId }
         if (quest == null || !quest.isCompleted || quest.isClaimed) return@mutate profile
 
@@ -186,17 +195,24 @@ class UserDataRepository @Inject constructor(
      * ADV-003: first finished run of the day locks the official score and may award rewards;
      * later finishes that day are practice (attempts++ only).
      */
-    fun finishDailyAttempt(score: Int) = mutate { profile ->
+    fun finishDailyAttempt(score: Int) = mutate(source = "daily_challenge") { profile ->
         val challenge = profile.dailyChallenge
-        if (challenge.attempts > 0) {
+        if (challenge.attempts > 0 || "${challenge.dateSeed}:daily:result" in profile.rewardClaims) {
+            val bonus = challenge.attempts == 0 && "${challenge.dateSeed}:extra_daily" in profile.rewardClaims &&
+                "${challenge.dateSeed}:extra_daily_used" !in profile.rewardClaims
+            val earns = bonus && !challenge.isCompleted && score >= challenge.targetScore
             return@mutate profile.copy(
-                dailyChallenge = challenge.copy(attempts = challenge.attempts + 1)
+                coins = profile.coins + if (earns) challenge.coinsReward else 0,
+                totalStars = profile.totalStars + if (earns) challenge.starsReward else 0,
+                rewardClaims = if (bonus) profile.rewardClaims + ("${challenge.dateSeed}:extra_daily_used" to 0) else profile.rewardClaims,
+                dailyChallenge = challenge.copy(attempts = challenge.attempts + 1, isCompleted = challenge.isCompleted || earns)
             )
         }
         val metTarget = score >= challenge.targetScore
         profile.copy(
             coins = profile.coins + if (metTarget) challenge.coinsReward else 0,
             totalStars = profile.totalStars + if (metTarget) challenge.starsReward else 0,
+            rewardClaims = profile.rewardClaims + ("${challenge.dateSeed}:daily:result" to if (metTarget) challenge.coinsReward else 0),
             dailyChallenge = challenge.copy(
                 bestScore = score,
                 isCompleted = metTarget,
@@ -247,13 +263,56 @@ class UserDataRepository @Inject constructor(
     }
 
     /** AF7: replace in-memory + Room profile from a cloud restore (skips economy upload). */
-    fun replaceFromCloud(profile: UserProfile) {
+    fun replaceFromCloud(profile: UserProfile, clearClaims: Boolean = false) {
         synchronized(lock) {
             pendingMutations.clear()
             hydrated = true
+            val local = _userProfile.value
+            val unmergedEarnedClaims = local.rewardClaims.keys.any { it !in profile.rewardClaims }
+            _userProfile.value = if (clearClaims) profile else profile.copy(
+                coins = if (unmergedEarnedClaims) maxOf(profile.coins, local.coins) else profile.coins,
+                rewardClaims = profile.rewardClaims + local.rewardClaims)
         }
-        _userProfile.value = profile
-        scope.launch { store.save(profile) }
+        scope.launch { flush() }
+    }
+
+    suspend fun buyBooster(type: com.mergeseven.game.game.model.BoosterType, cost: Int): Boolean = withContext(NonCancellable) {
+        ready.await()
+        diskMutex.withLock {
+            if (!trySpendCoins(cost)) return@withLock false
+            try {
+                store.saveWithBooster(_userProfile.value, type)
+                true
+            } catch (error: Exception) { addCoins(cost); throw error }
+        }
+    }
+
+    suspend fun awaitReady() = ready.await()
+
+    /** Wallet and claim ledger are saved together in Room's profile transaction. */
+    suspend fun flush() = diskMutex.withLock { store.save(_userProfile.value) }
+
+    fun rewardClaimed(key: String) = key in _userProfile.value.rewardClaims
+    fun rewardCount(prefix: String) = _userProfile.value.rewardClaims.keys.count { it.startsWith(prefix) }
+
+    suspend fun claimReward(key: String, coins: Int, prefix: String? = null, limit: Int = Int.MAX_VALUE,
+                            extraKey: String? = null, extraDailyAttempt: Boolean = false, source: String = "ad_reward"): Boolean = withContext(NonCancellable) {
+        ready.await()
+        var granted = false
+        mutate(notifyEconomy = false, source = source) { profile ->
+            if (key in profile.rewardClaims || (extraKey != null && extraKey in profile.rewardClaims) || (prefix != null &&
+                profile.rewardClaims.keys.count { it.startsWith(prefix) } >= limit)) profile
+            else {
+                granted = true
+                profile.copy(coins = profile.coins + coins.coerceAtLeast(0),
+                    dailyChallenge = if (extraDailyAttempt) profile.dailyChallenge.copy(attempts = 0) else profile.dailyChallenge,
+                    rewardClaims = profile.rewardClaims + (key to coins.coerceAtLeast(0)) +
+                        (extraKey?.let { mapOf(it to 0) } ?: emptyMap()))
+            }
+        }
+        flush()
+        if (granted && featureFlags.isEnabled(Feature.AF7)) cloudEconomyNotifier.notifyChanged()
+        granted
     }
 
     /**
@@ -265,14 +324,20 @@ class UserDataRepository @Inject constructor(
      */
     private fun mutate(
         notifyEconomy: Boolean = false,
+        source: String = "profile_reward",
         block: (UserProfile) -> UserProfile
     ) {
-        synchronized(lock) {
+        val coinDelta = synchronized(lock) {
             if (!hydrated) pendingMutations += block
+            val before = _userProfile.value
+            val after = block(before)
+            _userProfile.value = after
+            after.coins.toLong() - before.coins.toLong()
         }
-        val updated = _userProfile.updateAndGet(block)
+        if (coinDelta != 0L) analytics.logEvent(if (coinDelta > 0) "coin_source" else "coin_sink",
+            mapOf("source" to source, "amount" to kotlin.math.abs(coinDelta)))
         if (hydrated) {
-            scope.launch { store.save(updated) }
+            scope.launch { flush() }
         }
         if (notifyEconomy && featureFlags.isEnabled(Feature.AF7)) {
             cloudEconomyNotifier.notifyChanged()

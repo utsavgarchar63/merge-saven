@@ -70,7 +70,7 @@ object Constants {
     const val UNDO_COST = 50
     const val SWAP_COST = 40
     const val RANDOMIZE_COST = 80
-    const val REMOVE_COST = 120
+    const val REMOVE_COST = 100
     const val CONTINUE_COST = 100
     const val CONTINUE_COST_CAP = 800
     const val CONTINUE_CLEAR_TILES = 5
@@ -86,8 +86,6 @@ object Constants {
     const val DAILY_REWARD = 50
     const val REWARDED_COIN_GRANT = 100
     const val INSUFFICIENT_FUNDS_REWARD_COINS = 50
-    /** AF9-08 daily coins while Premium subscription is active. */
-    const val PREMIUM_DAILY_STIPEND_COINS = 75
     const val HINT_COST = 30
     const val HINT_COOLDOWN_MS = 10_000L
     const val MAX_HINTS_PER_RUN = 5

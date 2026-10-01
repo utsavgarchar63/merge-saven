@@ -48,9 +48,11 @@ fun SettingsScreen(
     onShopClick: () -> Unit = {},
     onAchievementsClick: () -> Unit = {},
     onCosmeticsClick: () -> Unit = {},
-    onStatsClick: () -> Unit = {}
+    onStatsClick: () -> Unit = {},
+    onReplayTutorial: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val privacyRequired by viewModel.privacyOptionsRequired.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
@@ -86,7 +88,7 @@ fun SettingsScreen(
                 IconButton(
                     onClick = onBackClick,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .background(GameColors.WoodMid, CircleShape)
                 ) {
                     GameIcon(
@@ -298,14 +300,13 @@ fun SettingsScreen(
                                     )
                                 }
                             }
-                            OutlinedButton(
-                                onClick = { viewModel.restorePurchases() },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("RESTORE PURCHASES", color = GameColors.TextWhite)
-                            }
                         }
+
+                        if (privacyRequired) OutlinedButton(
+                            onClick = { (context as? android.app.Activity)?.let(viewModel::showPrivacyOptions) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Ad privacy options") }
+                        OutlinedButton(onClick = { viewModel.replayTutorial(); onReplayTutorial() },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Replay how to play") }
 
                         Text(
                             text = "Reset saved user data (coins, stars, daily streak) back to starting defaults.",

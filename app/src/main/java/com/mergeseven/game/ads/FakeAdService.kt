@@ -20,8 +20,9 @@ class FakeAdService(
         preloadCalls += placement
     }
 
-    override suspend fun showRewarded(activity: Activity, placement: AdPlacement): AdResult {
+    override suspend fun showRewarded(activity: Activity, placement: AdPlacement, onEarned: suspend () -> Unit): AdResult {
         showRewardedCalls += placement
+        if (rewardedResult == AdResult.Rewarded) onEarned()
         return rewardedResult
     }
 

@@ -18,6 +18,11 @@ import kotlinx.serialization.json.Json
  */
 @Serializable
 data class GameStateSnapshot(
+    val runId: String = "",
+    val baseRewardCoins: Int = 0,
+    val resultWon: Boolean = false,
+    val resultFinished: Boolean = false,
+    val rewardedHintsUsed: Int = 0,
     val version: Int = CURRENT_VERSION,
     val playableCells: List<HexCoord>,
     val tiles: List<Tile>,
@@ -80,6 +85,8 @@ data class CollectedEntry(
 fun GameState.toSnapshot(maxUndoDepth: Int = Constants.MAX_UNDO_HISTORY): GameStateSnapshot =
     GameStateSnapshot(
         version = GameStateSnapshot.CURRENT_VERSION,
+        runId = runId, baseRewardCoins = baseRewardCoins, resultWon = resultWon,
+        resultFinished = resultFinished, rewardedHintsUsed = rewardedHintsUsed,
         playableCells = board.playableCells.toList(),
         tiles = board.activeTiles(),
         trayPieces = trayPieces,
@@ -139,6 +146,8 @@ fun GameStateSnapshot.toGameState(): GameState {
     }
 
     return GameState(
+        runId = runId, baseRewardCoins = baseRewardCoins, resultWon = resultWon,
+        resultFinished = resultFinished, rewardedHintsUsed = rewardedHintsUsed,
         board = BoardState(
             cells = emptyCells + occupied,
             playableCells = playableCells.toSet(),

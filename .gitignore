@@ -74,3 +74,12 @@ node_modules/
 coverage/
 *.lcov
 .nyc_output/
+# Local device/build diagnostics and downloaded QA emulator images.
+validation/emulator/
+validation-*.log
+emulator-*.log
+gradle-threads-local.txt
+gradle-build-threads-local.txt
+
+validation/*anr.txt
+validation/build-temp/

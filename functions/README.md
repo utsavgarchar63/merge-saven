@@ -1,20 +1,5 @@
-# AF8 Cloud Functions
+# Local backend retirement
 
-Deploy with Firebase CLI after `npm install && npm run build` in this folder.
+No purchases remain in the app. It does not call receipt validation; src/index.ts no longer exports the old purchase callable, and its Google Play validation dependency was removed.
 
-## Callable APIs
-
-- `validateDailyScore` — AF8-03 Daily replay envelope + shadow-ban gate; writes `daily_scores/{date}/players/{playerId}`
-- `fetchDailyLeaderGhost` — AF8-07 returns best day's `replayJson`
-
-## Admin: shadow ban / score reset (AF8-08)
-
-```
-# shadow ban
-firestore: shadow_bans/{playerId} = { reason: "...", at: ... }
-
-# reset a daily score
-delete daily_scores/{date}/players/{playerId}
-```
-
-Android falls back to local `ReplayRunner` validation when Functions are unreachable.
+These edits are local only. Nothing was deployed or deleted externally. A separately authorized release must explicitly retire any currently deployed purchase endpoint; an empty local export does not delete a Firebase function. Preserve unrelated cloud-save, leaderboard and account behavior.

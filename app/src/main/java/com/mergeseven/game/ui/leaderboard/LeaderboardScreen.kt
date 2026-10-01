@@ -42,6 +42,8 @@ fun LeaderboardScreen(
     onBackClick: () -> Unit = {}
 ) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
+    val signInLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { viewModel.handleSignIn(it.data) }
 
     Box(
         modifier = Modifier
@@ -74,11 +76,15 @@ fun LeaderboardScreen(
 
             if (!ui.enabled) {
                 Text(
-                    text = "Competitive features are off. Enable AF8 in the debug menu.",
+                    text = "Leaderboards are temporarily unavailable. You can keep playing.",
                     color = GameColors.TextWhite.copy(alpha = 0.7f),
                     modifier = Modifier.padding(top = 16.dp)
                 )
             } else {
+                if (!ui.signedIn) {
+                    Text("Sign in to compare and submit your scores. Offline play remains available.", color = GameColors.TextWhite)
+                    TextButton({ signInLauncher.launch(viewModel.signInIntent()) }) { Text("Sign in") }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     LeaderboardId.entries.forEach { board ->
                         FilterChip(
@@ -124,7 +130,7 @@ fun LeaderboardScreen(
                     ui.entries.isEmpty() -> {
                         Text(
                             text = if (ui.offlineSoft) {
-                                "No scores yet. Play Endless, Daily, or Weekly — offline cache is empty."
+                                "Scores are unavailable right now. Play offline and try again later."
                             } else {
                                 "No scores for this board."
                             },

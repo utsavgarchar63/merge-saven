@@ -22,6 +22,8 @@ interface SettingsRepository {
     val isHapticsEnabled: Flow<Boolean>
     val isReduceMotionEnabled: Flow<Boolean>
     val isNotificationsEnabled: Flow<Boolean>
+    val tutorialStep: Flow<Int> get() = kotlinx.coroutines.flow.flowOf(0)
+    suspend fun setTutorialStep(step: Int) {}
     val isTutorialCompleted: Flow<Boolean>
     val colourblindMode: Flow<ColourblindMode>
     val largeTouchTargets: Flow<Boolean>
@@ -83,6 +85,11 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override val isNotificationsEnabled: Flow<Boolean> = prefsFlow.map { preferences ->
         preferences[PreferencesKeys.KEY_NOTIFICATIONS_ENABLED] ?: true
+    }
+
+    override val tutorialStep: Flow<Int> = prefsFlow.map { it[androidx.datastore.preferences.core.intPreferencesKey("tutorial_step")] ?: 0 }
+    override suspend fun setTutorialStep(step: Int) {
+        dataStore.edit { it[androidx.datastore.preferences.core.intPreferencesKey("tutorial_step")] = step.coerceIn(0, 3) }
     }
 
     override val isTutorialCompleted: Flow<Boolean> = prefsFlow.map { preferences ->

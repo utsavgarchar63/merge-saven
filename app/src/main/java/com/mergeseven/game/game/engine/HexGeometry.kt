@@ -132,6 +132,7 @@ object HexGeometry {
         playableCells: Set<HexCoord>,
         maxPixelDistance: Float = size * 1.6f
     ): HexCoord? {
+        if (!size.isFinite() || size <= 0f) return null
         val candidate = pixelToHex(pixelX, pixelY, size, centerX, centerY)
         if (candidate in playableCells) {
             val (px, py) = hexToPixel(candidate, size, centerX, centerY)
@@ -166,8 +167,8 @@ object HexGeometry {
         availableHeight: Float,
         padding: Float = 16f
     ): Float {
-        val usableWidth = availableWidth - 2 * padding
-        val usableHeight = availableHeight - 2 * padding
+        val usableWidth = (availableWidth - 2 * padding).coerceAtLeast(0f)
+        val usableHeight = (availableHeight - 2 * padding).coerceAtLeast(0f)
 
         // For flat-top hexes:
         // Total width = size * (3 * boardRadius + 1.5)

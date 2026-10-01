@@ -25,8 +25,6 @@ object AnalyticsEvents {
     const val DAILY_STARTED = "daily_started"
     const val DAILY_COMPLETED = "daily_completed"
     const val SHOP_OPENED = "shop_opened"
-    const val PURCHASE_STARTED = "purchase_started"
-    const val PURCHASE_COMPLETED = "purchase_completed"
     const val SETTINGS_CHANGED = "settings_changed"
     const val XP_GAINED = "xp_gained"
     const val ACHIEVEMENT_UNLOCKED = "achievement_unlocked"

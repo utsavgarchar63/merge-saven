@@ -1,0 +1,322 @@
+{
+  "version": 2,
+  "created": "2026-10-01",
+  "art_direction": "Warm walnut puzzle table, colorful beveled hexagons, soft lighting, simple readable silhouettes, restrained gold accents, quiet background, no watermark, no embedded UI labels.",
+  "masters": [
+    {
+      "path": "art/masters/atlas_v2.png",
+      "dimensions": [
+        1448,
+        1086
+      ],
+      "mode": "RGB",
+      "purpose": "Consistent 4-column by 3-row atlas of isolated square illustrations: campaign hex stairway, endless loop of hex tiles, time-attack hourglass, Zen leaves/stones, daily calendar sun, weekly trophy/star, coin stack, daily gift, achievement badge, celebration ornament, sparkle ornament, sharing medallion. Dark walnut backdrop, equal cell spacing and margins, no words.",
+      "generation_brief": "Warm walnut puzzle table, colorful beveled hexagons, soft lighting, simple readable silhouettes, restrained gold accents, quiet background, no watermark, no embedded UI labels. Consistent 4-column by 3-row atlas of isolated square illustrations: campaign hex stairway, endless loop of hex tiles, time-attack hourglass, Zen leaves/stones, daily calendar sun, weekly trophy/star, coin stack, daily gift, achievement badge, celebration ornament, sparkle ornament, sharing medallion. Dark walnut backdrop, equal cell spacing and margins, no words.",
+      "brief_note": "Reusable production brief; generation was through built-in imagegen. Composed horizontal title is not a generated bitmap."
+    },
+    {
+      "path": "art/masters/brand_horizontal_v2.png",
+      "dimensions": [
+        900,
+        230
+      ],
+      "mode": "RGBA",
+      "purpose": "Typography composition from brand master and Nunito",
+      "generation_brief": "Warm walnut puzzle table, colorful beveled hexagons, soft lighting, simple readable silhouettes, restrained gold accents, quiet background, no watermark, no embedded UI labels. ",
+      "brief_note": "Reusable production brief; generation was through built-in imagegen. Composed horizontal title is not a generated bitmap."
+    },
+    {
+      "path": "art/masters/brand_v2.png",
+      "dimensions": [
+        1312,
+        1199
+      ],
+      "mode": "RGBA",
+      "purpose": "Single simplified gold hexagon-and-seven emblem, front-facing with restrained bevel and colorful hex accents, centered, generous safe padding, genuine transparent background, no title text.",
+      "generation_brief": "Warm walnut puzzle table, colorful beveled hexagons, soft lighting, simple readable silhouettes, restrained gold accents, quiet background, no watermark, no embedded UI labels. Single simplified gold hexagon-and-seven emblem, front-facing with restrained bevel and colorful hex accents, centered, generous safe padding, genuine transparent background, no title text.",
+      "brief_note": "Reusable production brief; generation was through built-in imagegen. Composed horizontal title is not a generated bitmap."
+    },
+    {
+      "path": "art/masters/feature_v2.png",
+      "dimensions": [
+        1774,
+        887
+      ],
+      "mode": "RGB",
+      "purpose": "Wide walnut marketing composition, colorful beveled hexagons grouped at the right, generous quiet negative space at left for real title typography, no words.",
+      "generation_brief": "Warm walnut puzzle table, colorful beveled hexagons, soft lighting, simple readable silhouettes, restrained gold accents, quiet background, no watermark, no embedded UI labels. Wide walnut marketing composition, colorful beveled hexagons grouped at the right, generous quiet negative space at left for real title typography, no words.",
+      "brief_note": "Reusable production brief; generation was through built-in imagegen. Composed horizontal title is not a generated bitmap."
+    },
+    {
+      "path": "art/masters/wood_v2.png",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "mode": "RGB",
+      "purpose": "Portrait seamless quiet walnut surface with darker edge shading, subtle grain and a quiet center, no objects or labels; mobile home and board background.",
+      "generation_brief": "Warm walnut puzzle table, colorful beveled hexagons, soft lighting, simple readable silhouettes, restrained gold accents, quiet background, no watermark, no embedded UI labels. Portrait seamless quiet walnut surface with darker edge shading, subtle grain and a quiet center, no objects or labels; mobile home and board background.",
+      "brief_note": "Reusable production brief; generation was through built-in imagegen. Composed horizontal title is not a generated bitmap."
+    },
+    {
+      "path": "art/masters/zen_v2.png",
+      "dimensions": [
+        941,
+        1672
+      ],
+      "mode": "RGB",
+      "purpose": "Portrait calming green-tinted walnut table, subtle leaf shapes at edges, quiet center for a puzzle board, no objects or labels.",
+      "generation_brief": "Warm walnut puzzle table, colorful beveled hexagons, soft lighting, simple readable silhouettes, restrained gold accents, quiet background, no watermark, no embedded UI labels. Portrait calming green-tinted walnut table, subtle leaf shapes at edges, quiet center for a puzzle board, no objects or labels.",
+      "brief_note": "Reusable production brief; generation was through built-in imagegen. Composed horizontal title is not a generated bitmap."
+    }
+  ],
+  "runtime_exports": [
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_achievement_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 14652,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_celebration_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 14660,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_coins_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 12700,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_gift_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 11208,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_share_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 12868,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_sparkle_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 11098,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/bg_board_v2.webp",
+      "dimensions": [
+        720,
+        1080
+      ],
+      "bytes": 41680,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Pillow crop/resize and optimized quality 88–92; alpha retained for brand/adaptive foreground."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/bg_wood_v2.webp",
+      "dimensions": [
+        1024,
+        1536
+      ],
+      "bytes": 95548,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Pillow crop/resize and optimized quality 88–92; alpha retained for brand/adaptive foreground."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/bg_zen_v2.webp",
+      "dimensions": [
+        720,
+        1080
+      ],
+      "bytes": 26304,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Pillow crop/resize and optimized quality 88–92; alpha retained for brand/adaptive foreground."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/ic_launcher_foreground_v2.webp",
+      "dimensions": [
+        432,
+        432
+      ],
+      "bytes": 45874,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Pillow crop/resize and optimized quality 88–92; alpha retained for brand/adaptive foreground."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/logo_mark_v2.webp",
+      "dimensions": [
+        512,
+        468
+      ],
+      "bytes": 137784,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Pillow crop/resize and optimized quality 88–92; alpha retained for brand/adaptive foreground."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_campaign_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 12382,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_daily_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 11816,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_endless_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 14270,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_time_attack_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 12584,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_weekly_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 14198,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_zen_v2.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 11780,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/share_result_card_v2.webp",
+      "dimensions": [
+        1080,
+        1080
+      ],
+      "bytes": 74318,
+      "format": "WebP",
+      "version": 2,
+      "purpose": "Runtime artwork; no UI labels",
+      "export": "Pillow crop/resize and optimized quality 88–92; alpha retained for brand/adaptive foreground."
+    }
+  ],
+  "vector_sources": [
+    "app/src/main/res/drawable/icon_*.xml",
+    "app/src/main/res/drawable/*booster*.xml",
+    "art/tutorial/*_v2.svg"
+  ],
+  "tutorial": [
+    "placement",
+    "rotation",
+    "merge"
+  ],
+  "store_exports": [
+    "store/app_icon_v2.png (512×512)",
+    "store/feature_graphic_v2.png (1024×500)",
+    "store/share_result_card_v2.png (1080 square)"
+  ],
+  "quality_checks": [
+    "Source masters visually inspected",
+    "Brand alpha includes fully transparent pixels",
+    "WebP runtime dimensions checked",
+    "Adaptive foreground centered inside safe area",
+    "No master reference atlas shipped in APK",
+    "Home on Android 30 shows Google test banner in separated footer"
+  ],
+  "pending_release_checks": [
+    "Adaptive masks across OEM launchers",
+    "24–48dp device visual inspection",
+    "Six genuine implemented-app screenshots",
+    "Human art review and device usability testing"
+  ],
+  "tutorial_use": "Three vector diagrams appear in expandable tutorial help; compact prompts preserve board space. Progress persists through DataStore.",
+  "icon_policy": "Generated emblem retains true alpha. Framed mode/reward artwork intentionally uses opaque walnut backdrops. Functional icons and tile geometry remain vectors/Canvas."
+}

@@ -19,7 +19,7 @@ import com.mergeseven.game.data.local.entity.UserProfileEntity
  *
  * Schemas are exported to `app/schemas` and committed. Never bump [VERSION] without adding a
  * `Migration` and a matching case in `GameDatabaseMigrationTest` — destructive fallback is
- * deliberately not enabled, because it would silently wipe purchased content.
+ * deliberately not enabled, because it would silently wipe player progress.
  */
 @Database(
     entities = [
@@ -44,7 +44,7 @@ abstract class GameDatabase : RoomDatabase() {
     abstract fun unlockDao(): UnlockDao
 
     companion object {
-        const val VERSION = 3
+        const val VERSION = 4
         const val NAME = "merge_seven.db"
     }
 }

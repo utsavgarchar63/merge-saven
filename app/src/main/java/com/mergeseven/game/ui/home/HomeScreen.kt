@@ -1,572 +1,136 @@
 package com.mergeseven.game.ui.home
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
+
+
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+
+import androidx.compose.runtime.*
+
 import androidx.compose.ui.Alignment
+
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
+
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
 import androidx.hilt.navigation.compose.hiltViewModel
+
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+import com.mergeseven.game.R
+
 import com.mergeseven.game.ads.BannerAdHost
+
 import com.mergeseven.game.game.modes.ModeIds
-import com.mergeseven.game.meta.XpCurve
-import com.mergeseven.game.ui.components.CoinIcon
-import com.mergeseven.game.ui.components.GameIcons
-import com.mergeseven.game.ui.components.StarIcon
+
+import com.mergeseven.game.ui.components.*
+
 import com.mergeseven.game.ui.theme.GameColors
-import kotlin.math.sin
 
-/**
- * Home Screen with optional AF2 mode selector.
- */
-@Composable
-fun HomeScreen(
-    viewModel: HomeViewModel = hiltViewModel(),
-    onPlayClick: () -> Unit = {},
-    onContinueClick: (Int) -> Unit = {},
-    onContinueModeClick: (modeId: String, levelId: Int) -> Unit = { _, level -> onContinueClick(level) },
-    onModeClick: (String) -> Unit = {},
-    onLevelsClick: () -> Unit = {},
-    onDailyClick: () -> Unit = {},
-    onSettingsClick: () -> Unit = {},
-    onShopClick: () -> Unit = {},
-    onAchievementsClick: () -> Unit = {},
-    onCosmeticsClick: () -> Unit = {},
-    onStatsClick: () -> Unit = {},
-    onLeaderboardsClick: () -> Unit = {},
-    onTournamentPlay: (Long) -> Unit = {}
-) {
-    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
-    val resumableGame by viewModel.resumableGame.collectAsStateWithLifecycle()
-    val af2Enabled by viewModel.af2Enabled.collectAsStateWithLifecycle()
-    val af5Enabled by viewModel.af5Enabled.collectAsStateWithLifecycle()
-    val af8Enabled by viewModel.af8Enabled.collectAsStateWithLifecycle()
-    val af9Enabled by viewModel.af9Enabled.collectAsStateWithLifecycle()
-    val af10Enabled by viewModel.af10Enabled.collectAsStateWithLifecycle()
-    val reduceMotion by viewModel.reduceMotionEnabled.collectAsStateWithLifecycle()
-    val modeCards by viewModel.modeCards.collectAsStateWithLifecycle()
-    val tournament by viewModel.tournament.collectAsStateWithLifecycle()
-    val remoteOffer by viewModel.remoteOffer.collectAsStateWithLifecycle()
-    val stipendMessage by viewModel.stipendMessage.collectAsStateWithLifecycle()
 
-    val animateHome = af10Enabled && !reduceMotion
-    val infinite = rememberInfiniteTransition(label = "homeFeel")
-    val drift by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(12_000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "bgDrift"
-    )
-    val shimmer by infinite.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2_200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "tileShimmer"
-    )
-
-    LaunchedEffect(Unit) {
-        viewModel.refreshResumable()
-        viewModel.refreshTournament()
-    }
-
-// NotificationSoftAskHost()
-
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Image(
-            painter = painterResource(GameIcons.WoodBackground),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    if (animateHome) {
-                        translationX = (drift - 0.5f) * 24f
-                        translationY = (drift - 0.5f) * 16f
-                        scaleX = 1.06f
-                        scaleY = 1.06f
-                    }
-                },
-            contentScale = ContentScale.Crop
-        )
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            GameColors.WoodDark.copy(alpha = 0.75f - if (animateHome) drift * 0.08f else 0f),
-                            GameColors.WoodMid.copy(alpha = 0.55f),
-                            GameColors.WoodDark.copy(alpha = 0.8f)
-                        )
-                    )
-                )
-                .statusBarsPadding()
-        ) {
-            val screenHeight = maxHeight
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = screenHeight)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp, vertical = 20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.Top)
-            ) {
-                if (af9Enabled) {
-                    BannerAdHost()
-                }
-                stipendMessage?.let {
-                    Text(it, color = GameColors.CoinGold, fontSize = 12.sp)
-                }
-
-                // ─── Top Bar Header: Centered Coins & Stars ───
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    // Left: Level & XP Progress
-                    if (af5Enabled) {
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = GameColors.WoodDark.copy(alpha = 0.75f),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                GameColors.CoinGold.copy(alpha = 0.35f)
-                            ),
-                            modifier = Modifier.align(Alignment.CenterStart)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = GameColors.CoinGold.copy(alpha = 0.2f),
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = "${userProfile.playerLevel}",
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Black),
-                                            color = GameColors.CoinGold,
-                                            fontSize = 11.sp
-                                        )
-                                    }
-                                }
-                                Column {
-                                    Text(
-                                        text = "LV ${userProfile.playerLevel}",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = GameColors.CoinGold
-                                    )
-                                    LinearProgressIndicator(
-                                        progress = {
-                                            XpCurve.progressFraction(userProfile.xp, userProfile.playerLevel)
-                                        },
-                                        modifier = Modifier
-                                            .width(56.dp)
-                                            .height(4.dp)
-                                            .clip(RoundedCornerShape(2.dp)),
-                                        color = GameColors.CoinGold,
-                                        trackColor = GameColors.WoodDark.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Center: Prominent, Centered Stars & Coins Header Pill
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = GameColors.WoodDark.copy(alpha = 0.85f),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.5.dp,
-                            Brush.horizontalGradient(
-                                listOf(
-                                    GameColors.CoinGold.copy(alpha = 0.8f),
-                                    GameColors.TileGold.copy(alpha = 0.95f),
-                                    GameColors.CoinGold.copy(alpha = 0.8f)
-                                )
-                            )
-                        ),
-                        shadowElevation = 6.dp,
-                        modifier = Modifier.align(Alignment.Center)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            // Total Stars
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                StarIcon(size = 20.dp)
-                                Text(
-                                    text = "${userProfile.totalStars}",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 16.sp
-                                    ),
-                                    color = GameColors.TextWhite
-                                )
-                            }
-
-                            // Glowing Divider Dot
-                            Box(
-                                modifier = Modifier
-                                    .size(4.dp)
-                                    .clip(CircleShape)
-                                    .background(GameColors.CoinGold.copy(alpha = 0.6f))
-                            )
-
-                            // Coins
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                CoinIcon(size = 20.dp)
-                                Text(
-                                    text = "${userProfile.coins}",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 16.sp
-                                    ),
-                                    color = GameColors.CoinGold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                HomeTitleHeaderBanner(animateHome = animateHome, shimmer = shimmer)
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .widthIn(max = 360.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    val resumable = resumableGame
-                    if (resumable != null) {
-                        val label = if (resumable.modeId == ModeIds.CAMPAIGN) {
-                            "CONTINUE • LEVEL ${resumable.level}"
-                        } else {
-                            "CONTINUE • ${resumable.modeId.replace('_', ' ').uppercase()}"
-                        }
-                        HomeButton(
-                            text = label,
-                            onClick = {
-                                onContinueModeClick(resumable.modeId, resumable.level)
-                            },
-                            primary = true
-                        )
-                        if (!af2Enabled) {
-                            HomeButton(text = "PLAY NOW", onClick = onPlayClick)
-                        }
-                    } else if (!af2Enabled) {
-                        HomeButton(
-                            text = "PLAY NOW",
-                            onClick = onPlayClick,
-                            primary = true
-                        )
-                    }
-
-                    if (af2Enabled) {
-                        Text(
-                            text = "MODES",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = GameColors.TextWhite.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                        modeCards.forEach { card ->
-                            val subtitle = if (card.bestScore > 0) "  •  PB ${card.bestScore}" else ""
-                            HomeButton(
-                                text = card.title.uppercase() + subtitle,
-                                onClick = { onModeClick(card.modeId) },
-                                primary = card.modeId == ModeIds.CAMPAIGN && resumable == null
-                            )
-                        }
-                    } else {
-                        HomeButton(text = "LEVELS MAP", onClick = onLevelsClick)
-                        HomeButton(text = "DAILY REWARDS", onClick = onDailyClick)
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    if (af5Enabled) {
-                        HomeButton(text = "ACHIEVEMENTS", onClick = onAchievementsClick)
-                        HomeButton(text = "THEMES & COSMETICS", onClick = onCosmeticsClick)
-                        HomeButton(text = "STATS", onClick = onStatsClick)
-                    }
-
-                    if (af8Enabled) {
-                        HomeButton(text = "LEADERBOARDS", onClick = onLeaderboardsClick)
-                        val t = tournament
-                        if (t != null && t.isActive) {
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = GameColors.CoinGold.copy(alpha = 0.2f),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.joinTournament()?.let { joined ->
-                                            onTournamentPlay(joined.seed)
-                                        }
-                                    }
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = t.title.uppercase(),
-                                        color = GameColors.CoinGold,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = "24h arena • ${t.prizeCoins} coin prize — tap to join",
-                                        color = GameColors.TextWhite.copy(alpha = 0.8f),
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    TextButton(onClick = onSettingsClick) {
-                        Text(
-                            text = stringResource(com.mergeseven.game.R.string.home_settings),
-                            color = GameColors.TextWhite.copy(alpha = 0.6f),
-                            style = MaterialTheme.typography.labelLarge
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
 
 @Composable
-private fun IdleTileShimmerRow(shimmer: Float) {
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth(0.55f)
-            .height(36.dp)
-    ) {
-        val colors = listOf(
-            GameColors.TileBlue,
-            GameColors.TileGreen,
-            GameColors.TileGold,
-            GameColors.TilePurple,
-            GameColors.TileTeal
-        )
-        val spacing = size.width / colors.size
-        colors.forEachIndexed { index, color ->
-            val cx = spacing * (index + 0.5f)
-            val cy = size.height / 2f
-            val pulse = 0.75f + 0.25f * sin((shimmer + index * 0.2f) * Math.PI.toFloat())
-            drawCircle(
-                color = color.copy(alpha = 0.35f + 0.45f * shimmer),
-                radius = 10f * pulse,
-                center = Offset(cx, cy)
-            )
-            drawCircle(
-                color = Color.White.copy(alpha = 0.2f * shimmer),
-                radius = 4f,
-                center = Offset(cx - 3f, cy - 3f)
-            )
-        }
-    }
-}
 
-@Composable
-private fun HomeButton(
-    text: String,
-    onClick: () -> Unit,
-    primary: Boolean = false
-) {
-    Button(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(if (primary) 58.dp else 48.dp)
-            .clip(RoundedCornerShape(16.dp)),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (primary) GameColors.CoinGold
-            else GameColors.WoodLight.copy(alpha = 0.35f),
-            contentColor = if (primary) Color.Black
-            else GameColors.TextWhite
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = if (primary) 18.sp else 15.sp
-            )
-        )
-    }
-}
+fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Unit = {},
 
-@Composable
-private fun HomeTitleHeaderBanner(
-    animateHome: Boolean,
-    shimmer: Float
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.padding(bottom = 4.dp)
-    ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp)
-        ) {
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .height(110.dp)
-            ) {
-                // Radial gold halo aura
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            GameColors.CoinGold.copy(alpha = 0.35f + shimmer * 0.15f),
-                            GameColors.TilePurple.copy(alpha = 0.2f),
-                            Color.Transparent
-                        )
-                    ),
-                    radius = size.width * 0.45f
-                )
+    onContinueClick: (Int) -> Unit = {}, onContinueModeClick: (String, Int) -> Unit = { _, l -> onContinueClick(l) },
 
-                // Render decorative glowing hexagon game tile graphics
-                val path = androidx.compose.ui.graphics.Path()
-                val hexRadius = 24f
-                val centers = listOf(
-                    Offset(size.width * 0.18f, size.height * 0.4f) to GameColors.TileBlue,
-                    Offset(size.width * 0.82f, size.height * 0.4f) to GameColors.TileGreen,
-                    Offset(size.width * 0.30f, size.height * 0.25f) to GameColors.TileGold,
-                    Offset(size.width * 0.70f, size.height * 0.25f) to GameColors.TilePurple
-                )
+    onModeClick: (String) -> Unit = {}, onLevelsClick: () -> Unit = {}, onDailyClick: () -> Unit = {},
 
-                centers.forEach { (center, color) ->
-                    path.reset()
-                    for (i in 0..5) {
-                        val angleRad = (Math.PI / 3 * i - Math.PI / 6).toFloat()
-                        val x = center.x + hexRadius * kotlin.math.cos(angleRad)
-                        val y = center.y + hexRadius * kotlin.math.sin(angleRad)
-                        if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                    }
-                    path.close()
-                    drawPath(path = path, color = color.copy(alpha = 0.65f))
-                    drawPath(
-                        path = path,
-                        color = Color.White.copy(alpha = 0.4f),
-                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
-                    )
-                }
+    onSettingsClick: () -> Unit = {}, onShopClick: () -> Unit = {}, onAchievementsClick: () -> Unit = {},
+
+    onCosmeticsClick: () -> Unit = {}, onStatsClick: () -> Unit = {}, onLeaderboardsClick: () -> Unit = {},
+
+    onTournamentPlay: (Long) -> Unit = {}) {
+
+    val profile by viewModel.userProfile.collectAsStateWithLifecycle()
+
+    val resumable by viewModel.resumableGame.collectAsStateWithLifecycle()
+
+    val level by viewModel.nextCampaignLevel.collectAsStateWithLifecycle(initialValue = 1)
+
+    val cards by viewModel.modeCards.collectAsStateWithLifecycle()
+
+    var moreModes by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { viewModel.refreshResumable(); viewModel.refreshTournament() }
+
+    WoodPage("Merge Seven", profile.coins, headerAction = {
+
+        IconButton(onSettingsClick) { Icon(painterResource(R.drawable.icon_settings), "Settings", tint = GameColors.TextWhite) }
+
+    }, footer = { BannerAdHost() }) {
+
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+
+            horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+
+            Image(painterResource(R.drawable.logo_mark_v2), null, Modifier.size(92.dp))
+
+            Column(Modifier.weight(1f)) {
+
+                Text("A little puzzle. A big chain.", style = MaterialTheme.typography.headlineMedium)
+
+                Text("Place · Match · Merge", color = GameColors.CoinGold)
+
             }
 
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                // Central Glowing Number 7 Badge
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = GameColors.WoodDark.copy(alpha = 0.85f),
-                    border = androidx.compose.foundation.BorderStroke(
-                        2.dp,
-                        Brush.horizontalGradient(
-                            listOf(GameColors.CoinGold, GameColors.TileGold, GameColors.CoinGold)
-                        )
-                    ),
-                    shadowElevation = 8.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "💎 MERGE SEVEN 💎",
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.Black,
-                                fontSize = 26.sp,
-                                letterSpacing = 2.sp
-                            ),
-                            color = GameColors.CoinGold
-                        )
-                    }
-                }
+        }
+
+        WoodPanel {
+
+            Text(if (resumable != null) "Your board is waiting" else "Ready for your next merge?", style = MaterialTheme.typography.titleLarge)
+
+            Text(resumable?.let { "${cards.firstOrNull { c -> c.modeId == it.modeId }?.title ?: "Campaign"} · Level ${it.level} · Score ${it.score}" }
+
+                ?: "Campaign · Level $level", color = GameColors.TextWhite.copy(alpha = 0.8f))
+
+            GoldButton(if (resumable != null) "Resume game" else "Play level $level") {
+
+                resumable?.let { onContinueModeClick(it.modeId, it.level) } ?: onContinueClick(level)
+
             }
+
+            TextButton(onLevelsClick, Modifier.fillMaxWidth()) { Text("Choose a campaign level", color = GameColors.CoinGold) }
+
         }
 
-        if (animateHome) {
-            Spacer(modifier = Modifier.height(6.dp))
-            IdleTileShimmerRow(shimmer = shimmer)
-            Spacer(modifier = Modifier.height(6.dp))
+        WoodLink("Today's puzzle", "A fresh challenge with the same board for everyone", R.drawable.mode_daily_v2, onDailyClick)
+
+        OutlinedButton({ moreModes = !moreModes }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+
+            Text(if (moreModes) "Hide game modes" else "Explore all six modes")
+
         }
 
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = GameColors.WoodLight.copy(alpha = 0.25f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, GameColors.CoinGold.copy(alpha = 0.4f))
-        ) {
-            Text(
-                text = "HEXAGON MERGE PUZZLE • v1.4.0",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    letterSpacing = 2.sp
-                ),
-                color = GameColors.CoinGold.copy(alpha = 0.95f),
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                textAlign = TextAlign.Center
-            )
+        if (moreModes) {
+
+            val descriptions = listOf("Follow the path, one satisfying merge at a time", "Build your best score without a timer",
+
+                "Make every second count", "Relax, experiment, and undo freely", "A new puzzle every day", "Compete in this week's challenge")
+
+            val art = listOf(R.drawable.mode_campaign_v2, R.drawable.mode_endless_v2, R.drawable.mode_time_attack_v2,
+
+                R.drawable.mode_zen_v2, R.drawable.mode_daily_v2, R.drawable.mode_weekly_v2)
+
+            cards.forEachIndexed { i, card ->
+
+                WoodLink(card.title, "${descriptions[i]} · Best ${card.bestScore}", art[i]) { onModeClick(card.modeId) }
+
+            }
+
         }
+
+        Text("No purchases. Play at your pace; ad rewards are always optional.", style = MaterialTheme.typography.bodySmall,
+
+            color = GameColors.TextWhite.copy(alpha = 0.8f))
+
     }
+
 }
 

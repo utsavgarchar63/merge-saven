@@ -113,7 +113,7 @@ class CosmeticsViewModel @Inject constructor(
             val ok = unlockService.tryBuyCosmetic(id)
             if (ok) {
                 previewId.value = id
-                message.value = "Purchased"
+                message.value = "Unlocked with coins"
             } else {
                 message.value = "Not enough coins"
             }

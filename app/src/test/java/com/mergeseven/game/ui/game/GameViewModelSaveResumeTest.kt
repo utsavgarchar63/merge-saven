@@ -128,7 +128,7 @@ class GameViewModelSaveResumeTest {
     }
 
     @Test
-    fun `a completed level clears the save so it is not resumed`() = runTest {
+    fun `a completed result survives restart for reward recovery`() = runTest {
         // Resuming a board that already meets the target drives the completion path on the first
         // state update, which is the same path a winning move takes.
         val repository = FakeGameRepository(completedGame(level = 1, targetValue = 16))
@@ -136,8 +136,11 @@ class GameViewModelSaveResumeTest {
         val viewModel = createViewModel(repository, levelId = 1)
 
         assertTrue(viewModel.uiState.value.isLevelComplete)
-        assertTrue(repository.clearCount > 0)
-        assertEquals(null, repository.stored.value)
+        assertEquals(0, repository.clearCount)
+        assertTrue(repository.stored.value?.resultFinished == true)
+        val resumed = createViewModel(repository, levelId = 1)
+        assertTrue(resumed.uiState.value.isLevelComplete)
+        assertEquals(100, resumed.uiState.value.baseRewardCoins)
     }
 
     @Test
@@ -179,7 +182,7 @@ class GameViewModelSaveResumeTest {
         assertFalse(viewModel.uiState.value.isGameOver)
         assertTrue(debugCommands.forceGameOver())
         assertTrue(viewModel.uiState.value.isGameOver)
-        assertTrue(repository.clearCount > 0)
+        assertTrue(repository.stored.value?.resultFinished == true)
     }
 
     private fun TestScope.createViewModel(

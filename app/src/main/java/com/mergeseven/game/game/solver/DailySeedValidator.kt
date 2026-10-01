@@ -34,13 +34,19 @@ class DailySeedValidator @Inject constructor(
         return ModeSeeds.dailySeed(dateIso)
     }
 
+    private fun deterministicBudget(): HintSearchBudget {
+        var checks = 0L
+        return HintSearchBudget(2_048L) { checks++ }
+    }
+
     fun isPromising(
         seed: Long,
         dateIso: String,
         targetScore: Int,
         maxMoves: Int
     ): Boolean {
-        val budget = HintSearchBudget(Constants.DAILY_SEED_VALIDATE_BUDGET_MS)
+        // A daily seed must be identical on fast and slow devices. Use a fixed search
+        // work budget rather than timing-dependent candidate selection.
         val daily = DailyMode()
         var state = daily.createSession(
             ModeSessionContext(
@@ -53,7 +59,7 @@ class DailySeedValidator @Inject constructor(
             )
         )
         var moves = 0
-        while (moves < maxMoves && budget.hasTime()) {
+        while (moves < maxMoves) {
             if (ObjectiveEvaluator.allComplete(state) || state.score >= targetScore) {
                 return true
             }
@@ -63,7 +69,7 @@ class DailySeedValidator @Inject constructor(
             val hint = moveSolver.findBestMove(
                 state = state,
                 profile = DifficultyProfiles.STANDARD,
-                budget = HintSearchBudget(5L)
+                budget = deterministicBudget()
             ) ?: moveSolver.findAnyLegalMove(state) ?: return false
 
             val piece = state.trayPieces[hint.slotIndex]!!.copy(rotation = hint.rotation)

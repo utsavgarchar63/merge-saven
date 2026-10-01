@@ -78,4 +78,9 @@ class LeaderboardViewModel @Inject constructor(
             )
         }
     }
+
+    fun signInIntent() = auth.getSignInIntent()
+    fun handleSignIn(data: android.content.Intent?) {
+        viewModelScope.launch { auth.handleSignInResult(data); refresh() }
+    }
 }

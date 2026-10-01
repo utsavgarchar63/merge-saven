@@ -37,7 +37,8 @@ data class UserProfilePayload(
     val totalMerges: Int = 0,
     val biggestTile: Int = 0,
     val longestChain: Int = 0,
-    val playtimeMs: Long = 0L
+    val playtimeMs: Long = 0L,
+    val rewardClaims: Map<String, Int> = emptyMap()
 )
 
 @Serializable

@@ -107,19 +107,25 @@ class DailyViewModel @Inject constructor(
         }
     }
 
+    val adAvailability = adService.availability
+    private val _adBusy = MutableStateFlow(false)
+    val adBusy = _adBusy.asStateFlow()
+    fun extraClaimed() = userDataRepository.rewardClaimed("${userProfile.value.dailyChallenge.dateSeed}:extra_daily")
+    fun warmAds() { adPreloader.warmDaily() }
     fun watchAdForExtraAttempt(activity: android.app.Activity) {
-        if (!featureFlags.isEnabled(Feature.AF9)) return
+        val key = "${userProfile.value.dailyChallenge.dateSeed}:extra_daily"
+        if (!featureFlags.isEnabled(Feature.AF9) || _adBusy.value || extraClaimed()) return
+        if (!adService.isReady(AdPlacement.EXTRA_DAILY)) {
+            warmAds(); _status.value = "No ad available right now. You can keep playing."; return
+        }
+        _adBusy.value = true
         viewModelScope.launch {
-            adPreloader.warmDaily()
-            analyticsTracker.logEvent(AnalyticsEvents.REWARD_AD_STARTED, mapOf("source" to "extra_daily"))
-            when (adService.showRewarded(activity, AdPlacement.EXTRA_DAILY)) {
-                AdResult.Rewarded -> {
-                    analyticsTracker.logEvent(AnalyticsEvents.REWARD_AD_COMPLETED, mapOf("source" to "extra_daily"))
-                    userDataRepository.grantExtraDailyAttempt()
-                    _status.value = "Extra daily attempt unlocked"
+            try {
+                val result = adService.showRewarded(activity, AdPlacement.EXTRA_DAILY) {
+                    userDataRepository.claimReward(key, 0, extraDailyAttempt = true)
                 }
-                else -> _status.value = "No ad available"
-            }
+                _status.value = if (result == AdResult.Rewarded) "Bonus retry unlocked. Your official score is kept." else "No reward claimed"
+            } finally { _adBusy.value = false }
         }
     }
 

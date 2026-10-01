@@ -1,565 +1,71 @@
 package com.mergeseven.game.ui.daily
-
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import com.mergeseven.game.ui.components.CoinIcon
-import com.mergeseven.game.ui.components.GameIcon
-import com.mergeseven.game.ui.components.GameIcons
-import com.mergeseven.game.ui.components.StarIcon
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.mergeseven.game.data.model.DailyChallengeState
-import com.mergeseven.game.data.model.DailyQuest
+import com.mergeseven.game.R
+import com.mergeseven.game.ads.AdPlacement
+import com.mergeseven.game.ui.components.*
 import com.mergeseven.game.ui.theme.GameColors
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DailyScreen(
-    viewModel: DailyViewModel = hiltViewModel(),
-    onBackClick: () -> Unit = {},
-    onStartDailyChallenge: () -> Unit = {}
-) {
-    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
-    val af9Enabled by viewModel.af9Enabled.collectAsStateWithLifecycle()
+fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> Unit = {},
+    onStartDailyChallenge: () -> Unit = {}, onStartWeekly: () -> Unit = {}, onSettings: () -> Unit = {}) {
+    val profile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val availability by viewModel.adAvailability.collectAsStateWithLifecycle()
+    val busy by viewModel.adBusy.collectAsStateWithLifecycle()
     val status by viewModel.status.collectAsStateWithLifecycle()
-    val rewards = viewModel.getDailyRewards()
-    val scrollState = rememberScrollState()
-    val activity = androidx.compose.ui.platform.LocalContext.current as? android.app.Activity
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GameColors.WoodDark)
-            .statusBarsPadding()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = 16.dp)
-        ) {
-            // ─── Top Bar ─────────────────────────────────
-            DailyTopBar(
-                totalStars = userProfile.totalStars,
-                coins = userProfile.coins,
-                onBackClick = onBackClick
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // ─── Daily Challenge Banner ─────────────
-                DailyChallengeCard(
-                    challengeState = userProfile.dailyChallenge,
-                    onStartChallenge = onStartDailyChallenge
-                )
-                if (af9Enabled) {
-                    OutlinedButton(
-                        onClick = { activity?.let { viewModel.watchAdForExtraAttempt(it) } },
-                        enabled = activity != null,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("WATCH AD · EXTRA DAILY ATTEMPT", color = GameColors.CoinGold)
-                    }
+    val activity = LocalContext.current as? android.app.Activity
+    LaunchedEffect(Unit) { viewModel.refreshDailyCheck(); viewModel.warmAds() }
+    WoodPage("Challenges", profile.coins, headerAction = { TextButton(onSettings) { Text("Settings") } }) {
+        WoodPanel {
+            Text("Today's puzzle", style = MaterialTheme.typography.headlineMedium)
+            Text("${profile.dailyChallenge.dateSeed} · Reach ${profile.dailyChallenge.targetScore} points")
+            Text(if (viewModel.extraClaimed() && profile.dailyChallenge.attempts == 0)                "Bonus reward attempt ready. Your official score stays ${profile.dailyChallenge.bestScore}."                else if (profile.dailyChallenge.attempts > 0 || profile.dailyChallenge.isCompleted)
+                "Official score: ${profile.dailyChallenge.bestScore}. Further runs are practice."
+                else "First run sets your official score. Earn ${profile.dailyChallenge.coinsReward} coins by reaching the goal.")
+            GoldButton(if (profile.dailyChallenge.attempts > 0) "Practice today's puzzle" else "Play today's puzzle", !busy, onStartDailyChallenge)
+            if (!viewModel.extraClaimed() && profile.dailyChallenge.attempts > 0 && !profile.dailyChallenge.isCompleted) {
+                OutlinedButton({ activity?.let(viewModel::watchAdForExtraAttempt) }, Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    enabled = !busy && activity != null && AdPlacement.EXTRA_DAILY in availability) {
+                    Text("Watch ad · Get one more try for ${profile.dailyChallenge.coinsReward} coins")
                 }
-                status?.let {
-                    Text(it, color = GameColors.CoinGold)
-                }
-
-                // ─── 7-Day Login Streak Section ─────────
-                Text(
-                    text = "7-DAY LOGIN STREAK REWARDS",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = GameColors.CoinGold,
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                )
-
-                DailyStreakGrid(
-                    rewards = rewards,
-                    onClaim = { item -> viewModel.claimReward(item) }
-                )
-
-                // ─── Daily Quests Section ────────────────
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = GameColors.WoodMid)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "DAILY QUESTS",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = GameColors.CoinGold
-                        )
-
-                        userProfile.dailyQuests.forEach { quest ->
-                            QuestRow(
-                                quest = quest,
-                                onClaim = { viewModel.claimQuest(quest.id) }
-                            )
+            }
+        }
+        WoodLink("Weekly challenge", "A shared board. A new chance to beat your best.", R.drawable.mode_weekly_v2, onStartWeekly)
+        status?.let { Text(it, color = GameColors.CoinGold) }
+        Text("Your daily gifts", style = MaterialTheme.typography.titleLarge)
+        Text("Claim available gifts free. Missing a day never blocks play.")
+        viewModel.getDailyRewards().chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                row.forEach { gift ->
+                    WoodPanel(Modifier.weight(1f)) {
+                        Text("Day ${gift.day}", style = MaterialTheme.typography.titleMedium)
+                        Text("${gift.coins} coins" + if (gift.stars > 0) " · ${gift.stars} stars" else "")
+                        OutlinedButton({ viewModel.claimReward(gift) }, Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            enabled = gift.isAvailable && !busy) {
+                            Text(if (gift.isClaimed) "Claimed" else if (gift.isAvailable) "Claim free" else "Coming up")
                         }
                     }
                 }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+        Text("Daily quests", style = MaterialTheme.typography.titleLarge)
+        profile.dailyQuests.forEach { quest ->
+            WoodPanel {
+                Text(quest.title, style = MaterialTheme.typography.titleMedium)
+                Text(quest.description)
+                LinearProgressIndicator(progress = { (quest.currentProgress.toFloat() / quest.targetProgress.coerceAtLeast(1)).coerceIn(0f,1f) },
+                    modifier = Modifier.fillMaxWidth(), color = GameColors.CoinGold)
+                Text("${quest.currentProgress}/${quest.targetProgress} · ${quest.coinsReward} coins")
+                OutlinedButton({ viewModel.claimQuest(quest.id) }, Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    enabled = quest.isCompleted && !quest.isClaimed && !busy) { Text(if (quest.isClaimed) "Claimed" else "Claim reward") }
             }
         }
     }
 }
-
-@Composable
-private fun DailyTopBar(
-    totalStars: Int,
-    coins: Int,
-    onBackClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .size(40.dp)
-                .background(GameColors.WoodMid, CircleShape)
-        ) {
-            GameIcon(
-                resId = GameIcons.Back,
-                contentDescription = "Back",
-                tint = GameColors.TextWhite,
-                size = 24.dp
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Text(
-            text = "DAILY",
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = GameColors.TextWhite,
-            modifier = Modifier.weight(1f)
-        )
-
-        // Stars Badge
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = GameColors.WoodMid.copy(alpha = 0.8f),
-            modifier = Modifier.padding(end = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                StarIcon(size = 18.dp)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "$totalStars",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = GameColors.TextWhite
-                )
-            }
-        }
-
-        // Coins Badge
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = GameColors.WoodMid.copy(alpha = 0.8f)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CoinIcon(size = 18.dp)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "$coins",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = GameColors.CoinGold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DailyChallengeCard(
-    challengeState: DailyChallengeState,
-    onStartChallenge: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = GameColors.WoodLight.copy(alpha = 0.3f))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            GameColors.WoodMid,
-                            GameColors.TileGold
-                        )
-                    ),
-                    shape = RoundedCornerShape(20.dp)
-                )
-                .border(2.dp, GameColors.CoinGold, RoundedCornerShape(20.dp))
-                .padding(16.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = challengeState.title,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = GameColors.CoinGold
-                        )
-                        if (challengeState.dateSeed.isNotEmpty()) {
-                            Text(
-                                text = "Seed: ${challengeState.dateSeed}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = GameColors.TextWhite.copy(alpha = 0.7f)
-                            )
-                        }
-                    }
-
-                    if (challengeState.isCompleted) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = GameColors.CoinGold
-                        ) {
-                            Text(
-                                text = "COMPLETED",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = Color.Black,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Goal: Reach ${challengeState.targetScore} pts • Best: ${challengeState.bestScore}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = GameColors.TextWhite
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Bonus: +${challengeState.coinsReward} coins • +${challengeState.starsReward} stars",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = GameColors.CoinGold
-                    )
-
-                    Button(
-                        onClick = onStartChallenge,
-                        colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
-                    ) {
-                        GameIcon(
-                        resId = GameIcons.Play,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        size = 16.dp
-                    )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (challengeState.isCompleted) "PLAY AGAIN" else "PLAY",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color.Black
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DailyStreakGrid(
-    rewards: List<DailyRewardItem>,
-    onClaim: (DailyRewardItem) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        // Rows of 3 items
-        rewards.chunked(3).forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                rowItems.forEach { item ->
-                    Box(modifier = Modifier.weight(1f)) {
-                        DailyRewardCard(
-                            item = item,
-                            onClaim = { onClaim(item) }
-                        )
-                    }
-                }
-                // Fill space if row has less than 3 items
-                repeat(3 - rowItems.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DailyRewardCard(
-    item: DailyRewardItem,
-    onClaim: () -> Unit
-) {
-    val isClaimed = item.isClaimed
-    val isAvailable = item.isAvailable
-    val isJackpot = item.day == 7
-
-    val bgColor = when {
-        isClaimed -> GameColors.WoodDark.copy(alpha = 0.6f)
-        isAvailable -> GameColors.WoodLight.copy(alpha = 0.5f)
-        else -> GameColors.WoodDark.copy(alpha = 0.4f)
-    }
-
-    val borderColor = when {
-        isJackpot && isAvailable -> GameColors.CoinGold
-        isAvailable -> GameColors.CoinGold
-        isClaimed -> GameColors.WoodLight.copy(alpha = 0.3f)
-        else -> Color.Transparent
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(105.dp)
-            .background(bgColor, shape = RoundedCornerShape(16.dp))
-            .border(if (isAvailable) 2.dp else 0.dp, borderColor, shape = RoundedCornerShape(16.dp))
-            .clickable(enabled = isAvailable, onClick = onClaim),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(4.dp)
-        ) {
-            Text(
-                text = if (isJackpot) "DAY 7 🏆" else "DAY ${item.day}",
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                color = if (isAvailable) GameColors.CoinGold else GameColors.TextWhite.copy(alpha = 0.7f),
-                fontSize = 11.sp
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = "+${item.coins}",
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                color = GameColors.CoinGold,
-                fontSize = 12.sp
-            )
-
-            if (item.stars > 0) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StarIcon(
-                        tint = GameColors.CoinGold,
-                        size = 12.dp
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Text(
-                        text = "+${item.stars}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = GameColors.TextWhite,
-                        fontSize = 10.sp
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            when {
-                isClaimed -> {
-                    GameIcon(
-                        resId = GameIcons.Check,
-                        contentDescription = "Claimed",
-                        tint = GameColors.CoinGold,
-                        size = 18.dp
-                    )
-                }
-                isAvailable -> {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = GameColors.CoinGold
-                    ) {
-                        Text(
-                            text = "CLAIM",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = Color.Black,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-                else -> {
-                    GameIcon(
-                        resId = GameIcons.Lock,
-                        contentDescription = "Locked",
-                        tint = GameColors.TextWhite.copy(alpha = 0.3f),
-                        size = 16.dp
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuestRow(
-    quest: DailyQuest,
-    onClaim: () -> Unit
-) {
-    val isCompleted = quest.isCompleted
-    val isClaimed = quest.isClaimed
-    val canClaim = isCompleted && !isClaimed
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(GameColors.WoodDark.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = quest.title,
-                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                color = GameColors.TextWhite
-            )
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                LinearProgressIndicator(
-                    progress = { (quest.currentProgress.toFloat() / quest.targetProgress).coerceIn(0f, 1f) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(6.dp),
-                    color = GameColors.CoinGold,
-                    trackColor = GameColors.WoodLight.copy(alpha = 0.3f)
-                )
-                Text(
-                    text = "${quest.currentProgress}/${quest.targetProgress}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = GameColors.TextWhite.copy(alpha = 0.7f),
-                    fontSize = 10.sp
-                )
-            }
-
-            Text(
-                text = "Reward: +${quest.coinsReward} coins" +
-                    if (quest.starsReward > 0) " • +${quest.starsReward} stars" else "",
-                style = MaterialTheme.typography.labelSmall,
-                color = GameColors.CoinGold,
-                fontSize = 11.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        when {
-            isClaimed -> {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = GameColors.WoodLight.copy(alpha = 0.3f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        GameIcon(
-                        resId = GameIcons.Check,
-                        contentDescription = "Claimed",
-                        tint = GameColors.CoinGold,
-                        size = 14.dp
-                    )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = "CLAIMED",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = GameColors.TextWhite.copy(alpha = 0.7f),
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
-            canClaim -> {
-                Button(
-                    onClick = onClaim,
-                    colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "CLAIM",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = Color.Black,
-                        fontSize = 11.sp
-                    )
-                }
-            }
-            else -> {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = GameColors.WoodLight.copy(alpha = 0.2f)
-                ) {
-                    Text(
-                        text = "IN PROGRESS",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = GameColors.TextWhite.copy(alpha = 0.4f),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        fontSize = 10.sp
-                    )
-                }
-            }
-        }
-    }
-}
-

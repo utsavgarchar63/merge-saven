@@ -7,8 +7,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.CoroutineScope
 
 /**
- * Local feature-flag surface. Release builds hard-return false for every flag so unfinished
- * phases never light up by accident.
+ * Local feature-flag surface. Release builds use explicit defaults; only debug builds accept local overrides.
  */
 interface FeatureFlags {
     fun isEnabled(feature: Feature): Boolean

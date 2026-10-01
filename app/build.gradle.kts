@@ -9,6 +9,11 @@ plugins {
     alias(libs.plugins.firebase.crashlytics)
 }
 
+// Local builds must not publish symbols or mapping files to an external account.
+tasks.configureEach {
+    if (name.startsWith("uploadCrashlytics")) enabled = false
+}
+
 android {
     namespace = "com.mergeseven.game"
     compileSdk = 36
@@ -195,8 +200,6 @@ dependencies {
     implementation(libs.play.services.ads)
     implementation(libs.user.messaging.platform)
 
-    // Play Billing (AF9)
-    implementation(libs.billing)
 
     // Java 8+ API desugaring
     coreLibraryDesugaring(libs.desugar.jdk.libs)

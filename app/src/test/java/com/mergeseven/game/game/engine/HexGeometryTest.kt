@@ -59,4 +59,16 @@ class HexGeometryTest {
         assertEquals(-size, x3, 0.01f)
         assertEquals(0f, y3, 0.01f)
     }
+    @org.junit.Test
+    fun collapsedLayoutNeverProducesNegativeHexSize() {
+        org.junit.Assert.assertEquals(0f, HexGeometry.calculateHexSize(3, 0f, 0f, 16f), 0f)
+        org.junit.Assert.assertEquals(0f, HexGeometry.calculateHexSize(3, 1f, 400f, 16f), 0f)
+    }
+
+    @org.junit.Test
+    fun collapsedLayoutCannotSelectACell() {
+        val cells = setOf(com.mergeseven.game.game.model.HexCoord(0, 0))
+        org.junit.Assert.assertNull(HexGeometry.nearestCell(0f, 0f, 0f, 0f, 0f, cells))
+        org.junit.Assert.assertNull(HexGeometry.nearestCell(0f, 0f, -1f, 0f, 0f, cells))
+    }
 }

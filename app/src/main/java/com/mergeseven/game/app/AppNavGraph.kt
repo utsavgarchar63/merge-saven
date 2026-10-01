@@ -1,6 +1,16 @@
 package com.mergeseven.game.app
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.mergeseven.game.R
+import com.mergeseven.game.ui.profile.ProfileScreen
+import com.mergeseven.game.ui.theme.GameColors
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -25,6 +35,7 @@ import com.mergeseven.game.ui.stats.StatsScreen
  */
 object Routes {
     const val HOME = "home"
+    const val PROFILE = "profile"
     const val GAME = "game"
     const val LEVELS = "levels"
     const val DAILY = "daily"
@@ -55,7 +66,25 @@ object Routes {
 fun AppNavGraph(
     navController: NavHostController = rememberNavController()
 ) {
+    val entry by navController.currentBackStackEntryAsState()
+    val route = entry?.destination?.route ?: Routes.HOME
+    val tabs = listOf(Triple(Routes.HOME, "Home", R.drawable.icon_nav_home),
+        Triple(Routes.DAILY, "Challenges", R.drawable.icon_nav_challenges),
+        Triple(Routes.SHOP, "Rewards", R.drawable.icon_nav_rewards),
+        Triple(Routes.PROFILE, "Profile", R.drawable.icon_nav_profile))
+    Scaffold(containerColor = GameColors.WoodDark, contentWindowInsets = WindowInsets(0, 0, 0, 0), bottomBar = {
+        if (tabs.any { it.first == route }) NavigationBar(containerColor = GameColors.WoodDark) {
+            tabs.forEach { (destination, label, icon) -> NavigationBarItem(selected = destination == route,
+                onClick = { navController.navigate(destination) {
+                    popUpTo(Routes.HOME) { saveState = true }
+                    launchSingleTop = true; restoreState = true
+                } }, icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) }, label = { Text(label) },
+                colors = NavigationBarItemDefaults.colors(selectedIconColor = GameColors.CoinGold,
+                    selectedTextColor = GameColors.CoinGold, indicatorColor = GameColors.WoodMid)) }
+        }
+    }) { padding ->
     NavHost(
+        modifier = Modifier.padding(padding),
         navController = navController,
         startDestination = Routes.HOME
     ) {
@@ -216,6 +245,8 @@ fun AppNavGraph(
                 onBackClick = {
                     navController.popBackStack()
                 },
+                onStartWeekly = { navController.navigate(Routes.play(ModeIds.WEEKLY)) { launchSingleTop = true } },
+                onSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
                 onStartDailyChallenge = {
                     navController.navigate(Routes.play(ModeIds.DAILY)) {
                         launchSingleTop = true
@@ -226,6 +257,7 @@ fun AppNavGraph(
 
         composable(Routes.SETTINGS) {
             SettingsScreen(
+                onReplayTutorial = { navController.navigate(Routes.play(ModeIds.CAMPAIGN, 1)) { launchSingleTop = true } },
                 onBackClick = {
                     navController.popBackStack()
                 },
@@ -254,6 +286,7 @@ fun AppNavGraph(
 
         composable(Routes.SHOP) {
             ShopScreen(
+                onDailyClick = { navController.navigate(Routes.DAILY) { launchSingleTop = true } },
                 onBackClick = {
                     navController.popBackStack()
                 },
@@ -263,6 +296,12 @@ fun AppNavGraph(
                     }
                 }
             )
+        }
+
+        composable(Routes.PROFILE) {
+            ProfileScreen(onAchievements = { navController.navigate(Routes.ACHIEVEMENTS) },
+                onStats = { navController.navigate(Routes.STATS) }, onCosmetics = { navController.navigate(Routes.COSMETICS) },
+                onLeaderboards = { navController.navigate(Routes.LEADERBOARDS) }, onSettings = { navController.navigate(Routes.SETTINGS) })
         }
 
         composable(Routes.ACHIEVEMENTS) {
@@ -289,4 +328,5 @@ fun AppNavGraph(
             )
         }
     }
+}
 }
