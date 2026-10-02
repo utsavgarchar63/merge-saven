@@ -1,0 +1,17 @@
+[
+  {
+    "path": "app/src/main/res/drawable-nodpi/bg_wood_v2.webp",
+    "unchanged_from_HEAD": true,
+    "sha256": "1152dc5a575c97846e180b16811122660d681902fef0605a063bd5c341720947"
+  },
+  {
+    "path": "app/src/main/res/drawable-nodpi/bg_board_v2.webp",
+    "unchanged_from_HEAD": true,
+    "sha256": "a30c62b56764f2ef78e173a4ff119a4c05891e078eea21246908f27b3eb0ecb3"
+  },
+  {
+    "path": "app/src/main/res/drawable-nodpi/bg_zen_v2.webp",
+    "unchanged_from_HEAD": true,
+    "sha256": "54d46f6dbafb99dc065374181b12cfbb0d18a5f3dcc08ac0c078173ffdd37384"
+  }
+]

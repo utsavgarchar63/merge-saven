@@ -1,5 +1,6 @@
 package com.mergeseven.game.ui.settings
 
+import com.mergeseven.game.BuildConfig
 import com.mergeseven.game.core.audio.AudioManager
 import com.mergeseven.game.core.debug.DebugCommands
 import com.mergeseven.game.core.flags.Feature
@@ -59,53 +60,8 @@ class SettingsViewModelTest {
                 }
             },
             analyticsTracker = com.mergeseven.game.core.analytics.NoOpAnalyticsTracker(),
-            pushTopicManager = com.mergeseven.game.core.liveops.PushTopicManager(
-                settingsRepository = fakeSettingsRepository,
-                featureFlags = featureFlags,
-                scope = kotlinx.coroutines.CoroutineScope(testDispatcher)
-            ),
-            playGamesAuth = com.mergeseven.game.cloud.FakePlayGamesAuth(),
-            cloudSyncCoordinator = com.mergeseven.game.cloud.FakeCloudStack.coordinator(
-                featureFlags = featureFlags,
-                scope = kotlinx.coroutines.CoroutineScope(testDispatcher)
-            ),
-            accountDataExporter = com.mergeseven.game.cloud.AccountDataExporter(
-                context = fakeContext(),
-                builder = com.mergeseven.game.cloud.CloudSnapshotBuilder(
-                    userProfileStore = com.mergeseven.game.data.local.store.InMemoryUserProfileStore(),
-                    levelProgressStore = com.mergeseven.game.data.local.store.InMemoryLevelProgressStore(),
-                    unlockDao = com.mergeseven.game.testing.InMemoryUnlockDao(),
-                    deviceIdStore = com.mergeseven.game.cloud.FixedDeviceIdStore("test")
-                )
-            ),
-            accountDeletionService = com.mergeseven.game.cloud.AccountDeletionService(
-                applier = com.mergeseven.game.cloud.CloudSnapshotApplier(
-                    userDataRepository = userDataRepository,
-                    levelProgressStore = com.mergeseven.game.data.local.store.InMemoryLevelProgressStore(),
-                    levelProgressDao = object : com.mergeseven.game.data.local.dao.LevelProgressDao {
-                        override fun observeAll() =
-                            kotlinx.coroutines.flow.flowOf(emptyList<com.mergeseven.game.data.local.entity.LevelProgressEntity>())
-                        override suspend fun getAll() =
-                            emptyList<com.mergeseven.game.data.local.entity.LevelProgressEntity>()
-                        override suspend fun upsert(entity: com.mergeseven.game.data.local.entity.LevelProgressEntity) = Unit
-                        override suspend fun totalStars() = 0
-                        override suspend fun highestCompletedLevel() = 0
-                        override suspend fun clear() = Unit
-                    },
-                    unlockDao = com.mergeseven.game.testing.InMemoryUnlockDao()
-                ),
-                cloudSave = com.mergeseven.game.cloud.InMemoryCloudSaveRepository(),
-                syncQueue = com.mergeseven.game.cloud.InMemorySyncQueue(),
-                auth = com.mergeseven.game.cloud.FakePlayGamesAuth(),
-                activeGameDao = object : com.mergeseven.game.data.local.dao.ActiveGameDao {
-                    override fun observe(slotId: String) = kotlinx.coroutines.flow.flowOf(null)
-                    override suspend fun get(slotId: String) = null
-                    override suspend fun recentSlotIds() = emptyList<String>()
-                    override suspend fun upsert(entity: com.mergeseven.game.data.local.entity.ActiveGameEntity) = Unit
-                    override suspend fun delete(slotId: String) = Unit
-                },
-                scope = kotlinx.coroutines.CoroutineScope(testDispatcher)
-            )
+            reminderManager = com.mergeseven.game.core.liveops.LocalReminderManager(fakeContext(), fakeSettingsRepository, kotlinx.coroutines.CoroutineScope(testDispatcher))
+
         )
     }
 
@@ -120,7 +76,7 @@ class SettingsViewModelTest {
         assertTrue(state.isSoundEnabled)
         assertTrue(state.isMusicEnabled)
         assertTrue(state.isHapticsEnabled)
-        assertTrue(state.isNotificationsEnabled)
+        assertFalse(state.isNotificationsEnabled)
         assertFalse(state.showResetDialog)
         assertFalse(state.showDebugMenu)
     }
@@ -163,18 +119,20 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `grant debug coins bumps the wallet`() = runTest {
+    fun `debug coin grants respect the build variant`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.uiState.collect {}
         }
 
         val before = userDataRepository.userProfile.value.coins
         viewModel.grantDebugCoins(1_000)
-        assertEquals(before + 1_000, userDataRepository.userProfile.value.coins)
+        assertEquals(if (BuildConfig.DEBUG) before + 1_000 else before,
+            userDataRepository.userProfile.value.coins)
+        if (!BuildConfig.DEBUG) assertEquals(null, viewModel.uiState.value.debugStatusMessage)
     }
 
     @Test
-    fun `force game over without a session reports open a game first`() = runTest {
+    fun `debug game over and menu respect the build variant`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.uiState.collect {}
         }
@@ -182,7 +140,9 @@ class SettingsViewModelTest {
         viewModel.onVersionLongPressed()
         viewModel.forceGameOver()
 
-        assertEquals("Open a game first", viewModel.uiState.value.debugStatusMessage)
+        assertEquals(if (BuildConfig.DEBUG) "Open a game first" else null,
+            viewModel.uiState.value.debugStatusMessage)
+        assertEquals(BuildConfig.DEBUG, viewModel.uiState.value.showDebugMenu)
     }
 
     @Test
@@ -192,15 +152,17 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `toggling a feature flag updates the snapshot`() = runTest {
+    fun `debug feature overrides respect the build variant`() = runTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
             viewModel.uiState.collect {}
         }
 
+        val before = featureFlags.isEnabled(Feature.AF1)
+        val snapshotBefore = viewModel.uiState.value.featureFlags
         viewModel.setFeatureEnabled(Feature.AF1, true)
-
-        assertTrue(featureFlags.isEnabled(Feature.AF1))
-        assertTrue(viewModel.uiState.value.featureFlags[Feature.AF1] == true)
+        assertEquals(if (BuildConfig.DEBUG) true else before, featureFlags.isEnabled(Feature.AF1))
+        if (BuildConfig.DEBUG) assertTrue(viewModel.uiState.value.featureFlags[Feature.AF1] == true)
+        else assertEquals(snapshotBefore, viewModel.uiState.value.featureFlags)
     }
 
     private class FakeSettingsRepository : SettingsRepository {
@@ -208,7 +170,7 @@ class SettingsViewModelTest {
         val musicFlow = MutableStateFlow(true)
         val hapticsFlow = MutableStateFlow(true)
         val reduceMotionFlow = MutableStateFlow(false)
-        val notificationsFlow = MutableStateFlow(true)
+        val notificationsFlow = MutableStateFlow(false)
         val tutorialFlow = MutableStateFlow(false)
         val colourblindFlow = MutableStateFlow(com.mergeseven.game.data.preferences.ColourblindMode.OFF)
         val largeTouchFlow = MutableStateFlow(false)
@@ -259,7 +221,7 @@ class SettingsViewModelTest {
             musicFlow.value = true
             hapticsFlow.value = true
             reduceMotionFlow.value = false
-            notificationsFlow.value = true
+            notificationsFlow.value = false
             tutorialFlow.value = false
             colourblindFlow.value = com.mergeseven.game.data.preferences.ColourblindMode.OFF
             largeTouchFlow.value = false

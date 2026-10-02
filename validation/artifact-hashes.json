@@ -1,10 +1,18 @@
 [
   {
     "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\apk\\debug\\app-debug.apk",
-    "Hash": "6750F6EBC1C0AC6A2D3A7A995A45B7A9F00BBD66BDECEBEF22F6DF4D6135BDC8"
+    "Hash": "4A4A8B3D016E7DD9B3BF8A22077F7105AEC4E7AD09FCFEB4CED854404013BB24"
+  },
+  {
+    "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\apk\\androidTest\\debug\\app-debug-androidTest.apk",
+    "Hash": "89ADB4734A98DB06B1742769E8EBBF8D3BD50A90E478A6F811AB52A88189AE0E"
+  },
+  {
+    "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\apk\\release\\app-release.apk",
+    "Hash": "1F98784709FBC2433EDDE553F45C768C362405249DF8D59E71A41A08ECB7AAF6"
   },
   {
     "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\bundle\\release\\app-release.aab",
-    "Hash": "4068F318D0E7712229F0482ED22A2FC2A47698EB8C43AD55A587E404AA6B6EC5"
+    "Hash": "251951CB839B628F9F5D153F1935DB03A32454499F8B0BDBD719D3E748CDC4AA"
   }
 ]

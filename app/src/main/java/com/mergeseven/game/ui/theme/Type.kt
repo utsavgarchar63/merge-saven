@@ -16,10 +16,14 @@ import androidx.compose.ui.unit.sp
  * - Good contrast
  * - Consistent baseline
  *
- * Using default sans-serif for now. Replace with a custom
- * rounded game-friendly typeface (e.g., Nunito, Baloo) later.
+ * Nunito is bundled for consistent, offline typography on every device.
  */
-val Nunito = FontFamily(androidx.compose.ui.text.font.Font(com.mergeseven.game.R.font.nunito))
+val Nunito = FontFamily(
+    androidx.compose.ui.text.font.Font(com.mergeseven.game.R.font.nunito, FontWeight.Normal),
+    androidx.compose.ui.text.font.Font(com.mergeseven.game.R.font.nunito_medium, FontWeight.Medium),
+    androidx.compose.ui.text.font.Font(com.mergeseven.game.R.font.nunito_semibold, FontWeight.SemiBold),
+    androidx.compose.ui.text.font.Font(com.mergeseven.game.R.font.nunito_bold, FontWeight.Bold)
+)
 
 val MergeSevenTypography = Typography(
     // Display — for large numbers on tiles

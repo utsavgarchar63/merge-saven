@@ -2,188 +2,141 @@ package com.mergeseven.game.core.audio
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.MediaPlayer
 import android.media.SoundPool
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import com.mergeseven.game.R
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Game Audio Manager for Background Music and Sound Effects.
- * Uses MediaPlayer for continuous ambient background music loop
- * and SoundPool for instant low-latency game sound effects.
- * AF10-05 adds intensity stems that crossfade with combo heat.
- */
+/** One original ambient loop; asynchronously prepared music and low-latency sound effects. */
 @Singleton
-class AudioManager @Inject constructor(
-    @ApplicationContext private val context: Context
-) {
-    private var mediaPlayer: MediaPlayer? = null
-    private var midPlayer: MediaPlayer? = null
-    private var highPlayer: MediaPlayer? = null
-    private var soundPool: SoundPool? = null
-    private var gameplayPaused = false
+class AudioManager @Inject constructor(@ApplicationContext private val context: Context) {
+    private var player: MediaPlayer? = null
+    private var pool: SoundPool? = null
+    private var prepared = false
     private var appForeground = false
-
-    fun setAppForeground(foreground: Boolean) {
-        appForeground = foreground
-        if (!foreground) pauseMusic()
+    private var gameplayPaused = false
+    private var focusLost = false
+    private var ducked = false
+    private var ownsFocus = false
+    private var intensity = 0f
+    private var volume = 0f
+    private val loaded = mutableSetOf<Int>()
+    private var placeId = 0
+    private var mergeId = 0
+    private var comboId = 0
+    private val handler by lazy { Handler(Looper.getMainLooper()) }
+    private val audioSystem by lazy { context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager }
+    private val attributes by lazy {
+        AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME)
+            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build()
     }
-
-    fun setGameplayPaused(paused: Boolean) {
-        gameplayPaused = paused
-        if (paused) pauseMusic()
+    private val focusListener = android.media.AudioManager.OnAudioFocusChangeListener { change ->
+        when (change) {
+            android.media.AudioManager.AUDIOFOCUS_GAIN -> { focusLost = false; ducked = false; startMusic() }
+            android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> { ducked = true; fadeTo(targetVolume()) }
+            else -> { focusLost = true; if (change == android.media.AudioManager.AUDIOFOCUS_LOSS) ownsFocus = false; pausePlayer() }
+        }
     }
-
-    private var soundPlaceId: Int = 0
-    private var soundMergeId: Int = 0
-    private var soundComboId: Int = 0
-
-    var isMusicEnabled: Boolean = true
+    private val focusRequest by lazy {
+        if (Build.VERSION.SDK_INT >= 26) AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(attributes).setOnAudioFocusChangeListener(focusListener).build() else null
+    }
+    var isMusicEnabled = true
         private set
-    var isSoundEnabled: Boolean = true
+    var isSoundEnabled = true
         private set
-
-    @Volatile
-    private var musicIntensity: Float = 0f
 
     init {
         runCatching {
-            initSoundPool()
-            initMusicPlayer()
-        }
-    }
-
-    fun setMusicEnabled(enabled: Boolean) {
-        isMusicEnabled = enabled
-        if (enabled) {
-            startMusic()
-        } else {
-            pauseMusic()
-        }
-    }
-
-    fun setSoundEnabled(enabled: Boolean) {
-        isSoundEnabled = enabled
-    }
-
-    fun setMusicIntensity(intensity: Float) {
-        musicIntensity = intensity.coerceIn(0f, 1f)
-        applyLayerVolumes()
-    }
-
-    private fun initSoundPool() {
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_GAME)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-
-        soundPool = SoundPool.Builder()
-            .setMaxStreams(8)
-            .setAudioAttributes(audioAttributes)
-            .build()
-
-        soundPool?.let { pool ->
-            soundPlaceId = pool.load(context, R.raw.sound_place, 1)
-            soundMergeId = pool.load(context, R.raw.sound_merge, 1)
-            soundComboId = pool.load(context, R.raw.sound_combo, 1)
-        }
-    }
-
-    private fun initMusicPlayer() {
-        try {
-            mediaPlayer = MediaPlayer.create(context, R.raw.bg_music)?.apply {
-                isLooping = true
-                setVolume(0.4f, 0.4f)
+            pool = SoundPool.Builder().setMaxStreams(6).setAudioAttributes(
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_GAME)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build().apply {
+                setOnLoadCompleteListener { _, sample, status -> if (status == 0) loaded += sample }
+                placeId = load(context, R.raw.sound_place, 1)
+                mergeId = load(context, R.raw.sound_merge, 1)
+                comboId = load(context, R.raw.sound_combo, 1)
             }
-            midPlayer = MediaPlayer.create(context, R.raw.bg_music_mid)?.apply {
-                isLooping = true
-                setVolume(0f, 0f)
-            }
-            highPlayer = MediaPlayer.create(context, R.raw.bg_music_high)?.apply {
-                isLooping = true
-                setVolume(0f, 0f)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
-
+    fun setAppForeground(foreground: Boolean) { appForeground = foreground; if (!foreground) pauseMusic() }
+    fun setGameplayPaused(paused: Boolean) { gameplayPaused = paused; if (paused) pauseMusic() else startMusic() }
+    fun setMusicEnabled(enabled: Boolean) { isMusicEnabled = enabled; if (enabled) startMusic() else pauseMusic() }
+    fun setSoundEnabled(enabled: Boolean) { isSoundEnabled = enabled }
+    fun setMusicIntensity(value: Float) { intensity = value.coerceIn(0f, 1f); if (canPlay() && prepared) fadeTo(targetVolume()) }
+    private fun canPlay() = isMusicEnabled && appForeground && !gameplayPaused && !focusLost
+    private fun targetVolume() = (.45f + .12f * intensity) * if (ducked) .2f else 1f
+    @Suppress("DEPRECATION")
+    private fun acquireFocus(): Boolean {
+        if (ownsFocus) return true
+        val manager = audioSystem ?: return false
+        val result = if (Build.VERSION.SDK_INT >= 26) manager.requestAudioFocus(requireNotNull(focusRequest))
+        else manager.requestAudioFocus(focusListener, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN)
+        ownsFocus = result == android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        return ownsFocus
+    }
     fun startMusic() {
-        if (!isMusicEnabled || gameplayPaused || !appForeground) return
-        try {
-            if (mediaPlayer == null) {
-                initMusicPlayer()
-            }
-            listOf(mediaPlayer, midPlayer, highPlayer).forEach { player ->
-                if (player?.isPlaying == false) {
-                    player.start()
-                }
-            }
-            applyLayerVolumes()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun pauseMusic() {
-        try {
-            listOf(mediaPlayer, midPlayer, highPlayer).forEach { player ->
-                if (player?.isPlaying == true) {
-                    player.pause()
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun stopMusic() {
-        try {
-            listOf(mediaPlayer, midPlayer, highPlayer).forEach { player ->
-                player?.stop()
-                player?.release()
-            }
-            mediaPlayer = null
-            midPlayer = null
-            highPlayer = null
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    fun playSoundPlace(pitch: Float = 1.0f) {
-        if (!isSoundEnabled || soundPlaceId == 0) return
-        soundPool?.play(soundPlaceId, 0.8f, 0.8f, 1, 0, pitch.coerceIn(0.5f, 2.0f))
-    }
-
-    fun playSoundMerge(pitch: Float = 1.0f) {
-        if (!isSoundEnabled || soundMergeId == 0) return
-        soundPool?.play(soundMergeId, 0.9f, 0.9f, 2, 0, pitch.coerceIn(0.5f, 2.0f))
-    }
-
-    fun playSoundCombo(pitch: Float = 1.0f) {
-        if (!isSoundEnabled || soundComboId == 0) return
-        soundPool?.play(soundComboId, 1.0f, 1.0f, 3, 0, pitch.coerceIn(0.5f, 2.0f))
-    }
-
-    private fun applyLayerVolumes() {
-        if (!isMusicEnabled) return
-        val intensity = musicIntensity
-        val base = 0.4f * (1f - intensity * 0.35f)
-        val mid = (intensity * 0.55f).coerceIn(0f, 0.55f)
-        val high = ((intensity - 0.45f) / 0.55f).coerceIn(0f, 1f) * 0.5f
+        if (!canPlay()) return
         runCatching {
-            mediaPlayer?.setVolume(base, base)
-            midPlayer?.setVolume(mid, mid)
-            highPlayer?.setVolume(high, high)
+            if (!acquireFocus()) return
+            if (player == null) {
+                player = MediaPlayer().apply {
+                    setAudioAttributes(attributes)
+                    context.resources.openRawResourceFd(R.raw.bg_music).use { fd -> setDataSource(fd.fileDescriptor, fd.startOffset, fd.length) }
+                    isLooping = true; setVolume(0f, 0f)
+                    setOnPreparedListener { prepared = true; startMusic() }
+                    setOnErrorListener { _, _, _ -> stopMusic(); true }
+                    prepareAsync()
+                }
+            }
+            if (prepared) { if (player?.isPlaying == false) player?.start(); fadeTo(targetVolume()) }
+        }.onFailure { stopMusic() }
+    }
+    private var fade: Runnable? = null
+    private var fadeTarget = -1f
+    private fun fadeTo(target: Float) {
+        if (!prepared || (fade != null && target == fadeTarget)) return
+        if (fade == null && kotlin.math.abs(volume - target) < .005f) return
+        fade?.let(handler::removeCallbacks)
+        fadeTarget = target
+        val start = volume
+        var step = 0
+        val task = object : Runnable {
+            override fun run() {
+                step++
+                volume = start + (target - start) * (step / 10f).coerceAtMost(1f)
+                runCatching { player?.setVolume(volume, volume) }
+                if (step < 10 && prepared) handler.postDelayed(this, 20) else fade = null
+            }
         }
+        fade = task; handler.post(task)
     }
-
-    fun release() {
-        stopMusic()
-        soundPool?.release()
-        soundPool = null
+    private fun pausePlayer() {
+        fade?.let(handler::removeCallbacks); fade = null; volume = 0f
+        runCatching { if (prepared && player?.isPlaying == true) player?.pause(); player?.setVolume(0f,0f) }
     }
+    @Suppress("DEPRECATION")
+    fun pauseMusic() {
+        pausePlayer()
+        if (ownsFocus) {
+            if (Build.VERSION.SDK_INT >= 26) focusRequest?.let { audioSystem?.abandonAudioFocusRequest(it) }
+            else audioSystem?.abandonAudioFocus(focusListener)
+            ownsFocus = false
+        }
+        focusLost = false
+    }
+    fun stopMusic() { pauseMusic(); runCatching { player?.release() }; player = null; prepared = false }
+    private fun sound(id: Int, volume: Float, priority: Int, pitch: Float) {
+        if (!isSoundEnabled || !appForeground || gameplayPaused || focusLost || id !in loaded) return
+        pool?.play(id, volume, volume, priority, 0, pitch.coerceIn(.5f, 2f))
+    }
+    fun playSoundPlace(pitch: Float = 1f) = sound(placeId, .6f, 1, pitch)
+    fun playSoundMerge(pitch: Float = 1f) = sound(mergeId, .7f, 2, pitch)
+    fun playSoundCombo(pitch: Float = 1f) = sound(comboId, .8f, 3, pitch)
+    fun release() { stopMusic(); pool?.release(); pool = null; loaded.clear() }
 }

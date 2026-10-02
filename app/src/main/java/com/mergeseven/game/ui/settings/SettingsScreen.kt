@@ -3,7 +3,6 @@ package com.mergeseven.game.ui.settings
 import androidx.compose.ui.res.painterResource
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -13,13 +12,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessibilityNew
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,7 +40,6 @@ import com.mergeseven.game.data.preferences.ColourblindMode
 import com.mergeseven.game.ui.components.GameIcon
 import com.mergeseven.game.ui.components.GameIcons
 import com.mergeseven.game.ui.theme.GameColors
-import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -57,27 +57,20 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
 
-    val signInLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        viewModel.onSignInResult(result.data)
-    }
-
-    LaunchedEffect(Unit) {
-        viewModel.exportIntents.collectLatest { intent ->
-            runCatching { context.startActivity(Intent.createChooser(intent, "Export Merge Seven data")) }
-        }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        viewModel.toggleNotifications(granted)
     }
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(GameColors.WoodDark)
-            .statusBarsPadding()
+            .safeDrawingPadding(),
+        contentAlignment = Alignment.TopCenter
     ) {
         Column(
             modifier = Modifier
+                .widthIn(max = 720.dp)
                 .fillMaxSize()
-                .padding(bottom = 16.dp)
         ) {
             // ─── Top Bar ─────────────────────────────────
             Row(
@@ -112,9 +105,10 @@ fun SettingsScreen(
             // ─── Settings Content List ───────────────────
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)
+                    .fillMaxWidth()
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 16.dp),
+                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Audio & Sensory Card
@@ -127,7 +121,7 @@ fun SettingsScreen(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        SectionHeader(icon = Icons.Default.VolumeUp, title = stringResource(R.string.settings_section_audio))
+                        SectionHeader(icon = Icons.AutoMirrored.Filled.VolumeUp, title = stringResource(R.string.settings_section_audio))
 
                         SettingToggleRow(
                             title = stringResource(R.string.settings_sound),
@@ -223,7 +217,12 @@ fun SettingsScreen(
                             title = stringResource(R.string.settings_notifications),
                             subtitle = stringResource(R.string.settings_notifications_subtitle),
                             checked = uiState.isNotificationsEnabled,
-                            onCheckedChange = { viewModel.toggleNotifications(it) }
+                            onCheckedChange = { enabled ->
+                                if (enabled && android.os.Build.VERSION.SDK_INT >= 33 &&
+                                    !com.mergeseven.game.core.liveops.LocalReminderManager.permissionGranted(context))
+                                    notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                else viewModel.toggleNotifications(enabled)
+                            }
                         )
                     }
                 }
@@ -240,69 +239,6 @@ fun SettingsScreen(
                     ) {
                         SectionHeader(icon = Icons.Default.Refresh, title = "DATA & PROGRESS")
 
-                        if (uiState.af7Enabled) {
-                            Text(
-                                text = uiState.cloudAccount?.displayName?.let { "Signed in as $it" }
-                                    ?: "Guest (local only)",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = GameColors.CoinGold
-                            )
-                            uiState.cloudStatusMessage?.let { msg ->
-                                Text(
-                                    text = msg,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = GameColors.TextWhite.copy(alpha = 0.7f)
-                                )
-                            }
-                            if (uiState.cloudAccount == null) {
-                                Button(
-                                    onClick = { signInLauncher.launch(viewModel.signInIntent()) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Icon(Icons.Default.Cloud, contentDescription = null, tint = Color.Black)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("SIGN IN WITH PLAY GAMES", color = Color.Black, fontWeight = FontWeight.Bold)
-                                }
-                            } else {
-                                OutlinedButton(
-                                    onClick = { viewModel.signOut() },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Text("SIGN OUT", color = GameColors.TextWhite)
-                                }
-                            }
-                            OutlinedButton(
-                                onClick = { viewModel.exportData() },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("EXPORT MY DATA", color = GameColors.TextWhite)
-                            }
-                            OutlinedButton(
-                                onClick = { viewModel.onDeleteCloudClicked() },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("DELETE MERGE SEVEN DATA", color = GameColors.Error)
-                            }
-                            HorizontalDivider(color = GameColors.WoodDark.copy(alpha = 0.5f))
-                        }
-
-                        if (uiState.af9Enabled) {
-                            if (!uiState.af7Enabled) {
-                                uiState.cloudStatusMessage?.let { msg ->
-                                    Text(
-                                        text = msg,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = GameColors.TextWhite.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                        }
-
                         if (privacyRequired) OutlinedButton(
                             onClick = { (context as? android.app.Activity)?.let(viewModel::showPrivacyOptions) },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
@@ -316,7 +252,7 @@ fun SettingsScreen(
                             }
 
                         Text(
-                            text = "Reset saved user data (coins, stars, daily streak) back to starting defaults.",
+                            text = "Reset coins to 100, total stars to zero, and app preferences to their defaults.",
                             style = MaterialTheme.typography.bodySmall,
                             color = GameColors.TextWhite.copy(alpha = 0.7f)
                         )
@@ -325,10 +261,10 @@ fun SettingsScreen(
                             onClick = { viewModel.onResetClicked() },
                             colors = ButtonDefaults.buttonColors(containerColor = GameColors.Error),
                             shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         ) {
                             Text(
-                                text = "RESET GAME DATA",
+                                text = "RESET WALLET & SETTINGS",
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                                 color = Color.White
                             )
@@ -343,7 +279,7 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "OPEN SHOP",
+                        text = "REWARDS",
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         color = Color.Black
                     )
@@ -356,14 +292,7 @@ fun SettingsScreen(
                 ) {
                     Text("ACHIEVEMENTS", color = GameColors.TextWhite)
                 }
-                /* OutlinedButton(
-                    onClick = onCosmeticsClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("COSMETICS", color = GameColors.TextWhite)
-                } */
-                OutlinedButton(
+                                OutlinedButton(
                     onClick = onStatsClick,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
@@ -391,7 +320,8 @@ fun SettingsScreen(
                         Text(
                             text = "Merge Seven Hexagon Puzzle",
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = GameColors.CoinGold
+                            color = GameColors.CoinGold,
+                            textAlign = TextAlign.Center
                         )
 
                         Text(
@@ -441,7 +371,7 @@ fun SettingsScreen(
                 },
                 text = {
                     Text(
-                        text = "Are you sure you want to reset all coins, total stars, and streak data back to initial defaults? This action cannot be undone.",
+                        text = "Reset coins to 100, total stars to zero, and app preferences? This action cannot be undone.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = GameColors.TextWhite.copy(alpha = 0.8f)
                     )
@@ -464,88 +394,6 @@ fun SettingsScreen(
             )
         }
 
-        if (uiState.showDeleteCloudDialog) {
-            AlertDialog(
-                onDismissRequest = { viewModel.dismissDeleteCloudDialog() },
-                title = { Text("Delete Merge Seven data?", color = GameColors.TextWhite) },
-                text = {
-                    Text(
-                        text = "Removes progress on this device and your cloud save slot. This does not delete your Google account.",
-                        color = GameColors.TextWhite.copy(alpha = 0.8f)
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = { viewModel.confirmDeleteCloudData() },
-                        colors = ButtonDefaults.buttonColors(containerColor = GameColors.Error)
-                    ) { Text("Delete", color = Color.White) }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.dismissDeleteCloudDialog() }) {
-                        Text("Cancel", color = GameColors.CoinGold)
-                    }
-                },
-                containerColor = GameColors.WoodDark,
-                shape = RoundedCornerShape(20.dp)
-            )
-        }
-
-        val conflictLocal = uiState.conflictLocal
-        val conflictCloud = uiState.conflictCloud
-        if (conflictLocal != null && conflictCloud != null) {
-            AlertDialog(
-                onDismissRequest = { },
-                title = { Text("Cloud save conflict", color = GameColors.TextWhite) },
-                text = {
-                    Text(
-                        text = "This device: ${conflictLocal.coins} coins, ${conflictLocal.totalStars} stars, " +
-                            "${conflictLocal.completedLevelCount} levels\n" +
-                            "Cloud: ${conflictCloud.coins} coins, ${conflictCloud.totalStars} stars, " +
-                            "${conflictCloud.completedLevelCount} levels\n\n" +
-                            "Coins and unlocks are merge-safe (never decreased).",
-                        color = GameColors.TextWhite.copy(alpha = 0.85f)
-                    )
-                },
-                confirmButton = {
-                    Button(onClick = { viewModel.resolveConflict(keepLocal = true) }) {
-                        Text("Keep this device")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.resolveConflict(keepLocal = false) }) {
-                        Text("Use cloud", color = GameColors.CoinGold)
-                    }
-                },
-                containerColor = GameColors.WoodDark,
-                shape = RoundedCornerShape(20.dp)
-            )
-        }
-
-        uiState.freshRestoreCloud?.let { cloud ->
-            AlertDialog(
-                onDismissRequest = { viewModel.resolveFreshRestore(useCloud = false) },
-                title = { Text("Restore cloud save?", color = GameColors.TextWhite) },
-                text = {
-                    Text(
-                        text = "Found cloud progress: ${cloud.coins} coins, ${cloud.totalStars} stars, " +
-                            "${cloud.completedLevelCount} levels completed.",
-                        color = GameColors.TextWhite.copy(alpha = 0.85f)
-                    )
-                },
-                confirmButton = {
-                    Button(onClick = { viewModel.resolveFreshRestore(useCloud = true) }) {
-                        Text("Use cloud")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.resolveFreshRestore(useCloud = false) }) {
-                        Text("Keep local", color = GameColors.CoinGold)
-                    }
-                },
-                containerColor = GameColors.WoodDark,
-                shape = RoundedCornerShape(20.dp)
-            )
-        }
     }
 }
 
@@ -621,11 +469,13 @@ internal fun SettingToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
@@ -641,7 +491,7 @@ internal fun SettingToggleRow(
 
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = null,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.Black,
                 checkedTrackColor = GameColors.CoinGold,

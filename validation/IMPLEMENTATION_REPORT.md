@@ -1,65 +1,55 @@
-# Merge Seven — local implementation report
+# Merge Seven â€” local implementation report
 
-Delivered locally on 2026-10-01. No Git commit, push, backend deployment, store upload or publishing was performed.
+Updated 2026-10-02. The user authorized committing and pushing the source to feature/new-design. Backend deployment, store upload and publishing remain outside this task.
 
-## Implemented app
+## App and gameplay
 
-- Warm walnut design, bundled Nunito, bright readable hex tiles, per-color number contrast, responsive wood panels, gold primary actions and minimum control touch targets.
-- Home, Challenges, Rewards and Profile navigation; one-tap resume of the newest saved mode; six mode cards; chapter-based campaign selection; clearer pause (explicit Sound/Music/Haptics switches), result and game-over screens; cosmetics, statistics, achievements, leaderboards and Settings remain available.
-- Tap selection/placement and dragging; valid/affected-cell preview; free rotation control; compact primary booster tray and explanatory More sheet. Narrow screens use compact cards; tablet/landscape controls stack in a scrollable pane.
-- Persistent placement/rotation/merge tutorial, expandable vector illustrations, Settings replay, reduced-motion/color-accessibility settings and independent sound/music/haptics controls.
-- Brief placement spring, rotation interpolation and source-to-destination merge animations preserve immediate input. Reduced motion cancels existing effects. Normalized hex geometry and fitted text are reused; drag previews deduplicate unchanged targets; particles redraw only while active and pause with lifecycle; shake state is read by the graphics layer.
-- Confirmed unused runtime strings/colors/art and no-op ad service removed; fake rewards are exclusively in unit tests. See `UNUSED_CLEANUP.md`.
-- Board bounds now follow actual drawable geometry. Drawing skips collapsed sizes and uses proportional number fitting, preventing the resize freeze found during QA.
-- Background and fullscreen-ad guards pause music and timers. Results retain their stable run ID and save metadata across recreation/restart.
+The six existing modes, merge/scoring rules, deterministic spawning, saves, achievements, coins and booster inventory remain. Home resumes the newest valid mode save in one tap. Home, Challenges, Rewards and Profile have focused navigation; Settings has independent audio/haptics, tutorial replay, reduced motion, color accessibility and privacy options.
 
-## Monetization and economy
+Sign-in, leaderboards, remote tournaments, ghost downloads, account export/upload and cloud synchronization have been removed from production source and dependencies. Weekly remains a personal challenge. Local persistence and explicit score-image sharing remain. No purchases, subscriptions, receipt validation or paid offers are exposed.
 
-- Billing dependencies, initialization, purchase APIs, receipt clients, paid offers/stipends and restoration UI removed. Legacy cosmetic IDs/entitlements stay compatible with existing saves and no longer expose real-money products.
-- AdMob app/unit IDs centralized in `admob.properties`; `profile=test` selects Google test inventory for both local debug and release builds. Debug always stays on test inventory, even if a future release selects production. The original production IDs remain there for a future verified release. Production account ownership/status has not been verified.
-- Test inventory follows [Google test-ad guidance](https://developers.google.com/admob/android/test-ads); the sample application ID matches the [official Android rewarded sample](https://github.com/googleads/googleads-mobile-android-examples/blob/main/kotlin/admob/RewardedVideoExample/app/src/main/AndroidManifest.xml).
-- Optional rewarded coins (100, or 50 for insufficient funds, shared three/day limit), once/run continue, three hints/run, exact base-result doubling and one extra daily attempt. Zen and ranked assistance restrictions remain.
-- SDK earned callbacks initiate durable grants. Duplicate claim keys, shared caps and result IDs protect against repeated taps/callbacks/restarts; dismissal and no fill grant nothing.
-- Campaign-only Next Level interstitial transition, tutorial/first-three-run/ten-minute grace, three-win frequency, 180-second fullscreen cooldown, two/15-minute and six/day caps. No wait for an unloaded ad and no late show after navigation.
-- Dedicated adaptive banners on Home and Rewards with screen-scoped ownership, so outgoing screens cannot destroy incoming banners; consent and kill-switch checks; UMP privacy options in Settings when required; async preload and readiness/expiry checks. Rewarded offers share one SDK inventory slot, load deduplication and failure backoff while keeping offer-specific rewards and analytics.
-- Actual load/show/impression, earned reward and paid-value events; tutorial outcomes; coin source/spending events. Earnings estimates must use observed format eCPM rather than promises.
-- Starting 100 coins and existing starter inventory preserved. New campaign first clears earn 100 plus Undo, replays 30, qualifying losses 10; qualifying Endless/Time Attack runs earn min(50, score/100). Remove costs 100; existing login/quest rewards and continue rules remain.
+Tap/drag placement, valid/affected-cell preview, rotation, owned-first boosters and the explanatory More sheet are retained. Placement springs, rotation interpolation, merge flights, short chain effects and reduced-motion behavior are implemented. Geometry, hex paths, paints, fonts and unchanged drag previews are reused. Particle updates run only while active; timers and audio pause during fullscreen ads and backgrounding. Collapsed drawing areas cannot enter a number-fitting loop.
 
-## Compatible persistence
+First-time campaign play opens an offline animated guide for placement, sixty-degree rotation and merging three equal tiles. Its page and completion persist in DataStore; Settings can replay it and Pause can open help in any mode. Reduced motion uses still diagrams. Native Canvas animation avoids GIF/video decoding. Portrait tablets use a larger centered board with controls below; landscape board padding includes system navigation insets. Mode headers and Home resume summaries identify the actual saved mode.
 
-Room version 4 adds rewardClaimsJson with an empty-object default; the existing migration chain remains. Wallet and claims are written together; inventory mutation/grant-once operations use transactions. Profile hydration, save serialization and cloud ledger unions preserve local earned claims. Snapshots add run/result metadata with defaults for old saves. Existing package identity and Firebase configuration remain.
+## Backgrounds, icons, font and music
 
-Cloud synchronization still uses the project's existing merge model. Claims are unioned and stale snapshots cannot erase recently earned local claims. Conflicting offline changes and real-account linking/restore need the release checks below; this work does not introduce a new authoritative server economy.
+The original wood, board and Zen background image bytes are unchanged. Their image-based rendering is restored. Only the rectangular surrounds of generated mode/reward icons were removed using the built-in imagegen edit workflow. Gold frames and interior wood remain. Ten transparent, padded 256px WebP exports are used at runtime; source atlas, individual masters, prompt and export details are in [the asset manifest](../art/asset-manifest.json).
 
-## Assets
+Real static Nunito weights 400/500/600/700 are used in Compose, board numbers and result sharing, with cached typefaces. Visual QA found that declaring several weights against the same variable font left every style at its ExtraLight default; the export tool now creates the actual weights. The font license is retained. An original 40-second ambient music loop replaces three simultaneous stems. The runtime is now a 143,744-byte Ogg Vorbis export; its lossless master stays in art/music outside the app. Asynchronous preparation, audio focus, independent settings and short volume ramps avoid blocking navigation. Sound effects wait for SoundPool readiness. Music-off preferences are read before foreground playback. See [music production notes](../art/MUSIC_MANIFEST.md). Speaker/headphone listening still requires a physical device.
 
-Generated bitmap masters, optimized WebP exports, launcher/adaptive icons, six mode illustrations, reward artwork, wood/Zen backgrounds, vector UI icons, three tutorial diagrams, store icon/feature art and dynamic sharing background are local. Runtime resources exclude source masters/reference sheets/store graphics. Duplicate legacy icons were removed; help/privacy/retry/rotate/share icons are connected to controls. The generated emblem has true alpha; framed mode/reward illustrations intentionally have opaque walnut backgrounds.
+## Ads and free economy
 
-- [Asset manifest](E:/test/merge-saven/art/asset-manifest.json)
-- [Art production notes](E:/test/merge-saven/art/README.md)
-- [Store assets and screenshot notes](E:/test/merge-saven/store/README.md)
-- [Design system](E:/test/merge-saven/DESIGN_SYSTEM.md)
-- [Updated master plan](E:/test/merge-saven/Merge_Seven_Complete_Android_Development_Master_Plan.md)
+Root [admob.properties](../admob.properties) is the single source for the app ID, all three units and optional hashed physical QA test devices. Production profile is selected in both build variants; Google demo profile is available from that file. Emulators receive marked test inventory even when requesting the production units. This cannot prove live account approval.
 
-## Verification
+After a failed production load, debug builds with `qa.fallback=true` can try a demo unit once on an SDK-marked test device. Release disables fallback. Logs distinguish the production request from QA demo inventory, and consent still gates requests. Actual production-unit checks returned HTTP 403 for all formats, while UMP reported no configured forms; the account configuration must be corrected before production serving can be verified. See [actual diagnostics](AD_DIAGNOSTICS.md).
 
-| Check | Evidence/status |
-|---|---|
-| Unit suite | 285 tests; zero failures/errors/skips, including existing engine/mode tests, duplicate rewards, caps, doubling, cloud claim preservation, collapsed geometry, reduced motion and shared ad-load/backoff checks |
-| Android persistence/migrations | Final device rerun pending after ad/resume fixes; previous build passed 12 tests including navigation, test IDs, migrations, snapshot reload and booster grant-once |
-| Debug/test APK | Built locally; final UI captures follow the last responsive layout changes |
-| Android lint | 0 errors, 112 warnings; Gradle lint task passed, down from 212 before cleanup |
-| Release bundle | Built locally with test ad profile; signing must be reviewed before upload |
-| Purchase source audit | No active Billing/receipt/premium-offer paths found |
-| Economy model | 100 sessions each for beginner/moderate/heavy users, zero ads; beginner and moderate demand fully funded |
-| Git whitespace check | Pass, apart from normal Windows LF/CRLF informational warnings |
+SDK requests wait asynchronously for initialization, consent and the ad kill switch. Rewarded offers share one loaded inventory slot. Requests are deduplicated; failures retry at bounded 30/60/90-second delays; fullscreen inventory expires after an hour. Banner hosts are claimed before initialization can suspend, preventing duplicate or stale views. Debug logcat includes unit/profile, domain/code/message, response ID and adapter latency. Actual impression events are separate from show attempts.
 
-The [economy model](E:/test/merge-saven/validation/ECONOMY_MODEL.md) documents all assumptions. Beginner ends with 7,500 coins, moderate with 7,000. Heavy use exhausts coins and declines 136 booster requests, while ordinary play remains available. This demand model assumes daily reward/quest claims and is not a retention or revenue forecast.
+Reward offers state their exact benefits. Durable claim keys and transactional writes protect grants and caps across repeated callbacks, taps and restart. Closing an ad alone grants nothing. Result doubling uses the stored base reward. Campaign interstitials are restricted to successful Next Level transitions with tutorial/early-play grace, three-win spacing, fullscreen cooldown and rolling/daily caps; an unavailable ad is skipped immediately. Adaptive banners occupy separate footer areas on Home and Rewards.
 
-Visual checks use a software-rendered, isolated emulator, including small/tall phone dimensions, 150% text and a tablet layout. QA found and fixed overflowing board geometry, a zero-space number-fitting loop, cramped tablet labels and a squeezed compact board. Final screen evidence is under `validation/screenshots/`; selected genuine app captures are under `store/screenshots/`.
+Zero-ad play remains available in every normal mode. Campaign first completion earns 100 plus Undo; replay 30; qualifying loss 10. Qualifying Endless/Time Attack earns min(50, score/100). Remove costs 100. Existing starter inventory, daily/quest rewards and continue rules remain. The [100-session economy model](ECONOMY_MODEL.md) funds beginner and moderate demand under its stated assumptions; heavy demand can exceed income without blocking ordinary play. It is not a revenue or retention forecast.
 
-## Release checks still required
+## Persistence and reminders
 
-Real AdMob ownership/serving and region-specific UMP behavior, physical-device smoothness/API/OEM testing, Google Play Games/Firebase account flows, conflicting cloud changes, production upgrade testing, five-person tutorial acceptance, release signing/version review and final store declarations/screenshots remain. The emulator has no Play Games services and does not establish physical-device performance or first-time player acceptance.
+Room v4 preserves the additive migration chain. Wallet and durable claims are written together; inventory grant-once operations are transactional. Snapshots retain old-save defaults and add stable run/result metadata. Stale local restoration cannot erase earned claims. Cloud SDKs and account reconciliation are no longer part of the app.
 
-[Release checklist](E:/test/merge-saven/validation/RELEASE_CHECKLIST.md) contains the concrete checks. Purchase-validation backend source was retired locally; any deployed endpoint is unchanged and requires a separate deployment/removal request. Crashlytics mapping/symbol upload tasks are disabled for these local builds.
+Reminders are opt-in, scheduled locally with unique periodic WorkManager work around 7pm and no network constraint. Permission denial leaves them off. Quiet hours, foreground use, completed daily challenges and already-sent dates suppress delivery. Disabling the setting cancels work and the notification. Tapping a reminder opens Daily. Android may delay periodic work; this does not use exact alarms or server push.
+
+## Store draft and verification
+
+The sourced [keyword research](../store/KEYWORD_RESEARCH.md) and English title/short/full description are local drafts. Proposed title: **Merge Seven: Hexa Puzzle**. The copy describes actual number-merge mechanics and makes no ranking guarantee.
+
+The reviewed source passed **286 unit tests with zero failures/errors/skips**. The final installed APK passed **16 Android tests in 28.725 seconds**; manual verification is recorded in CURRENT_GAME_REVIEW.md. Debug/test APKs, lint and release bundle packaging passed together in validation-current-game-review-final-build.log (BUILD SUCCESSFUL, 14m 29s). Lint has 0 errors, 105 existing warnings and no unused resources. Artifact SHA-256 values are in artifact-hashes.json.
+
+The existing-screen review improves compact Home priority, enlarged-text headers, navigation wrapping, safe insets, tablet bounds, catalog scrolling, Settings row interactions and native dialog dismissal. Time Attack cannot spend on Continue after timeout, and Undo no longer rewinds its countdown/freeze. Four regression tests cover these timed-mode cases and untimed Undo compatibility. See [current game review](CURRENT_GAME_REVIEW.md) for screenshots, observed checks and remaining physical-device limitations.
+
+Manual final-device checks verified the three guide pages, changing native animation frames, exact 100-coin fallback reward and restart persistence, all-format marked fallback loads, Daily/Weekly placements and saves, newest Weekly resume, tablet/landscape insets and enlarged-font layout. Six genuine app captures were refreshed. Source/dependency checks found no Billing, sign-in, leaderboard, account export/upload or Firebase messaging paths. Actual production-unit serving is blocked by observed HTTP 403 and missing UMP forms; marked demo success is separate QA evidence. Detailed device results are in DEVICE_QA.md and AD_DIAGNOSTICS.md. Physical-device performance, audio/haptics, current Android notification permission, live account approval, published-app upgrade and first-time human acceptance remain in the release checklist.
+
+Purchase-validation backend source was retired locally in the earlier work. Deployed endpoints are unchanged. Crashlytics mapping/symbol upload tasks remain disabled for local builds.
+
+
+Local delivery: app/build/outputs/apk/debug/app-debug.apk and app/build/outputs/bundle/release/app-release.aab. The debug APK enables marked test-device fallback; the release bundle disables it. Production serving and Play-ready signing remain external release checks.
+
+
+Size delivery: release APK and AAB configuration, verified sizes, reproducible music export and release-variant checks are in [SIZE_CONFIGURATION.md](SIZE_CONFIGURATION.md). Generated APK/AAB files and private/local tool configuration are excluded from the source push.

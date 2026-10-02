@@ -1,12 +1,14 @@
 # Merge Seven — complete Android development plan, ads-only edition
 
-Updated 2026-10-01. This replaces earlier purchase monetization plans. Implement locally in Kotlin/Compose/Canvas, Room/DataStore, Firebase and AdMob. No commit, push, backend deployment or publishing. Preserve package identity and Firebase configuration.
+Updated 2026-10-02. This replaces earlier purchase monetization plans. Implement locally in Kotlin/Compose/Canvas, Room/DataStore, Firebase and AdMob. No commit, push, backend deployment or publishing. Preserve package identity and Firebase configuration.
 
 ## Product and design
 
 Warm walnut, bright beveled tiles, Nunito, readable opaque panels and gold actions. General casual audience, initially English. Three connected equal tiles merge to the next doubled value. Preserve scoring, special traits, mode objectives and deterministic spawning across Campaign, Endless, Time Attack, Zen, Daily and Weekly. Daily validation uses fixed search work to avoid device-speed-dependent seeds.
 
-Home / Challenges / Rewards / Profile; Settings in headers; focused gameplay. Home prioritizes Play/Resume; modes expand on demand. Chapter level grid shows stars, current progression and objectives. Gameplay supports tap and drag, placement previews, visible rotation, tutorial, inventory-aware booster descriptions, coin confirmation and bounded tablet layout. Results persist their reward for recovery and truthful doubling. Pause saves/exits and offers audio/help/restart controls. Existing cosmetics, statistics, achievements and scoring/account features remain.
+Home / Challenges / Rewards / Profile; Settings in headers; focused gameplay. Home prioritizes Play/Resume; modes expand on demand. Chapter level grid shows stars, current progression and objectives. Gameplay supports tap and drag, placement previews, visible rotation, tutorial, inventory-aware booster descriptions, coin confirmation and bounded tablet layout. Results persist their reward for recovery and truthful doubling. Pause saves/exits and offers audio/help/restart controls. Existing cosmetics, statistics and achievements remain local. Sign-in, leaderboards, remote score submission, cloud save/upload and account export are removed; preserve existing local saves.
+
+First campaign play shows a native offline animated guide for placement, rotation and merging. Persist its page and completion; support Skip, Settings replay, Pause help and reduced-motion still diagrams. Portrait tablets place controls below a larger bounded board; landscape board layout respects navigation insets.
 
 ## Free economy
 
@@ -24,7 +26,7 @@ No lives, paid energy, subscription benefit or mandatory ads. Normal modes remai
 
 ## Ad placements and policy
 
-Keep all test and production configuration in root `admob.properties`. The checked-in profile is `test`, including local release QA artifacts:
+Keep all test and production configuration in root `admob.properties`. The checked-in profile is `production` for all builds:
 
 | Format | Value |
 |---|---|
@@ -33,14 +35,14 @@ Keep all test and production configuration in root `admob.properties`. The check
 | Interstitial | ca-app-pub-6926810742930516/6590105790 |
 | Banner | ca-app-pub-6926810742930516/8854886068 |
 
-App ID is not an ad unit. Gradle generates the manifest/resource values from this one file; ad service code contains no duplicated IDs. Debug always uses test inventory; the profile selects release inventory. Adaptive test banners use Google's `/9214589741` demo unit. Change `profile` only for a separately authorized release after verifying ownership, format, app association and serving in AdMob. Register release QA test devices before inspecting production inventory.
+App ID is not an ad unit. Gradle generates the manifest/resource values from this one file; ad service code contains no duplicated IDs. The profile selects inventory for both debug and release. Adaptive test banners use Google's `/9214589741` demo unit. Use registered QA test devices before inspecting production units; emulators are automatically marked by Google. test.devices in the same file accepts SDK hashes. Live serving still requires verifying AdMob ownership, formats, app association and approval. Debug logcat tag MergeSevenAds records errors, response IDs, adapter latencies and bounded retries.
 
 | Optional rewarded placement | Benefit | Initial cap |
 |---|---|---|
 | Rewards | 100 coins | Three shared coin claims/day |
 | Insufficient funds | 50 coins | Same shared cap |
 | Game over | Existing board-clear recovery | One/run; mode restrictions |
-| Hint | One valid hint | Three ad hints/run; ranked restrictions |
+| Hint | One valid hint | Three ad hints/run; unassisted challenge restrictions |
 | Successful result | Extra coins equal to persisted base result reward | One/result |
 | Daily | Bonus retry retaining official score | One/day |
 
@@ -56,13 +58,13 @@ References: [test units](https://developers.google.com/admob/android/test-ads), 
 
 Room v4 adds rewardClaimsJson default `{}`; migrations retain all prior rows/fields. Active snapshots have additive run ID, result-finished/won, base-reward and hint-count fields. Old snapshots remain readable. Wallet + ledger are saved together. Run/date/placement keys protect repeated callbacks, taps, recreation and restart. Reward writes are NonCancellable in the persistent SDK scope. First-clear Undo uses a transactional unlock marker. Coin booster unlocks write coin deduction and inventory increment in one Room transaction; other booster changes read current database quantities transactionally.
 
-Finished results persist until replaced and reapply outstanding grants safely. Cloud snapshots carry claims; merge unions them, and older snapshots cannot remove local claim markers. Preserve the existing max/union cloud model. It is not an authoritative multi-device currency ledger; offline conflicts require QA. Local release defaults enable shipping features, local debug overrides are ignored, and Remote Config/kill_ads still apply.
+Finished results persist until replaced and reapply outstanding grants safely. Local restore preserves reward claims. There is no cloud synchronization or account dependency. Local release defaults enable shipping features, local debug overrides are ignored, and Remote Config/kill_ads still apply.
 
 Billing dependencies, bootstrap, product catalogue, paid offers, purchase APIs/network clients and restoration UI are removed. Purchase-validation export/dependency is retired locally. A separate authorized release must explicitly retire any currently deployed endpoint; local edits do not delete deployed functions.
 
 ## Art and delivery
 
-Generate brand, walnut/board/Zen textures, six mode illustrations, reward/achievement/celebration/sharing ornaments. Retain vectors for all nine booster types and functional icons; Canvas draws tiles/numbers/traits/effects. Tutorial SVG masters export to runtime vectors. Preserve originals and optimized WebP, alpha edges, adaptive safe area, and production briefs in art/asset-manifest.json. Runtime ships no reference sheets or marketing masters. Store needs 512px icon, 1024×500 feature graphic and six screenshots from the implemented app.
+Keep existing walnut/board/Zen background images unchanged. Remove only the rectangular backgrounds around generated mode and reward icons, preserving their badge artwork and alpha. Preserve brand and sharing artwork. Retain vectors for all nine booster types and functional icons; Canvas draws tiles/numbers/traits/effects. Tutorial SVG masters export to runtime vectors. Preserve originals and optimized WebP, alpha edges, adaptive safe area, and production briefs in art/asset-manifest.json. Runtime ships no reference sheets or marketing masters. Store needs 512px icon, 1024×500 feature graphic and six screenshots from the implemented app.
 
 Stages: foundation/purchase removal/migration; design/art/navigation; controls/tutorial/accessibility; rewards/ad lifecycle/caps/privacy; tests/economy/device/performance/store/build. See validation/IMPLEMENTATION_REPORT.md for actual verification status.
 
@@ -71,3 +73,7 @@ Required checks: engine modes unchanged; upgrades preserve saves/wallet/inventor
 Prepare local APK/test APK/release AAB and internal-test checklist. Account ownership/serving, privacy policy/UMP/data safety, signing, Play Games, backend retirement and human/device tests must be verified before distribution. Publishing needs a separate user request.
 
 Track tutorial completion, retention, duration, failures, reward uptake, coin sources/sinks, impressions and paid revenue. Daily revenue = sum(format impressions × observed format eCPM / 1000). Earnings are measured, not guaranteed. Compare revenue/player with retention and use bounded experiments plus an ad kill switch.
+
+## Local music, reminders and listing copy
+
+Use an original bundled ambient loop, independent controls and persisted music preferences on startup. Respect audio focus, app lifecycle, gameplay pause and fullscreen ads. Notifications are opt-in local WorkManager reminders with no network requirement; cancel on opt-out, respect quiet hours and avoid reminders after completing the daily puzzle. Notification taps open Challenges. Store metadata research and drafts live in store/KEYWORD_RESEARCH.md and store/en-US; no fast-ranking guarantee or publication is implied.

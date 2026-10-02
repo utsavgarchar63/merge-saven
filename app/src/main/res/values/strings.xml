@@ -31,7 +31,6 @@
     <!-- Game Over -->
 
     <!-- Level Complete -->
-    <string name="ghost_loaded">Ghost loaded (%1$d frames)</string>
 
     <!-- Boosters -->
     <string name="booster_swap">Swap</string>
@@ -58,7 +57,7 @@
     <string name="settings_reduce_motion">Reduce Motion</string>
     <string name="settings_reduce_motion_subtitle">Disable shake, particles, and slow-motion</string>
     <string name="settings_notifications">Daily Reminders</string>
-    <string name="settings_notifications_subtitle">Alerts for streak rewards &amp; daily challenge</string>
+    <string name="settings_notifications_subtitle">A gentle offline reminder around 7 pm. Turn off anytime.</string>
     <string name="settings_colourblind">Colourblind palette</string>
     <string name="settings_colourblind_subtitle">Remaps tile colours and adds shape cues</string>
     <string name="settings_large_touch">Large touch targets</string>
@@ -75,11 +74,8 @@
     <!-- General -->
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
-    <string name="confirm">Confirm</string>
-    <string name="close">Close</string>
 
     <!-- AF7 Play Games (placeholder until Console project is linked) -->
-    <string name="game_services_project_id" translatable="false">000000000000</string>
 
     <!-- AF9 AdMob (Production IDs) -->
 </resources>

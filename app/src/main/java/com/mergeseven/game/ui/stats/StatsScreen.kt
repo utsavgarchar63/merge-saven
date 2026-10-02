@@ -1,6 +1,7 @@
 package com.mergeseven.game.ui.stats
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,13 +36,9 @@ fun StatsScreen(
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
     val p = ui.profile
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GameColors.WoodDark)
-            .statusBarsPadding()
-            .padding(16.dp)
-    ) {
+    Box(Modifier.fillMaxSize().background(GameColors.WoodDark).safeDrawingPadding(),
+        contentAlignment = Alignment.TopCenter) {
+    Column(Modifier.widthIn(max = 720.dp).fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBackClick) {
                 Text("BACK", color = GameColors.TextWhite)
@@ -54,7 +51,7 @@ fun StatsScreen(
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             item {
                 StatCard("Lifetime") {
                     Text("Merges: ${p.totalMerges}", color = GameColors.TextWhite)
@@ -74,6 +71,7 @@ fun StatsScreen(
                 }
             }
         }
+    }
     }
 }
 

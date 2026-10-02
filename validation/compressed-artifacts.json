@@ -1,0 +1,18 @@
+[
+  {
+    "path": "app/build/outputs/apk/release/app-release.apk",
+    "bytes": 5553598,
+    "sha256": "1f98784709fbc2433edde553f45c768c362405249df8d59e71a41a08ecb7aaf6",
+    "dex_compressed": true,
+    "music_matches_runtime": true,
+    "archive_integrity": "passed"
+  },
+  {
+    "path": "app/build/outputs/bundle/release/app-release.aab",
+    "bytes": 10378971,
+    "sha256": "251951cb839b628f9f5d153f1935db03a32454499f8b0bdbd719d3e748cdc4aa",
+    "dex_compressed": true,
+    "music_matches_runtime": true,
+    "archive_integrity": "passed"
+  }
+]

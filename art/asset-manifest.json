@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "created": "2026-10-01",
   "art_direction": "Warm walnut puzzle table, colorful beveled hexagons, soft lighting, simple readable silhouettes, restrained gold accents, quiet background, no watermark, no embedded UI labels.",
   "masters": [
@@ -81,7 +81,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/art_celebration_v2.webp",
@@ -93,7 +94,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/art_coins_v2.webp",
@@ -105,7 +107,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/art_gift_v2.webp",
@@ -117,7 +120,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/bg_board_v2.webp",
@@ -189,7 +193,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/mode_daily_v2.webp",
@@ -201,7 +206,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/mode_endless_v2.webp",
@@ -213,7 +219,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/mode_time_attack_v2.webp",
@@ -225,7 +232,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/mode_weekly_v2.webp",
@@ -237,7 +245,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/mode_zen_v2.webp",
@@ -249,7 +258,8 @@
       "format": "WebP",
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
-      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90."
+      "export": "Atlas crop with individual row safe bounds (8/345/690px); no neighboring illustration fragments. Lanczos 256px, WebP quality 90.",
+      "status": "retired; source master preserved"
     },
     {
       "path": "app/src/main/res/drawable-nodpi/share_result_card_v2.webp",
@@ -262,6 +272,126 @@
       "version": 2,
       "purpose": "Runtime artwork; no UI labels",
       "export": "Pillow crop/resize and optimized quality 88–92; alpha retained for brand/adaptive foreground."
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_campaign_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 59718,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_endless_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 65898,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_time_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 61912,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_zen_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 58492,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_daily_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 60740,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/mode_weekly_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 64638,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_coins_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 61352,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_gift_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 60156,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_achievement_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 68668,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/art_celebration_v3.webp",
+      "dimensions": [
+        256,
+        256
+      ],
+      "bytes": 65266,
+      "format": "lossless WebP, RGBA",
+      "version": 3,
+      "purpose": "Icon with transparent surrounds",
+      "export": "Built-in imagegen background extraction; inspected row crop and alpha-preserving 256px export"
     }
   ],
   "vector_sources": [
@@ -285,7 +415,9 @@
     "WebP runtime dimensions checked",
     "Adaptive foreground centered inside safe area",
     "No master reference atlas shipped in APK",
-    "Home on Android 30 shows Google test banner in separated footer"
+    "Home on Android 30 shows Google test banner in separated footer",
+    "Existing three background files verified byte-identical to baseline",
+    "Icon RGBA alpha corners and 256px dimensions checked; brown-panel preview inspected"
   ],
   "pending_release_checks": [
     "Adaptive masks across OEM launchers",
@@ -293,7 +425,7 @@
     "Human art review and device usability testing"
   ],
   "tutorial_use": "Three vector diagrams appear in expandable tutorial help; compact prompts preserve board space. Progress persists through DataStore.",
-  "icon_policy": "Generated emblem retains true alpha. Framed mode/reward artwork intentionally uses opaque walnut backdrops. Functional icons and tile geometry remain vectors/Canvas.",
+  "icon_policy": "Generated mode and reward badge surrounds have genuine alpha transparency; interior wood and gold framing are preserved. Existing full-screen wood/board/Zen backgrounds are unchanged. Functional icons and tile geometry remain vectors/Canvas.",
   "screenshots": [
     {
       "path": "store/screenshots/01-home.png",
@@ -301,7 +433,8 @@
         720,
         1280
       ],
-      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+      "purpose": "Genuine final debug APK capture on isolated Android 30 emulator; production-first marked QA demo fallback where ads are visible; no publishing",
+      "capture_date": "2026-10-02"
     },
     {
       "path": "store/screenshots/02-gameplay.png",
@@ -309,7 +442,8 @@
         720,
         1280
       ],
-      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+      "purpose": "Genuine final debug APK capture on isolated Android 30 emulator; production-first marked QA demo fallback where ads are visible; no publishing",
+      "capture_date": "2026-10-02"
     },
     {
       "path": "store/screenshots/03-campaign.png",
@@ -317,7 +451,8 @@
         720,
         1280
       ],
-      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+      "purpose": "Genuine final debug APK capture on isolated Android 30 emulator; production-first marked QA demo fallback where ads are visible; no publishing",
+      "capture_date": "2026-10-02"
     },
     {
       "path": "store/screenshots/04-challenges.png",
@@ -325,7 +460,8 @@
         720,
         1280
       ],
-      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+      "purpose": "Genuine final debug APK capture on isolated Android 30 emulator; production-first marked QA demo fallback where ads are visible; no publishing",
+      "capture_date": "2026-10-02"
     },
     {
       "path": "store/screenshots/05-rewards.png",
@@ -333,7 +469,8 @@
         720,
         1280
       ],
-      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+      "purpose": "Genuine final debug APK capture on isolated Android 30 emulator; production-first marked QA demo fallback where ads are visible; no publishing",
+      "capture_date": "2026-10-02"
     },
     {
       "path": "store/screenshots/06-profile.png",
@@ -341,7 +478,99 @@
         720,
         1280
       ],
-      "purpose": "Genuine implemented-app capture on isolated Android 30 emulator; test profile, no publishing"
+      "purpose": "Genuine final debug APK capture on isolated Android 30 emulator; production-first marked QA demo fallback where ads are visible; no publishing",
+      "capture_date": "2026-10-02"
     }
-  ]
+  ],
+  "icon_background_edit": {
+    "date": "2026-10-02",
+    "workflow": "Built-in imagegen, background-extraction",
+    "source": "art/masters/atlas_v2.png",
+    "master": "art/masters/atlas_transparent_v3.png",
+    "prompt": "Remove only the dark brown rectangular atlas backdrop outside twelve gold hexagon badges. Preserve gold borders, interior wood, illustrations, grid and colors. Genuine alpha transparency; no new objects or text.",
+    "dimensions": [
+      1447,
+      1087
+    ],
+    "runtime_exports": [
+      "app/src/main/res/drawable-nodpi/mode_campaign_v3.webp",
+      "app/src/main/res/drawable-nodpi/mode_endless_v3.webp",
+      "app/src/main/res/drawable-nodpi/mode_time_v3.webp",
+      "app/src/main/res/drawable-nodpi/mode_zen_v3.webp",
+      "app/src/main/res/drawable-nodpi/mode_daily_v3.webp",
+      "app/src/main/res/drawable-nodpi/mode_weekly_v3.webp",
+      "app/src/main/res/drawable-nodpi/art_coins_v3.webp",
+      "app/src/main/res/drawable-nodpi/art_gift_v3.webp",
+      "app/src/main/res/drawable-nodpi/art_achievement_v3.webp",
+      "app/src/main/res/drawable-nodpi/art_celebration_v3.webp"
+    ],
+    "export": "Inspected atlas row gutters at 355 and 695 px; each badge cropped to its visible alpha bounds, fitted in a 224px safe area within a 256x256 transparent canvas. Alpha preserved in PNG masters and lossless WebP.",
+    "retired_runtime_exports": [
+      "app\\src\\main\\res\\drawable-nodpi\\art_achievement_v2.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\art_celebration_v2.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\art_coins_v2.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\art_gift_v2.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\art_share_v3.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\art_sparkle_v3.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\mode_campaign_v2.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\mode_daily_v2.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\mode_endless_v2.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\mode_time_attack_v2.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\mode_weekly_v2.webp",
+      "app\\src\\main\\res\\drawable-nodpi\\mode_zen_v2.webp"
+    ]
+  },
+  "font_source": {
+    "path": "art/fonts/nunito-variable.ttf",
+    "source": "Previously bundled Nunito variable font, weight axis 200–1000, default 200",
+    "license": "app/src/main/assets/licenses/nunito_ofl.txt",
+    "export_tool": "tools/prepare_nunito_fonts.py",
+    "reason": "Actual static weights avoid rendering all declared Compose weights at the ExtraLight default"
+  },
+  "font_exports": [
+    {
+      "path": "app/src/main/res/font/nunito.ttf",
+      "weight": 400,
+      "format": "Static TrueType, offline"
+    },
+    {
+      "path": "app/src/main/res/font/nunito_medium.ttf",
+      "weight": 500,
+      "format": "Static TrueType, offline"
+    },
+    {
+      "path": "app/src/main/res/font/nunito_semibold.ttf",
+      "weight": 600,
+      "format": "Static TrueType, offline"
+    },
+    {
+      "path": "app/src/main/res/font/nunito_bold.ttf",
+      "weight": 700,
+      "format": "Static TrueType, offline"
+    }
+  ],
+  "animated_tutorial": {
+    "implementation": "app/src/main/java/com/mergeseven/game/ui/game/AnimatedGameGuide.kt",
+    "delivery": "Native Canvas animation, offline; no GIF/video decoding",
+    "steps": [
+      "Tap or drag placement",
+      "Sixty-degree rotation",
+      "Three connected equal tiles merge to doubled value"
+    ],
+    "first_play": "Automatic before first campaign interaction; page/seen state persisted in DataStore",
+    "replay": "Settings and Pause help",
+    "accessibility": "Static finished frames for reduced motion, text explanations and Canvas descriptions; lifecycle-scoped clocks",
+    "retired_runtime_diagrams": [
+      "tutorial_placement_v2.xml",
+      "tutorial_rotation_v2.xml",
+      "tutorial_merge_v2.xml"
+    ],
+    "source_diagrams": "Original editable SVG diagrams remain under art/tutorial",
+    "verification": "16 Android tests passed; guide auto-display, persisted page and completed dismissal; actual eight-frame placement sample had five changing diagram frames",
+    "captures": [
+      "validation/screenshots/guide-placement-final.png",
+      "validation/screenshots/guide-rotation-final.png",
+      "validation/screenshots/guide-merge-final.png"
+    ]
+  }
 }

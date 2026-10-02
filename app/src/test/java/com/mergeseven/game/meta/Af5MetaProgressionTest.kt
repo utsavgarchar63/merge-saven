@@ -1,6 +1,5 @@
 package com.mergeseven.game.meta
 
-import com.mergeseven.game.cloud.CloudEconomyNotifier
 import com.mergeseven.game.core.flags.InMemoryFeatureFlags
 import com.mergeseven.game.data.local.store.InMemoryUserProfileStore
 import com.mergeseven.game.testing.InMemoryUnlockDao
@@ -84,7 +83,6 @@ class Af5MetaProgressionTest {
             TestPersistence.dispatchers(),
             repo,
             InMemoryFeatureFlags(isDebug = true),
-            CloudEconomyNotifier()
         )
         unlocks.loadAndSeed()
 
@@ -111,7 +109,6 @@ class Af5MetaProgressionTest {
             TestPersistence.dispatchers(),
             repo,
             InMemoryFeatureFlags(isDebug = true),
-            CloudEconomyNotifier()
         )
         unlocks.loadAndSeed()
 

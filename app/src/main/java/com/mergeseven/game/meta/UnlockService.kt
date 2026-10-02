@@ -1,6 +1,5 @@
 package com.mergeseven.game.meta
 
-import com.mergeseven.game.cloud.CloudEconomyNotifier
 import com.mergeseven.game.core.DispatcherProvider
 import com.mergeseven.game.core.flags.Feature
 import com.mergeseven.game.core.flags.FeatureFlags
@@ -20,7 +19,6 @@ class UnlockService @Inject constructor(
     private val dispatchers: DispatcherProvider,
     private val userDataRepository: UserDataRepository,
     private val featureFlags: FeatureFlags,
-    private val cloudEconomyNotifier: CloudEconomyNotifier
 ) {
     private val _owned = MutableStateFlow<Set<String>>(emptySet())
     val owned: StateFlow<Set<String>> = _owned.asStateFlow()
@@ -37,7 +35,7 @@ class UnlockService @Inject constructor(
         val seeded = cosmetics.toMutableSet()
         for (def in CosmeticCatalog.all.filter { it.startingOwned }) {
             if (def.id !in seeded) {
-                grantCosmeticInternal(def.id, notify = false)
+                grantCosmeticInternal(def.id)
                 seeded += def.id
             }
         }
@@ -105,11 +103,10 @@ class UnlockService @Inject constructor(
         _claimedMilestones.value = _claimedMilestones.value + def.id
         if (def.coinsReward > 0) userDataRepository.addCoins(def.coinsReward)
         def.cosmeticRewardId?.let { grantCosmetic(it) }
-        notifyEconomy()
         true
     }
 
-    private suspend fun grantCosmeticInternal(id: String, notify: Boolean = true) {
+    private suspend fun grantCosmeticInternal(id: String) {
         unlockDao.upsert(
             UnlockEntity(
                 unlockId = CosmeticCatalog.unlockId(id),
@@ -118,12 +115,7 @@ class UnlockService @Inject constructor(
                 unlockedAt = System.currentTimeMillis()
             )
         )
-        if (notify) notifyEconomy()
     }
 
-    private fun notifyEconomy() {
-        if (featureFlags.isEnabled(Feature.AF7)) {
-            cloudEconomyNotifier.notifyChanged()
-        }
-    }
+
 }

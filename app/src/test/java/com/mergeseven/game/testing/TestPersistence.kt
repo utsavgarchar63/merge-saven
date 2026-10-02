@@ -1,6 +1,5 @@
 package com.mergeseven.game.testing
 
-import com.mergeseven.game.cloud.CloudEconomyNotifier
 import com.mergeseven.game.core.DateProvider
 import com.mergeseven.game.core.DispatcherProvider
 import com.mergeseven.game.core.flags.FeatureFlags
@@ -33,13 +32,11 @@ object TestPersistence {
         scope: CoroutineScope = CoroutineScope(UnconfinedTestDispatcher()),
         today: String = TODAY,
         featureFlags: FeatureFlags = InMemoryFeatureFlags(isDebug = true),
-        cloudEconomyNotifier: CloudEconomyNotifier = CloudEconomyNotifier()
     ): UserDataRepository = UserDataRepository(
         store = store,
         scope = scope,
         dateProvider = DateProvider { today },
         featureFlags = featureFlags,
-        cloudEconomyNotifier = cloudEconomyNotifier
     )
 
     fun levelRepository(

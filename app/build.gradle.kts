@@ -37,12 +37,20 @@ android {
         versionCode = 6
         versionName = "1.5.0"
 
+        // The app currently ships English only; omit unused library translations.
+        resourceConfigurations += listOf("en")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         resValue("string", "admob_app_id", adMobId("app"))
         resValue("string", "admob_rewarded_unit_id", adMobId("rewarded"))
         resValue("string", "admob_interstitial_unit_id", adMobId("interstitial"))
         resValue("string", "admob_banner_unit_id", adMobId("banner"))
+        resValue("string", "admob_demo_rewarded_unit_id", adMobId("rewarded", "test"))
+        resValue("string", "admob_demo_interstitial_unit_id", adMobId("interstitial", "test"))
+        resValue("string", "admob_demo_banner_unit_id", adMobId("banner", "test"))
         buildConfigField("boolean", "TEST_ADS", (adMobProfile == "test").toString())
+        buildConfigField("boolean", "QA_AD_FALLBACK", "false")
+        buildConfigField("String", "AD_TEST_DEVICE_IDS", "\"${adMobSettings.getProperty("test.devices", "")}\"")
 
     }
 
@@ -98,12 +106,7 @@ android {
 
     buildTypes {
         debug {
-            // Debug stays on demo inventory even when a future release selects production.
-            resValue("string", "admob_app_id", adMobId("app", "test"))
-            resValue("string", "admob_rewarded_unit_id", adMobId("rewarded", "test"))
-            resValue("string", "admob_interstitial_unit_id", adMobId("interstitial", "test"))
-            resValue("string", "admob_banner_unit_id", adMobId("banner", "test"))
-            buildConfigField("boolean", "TEST_ADS", "true")
+            buildConfigField("boolean", "QA_AD_FALLBACK", adMobSettings.getProperty("qa.fallback", "false").toBooleanStrict().toString())
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
         }
@@ -116,6 +119,19 @@ android {
                 "proguard-rules.pro"
             )
         }
+    }
+
+    packaging {
+        // Compress APK bytecode for smaller direct-download files. Android extracts
+        // it during installation; this does not change Play-generated bundle APKs.
+        dex { useLegacyPackaging = true }
+    }
+
+    bundle {
+        // Keep device-specific delivery enabled without dropping device support.
+        language { enableSplit = true }
+        density { enableSplit = true }
+        abi { enableSplit = true }
     }
 
     compileOptions {
@@ -171,6 +187,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.work.runtime)
     implementation(libs.androidx.activity.compose)
 
     // Compose
@@ -212,13 +229,6 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.config)
-    implementation(libs.firebase.messaging)
-    implementation(libs.firebase.functions)
-    implementation(libs.firebase.firestore)
-
-    // Play Games / Auth (AF7 cloud save)
-    implementation(libs.play.services.auth)
-    implementation(libs.play.services.games)
 
     // Ads + UMP (AF9)
     implementation(libs.play.services.ads)

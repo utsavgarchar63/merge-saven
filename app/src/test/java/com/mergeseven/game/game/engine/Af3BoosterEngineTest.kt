@@ -76,6 +76,30 @@ class Af3BoosterEngineTest {
     }
 
     @Test
+    fun `time attack undo restores move without rewinding countdown or freeze`() {
+        val previous = baseState().copy(modeId = ModeIds.TIME_ATTACK,
+            score = 0, timeRemainingMs = 60_000L, timeFrozenMs = 5_000L)
+        val board = previous.board.withTile(Tile(id = 1L, value = 4, cell = HexCoord(0, 0)))
+        val current = previous.copy(board = board, score = 12,
+            timeRemainingMs = 20_000L, timeFrozenMs = 500L, previousState = previous)
+
+        val undone = engine.undo(current)
+
+        assertEquals(previous.board, undone.board)
+        assertEquals(previous.score, undone.score)
+        assertEquals(20_000L, undone.timeRemainingMs)
+        assertEquals(500L, undone.timeFrozenMs)
+    }
+
+    @Test
+    fun `untimed undo preserves the existing snapshot behavior`() {
+        val previous = baseState().copy(score = 0)
+        val current = previous.copy(score = 12, previousState = previous)
+        assertTrue(engine.undo(current) === previous)
+        assertTrue(engine.undo(previous) === previous)
+    }
+
+    @Test
     fun `value up doubles tile up to cap`() {
         val board = boardEngine.createBoard()
             .withTile(Tile(id = 1L, value = 16, cell = HexCoord(0, 0)))

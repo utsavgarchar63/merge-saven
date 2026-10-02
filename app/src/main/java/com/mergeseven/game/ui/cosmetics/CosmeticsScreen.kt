@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,14 +57,28 @@ fun CosmeticsScreen(
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
     val previewDef = CosmeticCatalog.byId(ui.previewId)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GameColors.WoodDark)
-            .statusBarsPadding()
-            .padding(16.dp)
-    ) {
-        // Top Navigation Bar
+    Box(Modifier.fillMaxSize().background(GameColors.WoodDark).safeDrawingPadding(),
+        contentAlignment = Alignment.TopCenter) {
+    Column(Modifier.widthIn(max = 720.dp).fillMaxSize().padding(16.dp)) {
+        // Keep the balance on its own line when enlarged text needs more title space.
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val compactHeader = maxWidth / LocalDensity.current.fontScale < 320.dp
+        val balance: @Composable () -> Unit = {
+            Surface(
+                color = GameColors.WoodMid,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, GameColors.CoinGold.copy(alpha = 0.5f))
+            ) {
+                Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    com.mergeseven.game.ui.components.CoinIcon(size = 18.dp)
+                    Spacer(Modifier.width(6.dp))
+                    Text("${ui.coins}", color = GameColors.CoinGold,
+                        fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+            }
+        }
+        Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -71,113 +87,104 @@ fun CosmeticsScreen(
                 Text("BACK", color = GameColors.TextWhite, fontWeight = FontWeight.Bold)
             }
             Text(
-                "COSMETICS",
+                "Cosmetics",
                 color = GameColors.TextWhite,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 modifier = Modifier.weight(1f)
             )
-            Surface(
-                color = GameColors.WoodMid,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, GameColors.CoinGold.copy(alpha = 0.5f))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("🪙 ", fontSize = 14.sp)
-                    Text(
-                        "${ui.coins}",
-                        color = GameColors.CoinGold,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+            if (!compactHeader) balance()
+        }
+        if (compactHeader) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) { balance() }
+        }
+        }
+        }
+
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Dynamic Skin Preview Banner
+                    CosmeticPreviewBanner(
+                        tab = ui.tab,
+                        previewId = ui.previewId,
+                        previewDef = previewDef,
+                        equippedTileId = ui.equippedTileThemeId,
+                        equippedBoardId = ui.equippedBoardThemeId
                     )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Category Toggle Tabs (TILES / BOARDS)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = { viewModel.selectTab(CosmeticKind.TILE) },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(
+                                1.5.dp,
+                                if (ui.tab == CosmeticKind.TILE) GameColors.CoinGold else GameColors.WoodLight
+                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (ui.tab == CosmeticKind.TILE) GameColors.WoodMid else Color.Transparent
+                            )
+                        ) {
+                            Text(
+                                "Tiles",
+                                fontWeight = FontWeight.Bold,
+                                color = if (ui.tab == CosmeticKind.TILE) GameColors.CoinGold else GameColors.TextWhite
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = { viewModel.selectTab(CosmeticKind.BOARD) },
+                            modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(
+                                1.5.dp,
+                                if (ui.tab == CosmeticKind.BOARD) GameColors.CoinGold else GameColors.WoodLight
+                            ),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (ui.tab == CosmeticKind.BOARD) GameColors.WoodMid else Color.Transparent
+                            )
+                        ) {
+                            Text(
+                                "Boards",
+                                fontWeight = FontWeight.Bold,
+                                color = if (ui.tab == CosmeticKind.BOARD) GameColors.CoinGold else GameColors.TextWhite
+                            )
+                        }
+                    }
+
+                    // Toast Message Notification
+                    ui.message?.let { msg ->
+                        Surface(
+                            color = GameColors.CoinGold.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .clickable { viewModel.clearMessage() }
+                        ) {
+                            Text(
+                                msg,
+                                color = GameColors.CoinGold,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+
                 }
             }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Dynamic Skin Preview Banner
-        CosmeticPreviewBanner(
-            tab = ui.tab,
-            previewId = ui.previewId,
-            previewDef = previewDef,
-            equippedTileId = ui.equippedTileThemeId,
-            equippedBoardId = ui.equippedBoardThemeId
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Category Toggle Tabs (TILES / BOARDS)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            OutlinedButton(
-                onClick = { viewModel.selectTab(CosmeticKind.TILE) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(
-                    1.5.dp,
-                    if (ui.tab == CosmeticKind.TILE) GameColors.CoinGold else GameColors.WoodLight
-                ),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = if (ui.tab == CosmeticKind.TILE) GameColors.WoodMid else Color.Transparent
-                )
-            ) {
-                Text(
-                    "TILES",
-                    fontWeight = FontWeight.Bold,
-                    color = if (ui.tab == CosmeticKind.TILE) GameColors.CoinGold else GameColors.TextWhite
-                )
-            }
-            OutlinedButton(
-                onClick = { viewModel.selectTab(CosmeticKind.BOARD) },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(
-                    1.5.dp,
-                    if (ui.tab == CosmeticKind.BOARD) GameColors.CoinGold else GameColors.WoodLight
-                ),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = if (ui.tab == CosmeticKind.BOARD) GameColors.WoodMid else Color.Transparent
-                )
-            ) {
-                Text(
-                    "BOARDS",
-                    fontWeight = FontWeight.Bold,
-                    color = if (ui.tab == CosmeticKind.BOARD) GameColors.CoinGold else GameColors.TextWhite
-                )
-            }
-        }
-
-        // Toast Message Notification
-        ui.message?.let { msg ->
-            Surface(
-                color = GameColors.CoinGold.copy(alpha = 0.2f),
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
-                    .clickable { viewModel.clearMessage() }
-            ) {
-                Text(
-                    msg,
-                    color = GameColors.CoinGold,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                )
-            }
-        }
-
-        // Catalog Item List
-        LazyColumn(
-            modifier = Modifier.padding(top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
             items(ui.rows) { row ->
                 val isSelected = row.def.id == ui.previewId
                 Card(
@@ -205,7 +212,7 @@ fun CosmeticsScreen(
 
                         // Info Column
                         Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column {
                                 Text(
                                     row.def.title,
                                     color = GameColors.TextWhite,
@@ -213,9 +220,8 @@ fun CosmeticsScreen(
                                     fontSize = 15.sp
                                 )
                                 if (isSelected) {
-                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        "PREVIEWING",
+                                        "Previewing",
                                         color = GameColors.CoinGold,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
@@ -243,7 +249,7 @@ fun CosmeticsScreen(
                                     border = BorderStroke(1.dp, GameColors.Success)
                                 ) {
                                     Text(
-                                        "EQUIPPED ✓",
+                                        "Active",
                                         color = GameColors.Success,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 12.sp,
@@ -255,7 +261,8 @@ fun CosmeticsScreen(
                                 Button(
                                     onClick = { viewModel.equip(row.def.id) },
                                     colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold),
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.heightIn(min = 48.dp)
                                 ) {
                                     Text("EQUIP", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
@@ -264,9 +271,10 @@ fun CosmeticsScreen(
                                 Button(
                                     onClick = { viewModel.buy(row.def.id) },
                                     colors = ButtonDefaults.buttonColors(containerColor = GameColors.WoodLight),
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = RoundedCornerShape(10.dp),
+                                    modifier = Modifier.heightIn(min = 48.dp)
                                 ) {
-                                    Text("BUY", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                    Text("Unlock", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 }
                             }
                         }
@@ -274,6 +282,7 @@ fun CosmeticsScreen(
                 }
             }
         }
+    }
     }
 }
 
@@ -310,7 +319,8 @@ private fun CosmeticPreviewBanner(
                     title,
                     color = GameColors.CoinGold,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
                 )
                 if (isEquipped) {
                     Surface(

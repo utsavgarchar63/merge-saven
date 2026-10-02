@@ -1,5 +1,10 @@
 package com.mergeseven.game.ui.levels
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,10 +44,11 @@ fun LevelsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(GameColors.WoodDark)
-            .statusBarsPadding()
+            .safeDrawingPadding(),
+        contentAlignment = Alignment.TopCenter
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.widthIn(max = 720.dp).fillMaxSize()
         ) {
             // ─── Top Bar ─────────────────────────────────
             LevelsTopBar(
@@ -62,7 +68,7 @@ fun LevelsScreen(
 
             // ─── Level Grid ──────────────────────────────
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(96.dp),
+                columns = GridCells.Adaptive(96.dp * LocalDensity.current.fontScale.coerceIn(1f, 1.6f)),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -105,35 +111,10 @@ private fun LevelsTopBar(
     coins: Int,
     onBackClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .size(48.dp)
-                .background(GameColors.WoodMid, CircleShape)
-        ) {
-            GameIcon(
-                resId = GameIcons.Back,
-                contentDescription = "Back",
-                tint = GameColors.TextWhite,
-                size = 24.dp
-            )
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Text(
-            text = "LEVELS",
-            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = GameColors.TextWhite,
-            modifier = Modifier.weight(1f)
-        )
-
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
+        val compactHeader = maxWidth / LocalDensity.current.fontScale < 320.dp
+        val balances: @Composable () -> Unit = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
         // Stars Badge
         Surface(
             shape = RoundedCornerShape(16.dp),
@@ -170,6 +151,28 @@ private fun LevelsTopBar(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = GameColors.CoinGold
                 )
+            }
+        }
+
+            }
+        }
+        Column {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBackClick,
+                    modifier = Modifier.size(48.dp).background(GameColors.WoodMid, CircleShape)) {
+                    GameIcon(resId = GameIcons.Back, contentDescription = "Back",
+                        tint = GameColors.TextWhite, size = 24.dp)
+                }
+                Spacer(Modifier.width(12.dp))
+                Text("LEVELS", modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    color = GameColors.TextWhite)
+                if (!compactHeader) balances()
+            }
+            if (compactHeader) {
+                Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.CenterEnd) {
+                    balances()
+                }
             }
         }
     }
@@ -261,23 +264,16 @@ private fun LevelDetailModal(
     onDismiss: () -> Unit,
     onPlay: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.75f))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center
-    ) {
+    Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .padding(28.dp)
-                .fillMaxWidth()
-                .clickable(enabled = false, onClick = {}),
+            modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = GameColors.WoodMid)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier
+                    .heightIn(max = (LocalConfiguration.current.screenHeightDp * .8f).dp)
+                    .verticalScroll(rememberScrollState()).padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -333,7 +329,7 @@ private fun LevelDetailModal(
                     colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
+                        .heightIn(min = 56.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

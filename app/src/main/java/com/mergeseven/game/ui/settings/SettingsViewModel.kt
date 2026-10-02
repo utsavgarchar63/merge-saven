@@ -3,22 +3,13 @@ package com.mergeseven.game.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mergeseven.game.BuildConfig
-import com.mergeseven.game.cloud.AccountDataExporter
-import com.mergeseven.game.cloud.AccountDeletionService
-import com.mergeseven.game.cloud.CloudAccount
-import com.mergeseven.game.cloud.CloudSyncCoordinator
-import com.mergeseven.game.cloud.CloudUiEvent
-import com.mergeseven.game.cloud.ConflictChoice
-import com.mergeseven.game.cloud.PlayGamesAuth
-import com.mergeseven.game.cloud.ProgressSummary
-import com.mergeseven.game.cloud.UploadReason
 import com.mergeseven.game.core.analytics.AnalyticsEvents
 import com.mergeseven.game.core.analytics.AnalyticsTracker
 import com.mergeseven.game.core.audio.AudioManager
 import com.mergeseven.game.core.debug.DebugCommands
 import com.mergeseven.game.core.flags.Feature
 import com.mergeseven.game.core.flags.FeatureFlags
-import com.mergeseven.game.core.liveops.PushTopicManager
+import com.mergeseven.game.core.liveops.LocalReminderManager
 import com.mergeseven.game.data.preferences.ColourblindMode
 import com.mergeseven.game.data.preferences.SettingsRepository
 import com.mergeseven.game.data.repository.LevelRepository
@@ -44,7 +35,7 @@ data class SettingsUiState(
     val isMusicEnabled: Boolean = true,
     val isHapticsEnabled: Boolean = true,
     val isReduceMotionEnabled: Boolean = false,
-    val isNotificationsEnabled: Boolean = true,
+    val isNotificationsEnabled: Boolean = false,
     val colourblindMode: ColourblindMode = ColourblindMode.OFF,
     val largeTouchTargets: Boolean = false,
     val af11Enabled: Boolean = false,
@@ -56,13 +47,6 @@ data class SettingsUiState(
     val unlockLevelInput: String = "5",
     val debugStatusMessage: String? = null,
     val difficultyProfile: String = "STANDARD",
-    val af7Enabled: Boolean = false,
-    val cloudAccount: CloudAccount? = null,
-    val showDeleteCloudDialog: Boolean = false,
-    val conflictLocal: ProgressSummary? = null,
-    val conflictCloud: ProgressSummary? = null,
-    val freshRestoreCloud: ProgressSummary? = null,
-    val cloudStatusMessage: String? = null,
     val af9Enabled: Boolean = false
 )
 
@@ -76,31 +60,18 @@ class SettingsViewModel @Inject constructor(
     private val debugCommands: DebugCommands,
     private val difficultyProfileProvider: DifficultyProfileProvider,
     private val analyticsTracker: AnalyticsTracker,
-    private val pushTopicManager: PushTopicManager,
-    private val playGamesAuth: PlayGamesAuth,
-    private val cloudSyncCoordinator: CloudSyncCoordinator,
-    private val accountDataExporter: AccountDataExporter,
-    private val accountDeletionService: AccountDeletionService,
+    private val reminderManager: LocalReminderManager,
     private val consentManager: com.mergeseven.game.ads.ConsentManager = com.mergeseven.game.ads.FakeConsentManager(false)
 ) : ViewModel() {
 
     val privacyOptionsRequired = consentManager.privacyOptionsRequired
     fun showPrivacyOptions(activity: android.app.Activity) { viewModelScope.launch { consentManager.showPrivacyOptions(activity) } }
-    fun replayTutorial() { viewModelScope.launch { settingsRepository.setTutorialStep(0); settingsRepository.setTutorialCompleted(false) } }
+    fun replayTutorial() { viewModelScope.launch { settingsRepository.resetTutorialGuide() } }
 
     private val _showResetDialog = MutableStateFlow(false)
     private val _showDebugMenu = MutableStateFlow(false)
     private val _unlockLevelInput = MutableStateFlow("5")
     private val _debugStatusMessage = MutableStateFlow<String?>(null)
-    private val _showDeleteCloudDialog = MutableStateFlow(false)
-    private val _conflictLocal = MutableStateFlow<ProgressSummary?>(null)
-    private val _conflictCloud = MutableStateFlow<ProgressSummary?>(null)
-    private val _freshRestoreCloud = MutableStateFlow<ProgressSummary?>(null)
-    private val _cloudStatusMessage = MutableStateFlow<String?>(null)
-
-    private val _exportIntents = MutableSharedFlow<android.content.Intent>(extraBufferCapacity = 1)
-    val exportIntents: SharedFlow<android.content.Intent> = _exportIntents.asSharedFlow()
-
     private val flagSnapshot: StateFlow<Map<Feature, Boolean>> =
         combine(Feature.entries.map { feature -> featureFlags.observe(feature).map { feature to it } }) { pairs ->
             pairs.toMap()
@@ -152,35 +123,7 @@ class SettingsViewModel @Inject constructor(
         DebugPart(showDebug, flags, unlockInput, status, profile.id.name)
     }
 
-    private val cloudPart = combine(
-        combine(
-            flagSnapshot.map { it[Feature.AF7] == true },
-            playGamesAuth.account,
-            _showDeleteCloudDialog
-        ) { af7, account, showDelete ->
-            Triple(af7, account, showDelete)
-        },
-        combine(
-            _conflictLocal,
-            _conflictCloud,
-            _freshRestoreCloud,
-            _cloudStatusMessage
-        ) { local, cloud, fresh, status ->
-            CloudDialogs(local, cloud, fresh, status)
-        }
-    ) { triple, dialogs ->
-        CloudPart(
-            af7 = triple.first,
-            account = triple.second,
-            showDelete = triple.third,
-            conflictLocal = dialogs.local,
-            conflictCloud = dialogs.cloud,
-            fresh = dialogs.fresh,
-            status = dialogs.status
-        )
-    }
-
-    val uiState: StateFlow<SettingsUiState> = combine(settingsPart, debugPart, cloudPart) { settings, debug, cloud ->
+    val uiState: StateFlow<SettingsUiState> = combine(settingsPart, debugPart) { settings, debug ->
         SettingsUiState(
             isSoundEnabled = settings.sound,
             isMusicEnabled = settings.music,
@@ -198,13 +141,6 @@ class SettingsViewModel @Inject constructor(
             unlockLevelInput = debug.unlockInput,
             debugStatusMessage = debug.status,
             difficultyProfile = debug.difficultyProfile,
-            af7Enabled = cloud.af7,
-            cloudAccount = cloud.account,
-            showDeleteCloudDialog = cloud.showDelete,
-            conflictLocal = cloud.conflictLocal,
-            conflictCloud = cloud.conflictCloud,
-            freshRestoreCloud = cloud.fresh,
-            cloudStatusMessage = cloud.status,
             af9Enabled = debug.flags[Feature.AF9] == true
         )
     }.stateIn(
@@ -213,27 +149,7 @@ class SettingsViewModel @Inject constructor(
         initialValue = SettingsUiState()
     )
 
-    init {
-        viewModelScope.launch {
-            cloudSyncCoordinator.events.collect { event ->
-                when (event) {
-                    is CloudUiEvent.Conflict -> {
-                        _conflictLocal.value = event.local
-                        _conflictCloud.value = event.cloud
-                    }
-                    is CloudUiEvent.FreshRestore -> {
-                        _freshRestoreCloud.value = event.cloud
-                    }
-                    CloudUiEvent.NeedsInteractiveSignIn -> {
-                        _cloudStatusMessage.value = "Sign in again to sync"
-                    }
-                    is CloudUiEvent.Status -> {
-                        _cloudStatusMessage.value = event.message
-                    }
-                }
-            }
-        }
-    }
+
 
     fun toggleSound(enabled: Boolean) {
         viewModelScope.launch {
@@ -272,7 +188,7 @@ class SettingsViewModel @Inject constructor(
                 AnalyticsEvents.SETTINGS_CHANGED,
                 mapOf("setting" to "notifications", "value" to enabled.toString())
             )
-            pushTopicManager.syncTopics()
+            reminderManager.sync()
         }
     }
 
@@ -311,66 +227,6 @@ class SettingsViewModel @Inject constructor(
             userDataRepository.addCoins(-userDataRepository.userProfile.value.coins + 100)
             userDataRepository.addStars(-userDataRepository.userProfile.value.totalStars)
             audioManager.playSoundCombo()
-        }
-    }
-
-    fun signInIntent() = playGamesAuth.getSignInIntent()
-
-    fun onSignInResult(data: android.content.Intent?) {
-        viewModelScope.launch {
-            val ok = playGamesAuth.handleSignInResult(data)
-            _cloudStatusMessage.value = if (ok) "Signed in" else "Sign-in cancelled"
-            if (ok) cloudSyncCoordinator.requestUpload(UploadReason.MANUAL)
-        }
-    }
-
-    fun signOut() {
-        viewModelScope.launch {
-            playGamesAuth.signOut()
-            _cloudStatusMessage.value = "Signed out (guest)"
-        }
-    }
-
-    fun exportData() {
-        viewModelScope.launch {
-            runCatching {
-                _exportIntents.emit(accountDataExporter.exportShareIntent())
-            }.onFailure {
-                _cloudStatusMessage.value = "Export failed"
-            }
-        }
-    }
-
-    fun onDeleteCloudClicked() {
-        _showDeleteCloudDialog.value = true
-    }
-
-    fun dismissDeleteCloudDialog() {
-        _showDeleteCloudDialog.value = false
-    }
-
-    fun confirmDeleteCloudData() {
-        viewModelScope.launch {
-            _showDeleteCloudDialog.value = false
-            accountDeletionService.deleteLocalAndCloudData()
-            _cloudStatusMessage.value = "Local and cloud save cleared"
-        }
-    }
-
-    fun resolveConflict(keepLocal: Boolean) {
-        viewModelScope.launch {
-            cloudSyncCoordinator.resolveConflict(
-                if (keepLocal) ConflictChoice.KEEP_LOCAL else ConflictChoice.USE_CLOUD
-            )
-            _conflictLocal.value = null
-            _conflictCloud.value = null
-        }
-    }
-
-    fun resolveFreshRestore(useCloud: Boolean) {
-        viewModelScope.launch {
-            cloudSyncCoordinator.resolveFreshRestore(useCloud)
-            _freshRestoreCloud.value = null
         }
     }
 
@@ -420,9 +276,7 @@ class SettingsViewModel @Inject constructor(
         if (!BuildConfig.DEBUG) return
         viewModelScope.launch {
             featureFlags.setEnabled(feature, enabled)
-            if (feature == Feature.AF7 && enabled) {
-                cloudSyncCoordinator.bootstrap()
-            }
+
         }
     }
 
@@ -462,20 +316,5 @@ class SettingsViewModel @Inject constructor(
         val difficultyProfile: String
     )
 
-    private data class CloudDialogs(
-        val local: ProgressSummary?,
-        val cloud: ProgressSummary?,
-        val fresh: ProgressSummary?,
-        val status: String?
-    )
 
-    private data class CloudPart(
-        val af7: Boolean,
-        val account: CloudAccount?,
-        val showDelete: Boolean,
-        val conflictLocal: ProgressSummary?,
-        val conflictCloud: ProgressSummary?,
-        val fresh: ProgressSummary?,
-        val status: String?
-    )
 }

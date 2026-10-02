@@ -18,7 +18,7 @@ class Af9MonetizationTest {
         val repo = com.mergeseven.game.data.repository.UserDataRepository(
             InMemoryUserProfileStore(), backgroundScope, com.mergeseven.game.core.DateProvider { TestPersistence.TODAY },
             com.mergeseven.game.core.flags.InMemoryFeatureFlags(isDebug = true),
-            com.mergeseven.game.cloud.CloudEconomyNotifier(), recorder)
+            recorder)
         assertTrue(repo.claimReward("run:double", 30))
         assertFalse(repo.claimReward("run:double", 30))
         assertFalse(repo.trySpendCoins(1000))
@@ -37,7 +37,7 @@ class Af9MonetizationTest {
         val repo = TestPersistence.userDataRepository()
         val old = repo.userProfile.value
         repo.claimReward("run:double", 30)
-        repo.replaceFromCloud(old)
+        repo.restoreProfile(old)
         repo.flush()
         assertFalse(repo.claimReward("run:double", 30))
         assertEquals(old.coins + 30, repo.coins())

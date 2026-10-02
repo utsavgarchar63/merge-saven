@@ -1,7 +1,6 @@
 package com.mergeseven.game.data.repository
 
 import android.util.Log
-import com.mergeseven.game.cloud.CloudEconomyNotifier
 import com.mergeseven.game.core.DateProvider
 import com.mergeseven.game.core.flags.Feature
 import com.mergeseven.game.core.flags.FeatureFlags
@@ -40,7 +39,6 @@ class UserDataRepository @Inject constructor(
     @PersistenceScope private val scope: CoroutineScope,
     private val dateProvider: DateProvider,
     private val featureFlags: FeatureFlags,
-    private val cloudEconomyNotifier: CloudEconomyNotifier,
     private val analytics: com.mergeseven.game.core.analytics.AnalyticsTracker = com.mergeseven.game.core.analytics.NoOpAnalyticsTracker()
 ) {
 
@@ -74,7 +72,7 @@ class UserDataRepository @Inject constructor(
         }
     }
 
-    fun addCoins(amount: Int) = mutate(notifyEconomy = amount != 0, source = "game_reward") { profile ->
+    fun addCoins(amount: Int) = mutate(source = "game_reward") { profile ->
         profile.copy(coins = profile.coins + amount)
     }
 
@@ -85,7 +83,7 @@ class UserDataRepository @Inject constructor(
     fun trySpendCoins(amount: Int): Boolean {
         if (amount <= 0) return true
         var spent = false
-        mutate(notifyEconomy = false, source = "coin_spend") { profile ->
+        mutate(source = "coin_spend") { profile ->
             if (profile.coins < amount) {
                 spent = false
                 profile
@@ -94,9 +92,7 @@ class UserDataRepository @Inject constructor(
                 profile.copy(coins = profile.coins - amount)
             }
         }
-        if (spent && featureFlags.isEnabled(Feature.AF7)) {
-            cloudEconomyNotifier.notifyChanged()
-        }
+
         return spent
     }
 
@@ -141,7 +137,7 @@ class UserDataRepository @Inject constructor(
     }
 
     fun claimDailyReward(day: Int, coinsReward: Int, starsReward: Int) =
-        mutate(notifyEconomy = true, source = "daily_login") { profile ->
+        mutate(source = "daily_login") { profile ->
             if (day in profile.claimedDays) return@mutate profile
 
             val nextStreak = if (day >= profile.currentStreak && day < FINAL_STREAK_DAY) {
@@ -176,7 +172,7 @@ class UserDataRepository @Inject constructor(
         )
     }
 
-    fun claimQuestReward(questId: String) = mutate(notifyEconomy = true, source = "quest") { profile ->
+    fun claimQuestReward(questId: String) = mutate(source = "quest") { profile ->
         val quest = profile.dailyQuests.firstOrNull { it.id == questId }
         if (quest == null || !quest.isCompleted || quest.isClaimed) return@mutate profile
 
@@ -251,19 +247,19 @@ class UserDataRepository @Inject constructor(
         )
     }
 
-    fun equipTileTheme(id: String) = mutate(notifyEconomy = true) { it.copy(equippedTileThemeId = id) }
+    fun equipTileTheme(id: String) = mutate { it.copy(equippedTileThemeId = id) }
 
-    fun equipBoardTheme(id: String) = mutate(notifyEconomy = true) { it.copy(equippedBoardThemeId = id) }
+    fun equipBoardTheme(id: String) = mutate { it.copy(equippedBoardThemeId = id) }
 
     /** AF9-02: reset daily challenge attempts so another official run is allowed. */
-    fun grantExtraDailyAttempt() = mutate(notifyEconomy = false) { profile ->
+    fun grantExtraDailyAttempt() = mutate { profile ->
         profile.copy(
             dailyChallenge = profile.dailyChallenge.copy(attempts = 0)
         )
     }
 
-    /** AF7: replace in-memory + Room profile from a cloud restore (skips economy upload). */
-    fun replaceFromCloud(profile: UserProfile, clearClaims: Boolean = false) {
+    /** Restore a local profile while preserving durable earned-reward claims. */
+    fun restoreProfile(profile: UserProfile, clearClaims: Boolean = false) {
         synchronized(lock) {
             pendingMutations.clear()
             hydrated = true
@@ -299,7 +295,7 @@ class UserDataRepository @Inject constructor(
                             extraKey: String? = null, extraDailyAttempt: Boolean = false, source: String = "ad_reward"): Boolean = withContext(NonCancellable) {
         ready.await()
         var granted = false
-        mutate(notifyEconomy = false, source = source) { profile ->
+        mutate(source = source) { profile ->
             if (key in profile.rewardClaims || (extraKey != null && extraKey in profile.rewardClaims) || (prefix != null &&
                 profile.rewardClaims.keys.count { it.startsWith(prefix) } >= limit)) profile
             else {
@@ -311,7 +307,6 @@ class UserDataRepository @Inject constructor(
             }
         }
         flush()
-        if (granted && featureFlags.isEnabled(Feature.AF7)) cloudEconomyNotifier.notifyChanged()
         granted
     }
 
@@ -323,7 +318,6 @@ class UserDataRepository @Inject constructor(
      * launch would either be overwritten by the load or would overwrite the stored balance.
      */
     private fun mutate(
-        notifyEconomy: Boolean = false,
         source: String = "profile_reward",
         block: (UserProfile) -> UserProfile
     ) {
@@ -339,9 +333,7 @@ class UserDataRepository @Inject constructor(
         if (hydrated) {
             scope.launch { flush() }
         }
-        if (notifyEconomy && featureFlags.isEnabled(Feature.AF7)) {
-            cloudEconomyNotifier.notifyChanged()
-        }
+
     }
 
     private companion object {

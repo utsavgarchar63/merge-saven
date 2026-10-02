@@ -1,6 +1,7 @@
 package com.mergeseven.game.ui.achievements
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,13 +40,9 @@ fun AchievementsScreen(
 ) {
     val ui by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GameColors.WoodDark)
-            .statusBarsPadding()
-            .padding(16.dp)
-    ) {
+    Box(Modifier.fillMaxSize().background(GameColors.WoodDark).safeDrawingPadding(),
+        contentAlignment = Alignment.TopCenter) {
+    Column(Modifier.widthIn(max = 720.dp).fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBackClick) {
                 Text("BACK", color = GameColors.TextWhite)
@@ -72,7 +69,7 @@ fun AchievementsScreen(
         }
 
         LazyColumn(
-            modifier = Modifier.padding(top = 12.dp),
+            modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
@@ -91,7 +88,7 @@ fun AchievementsScreen(
                         LinearProgressIndicator(
                             progress = {
                                 if (row.def.target <= 0) 1f
-                                else row.progress.toFloat() / row.def.target
+                                else (row.progress.toFloat() / row.def.target).coerceIn(0f, 1f)
                             },
                             modifier = Modifier.fillMaxWidth(),
                             color = GameColors.CoinGold,
@@ -179,5 +176,6 @@ fun AchievementsScreen(
                 }
             }
         }
+    }
     }
 }

@@ -28,10 +28,10 @@ enum class Feature {
     /** Live-ops / Firebase remote config. */
     AF6,
 
-    /** Accounts and cloud save. */
+    /** Reserved legacy cloud-save flag; permanently disabled. */
     AF7,
 
-    /** Competitive and social. */
+    /** Local replay and result sharing. */
     AF8,
 
     /** Advanced monetization. */

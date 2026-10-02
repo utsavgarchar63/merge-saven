@@ -83,3 +83,4 @@ gradle-build-threads-local.txt
 
 validation/*anr.txt
 validation/build-temp/
+validation/tool-deps/

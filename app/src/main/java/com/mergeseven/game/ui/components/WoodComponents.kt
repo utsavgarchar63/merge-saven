@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.mergeseven.game.R
@@ -20,17 +22,25 @@ fun WoodPage(title: String, coins: Int? = null, onBack: (() -> Unit)? = null,
     Box(Modifier.fillMaxSize()) {
         Image(painterResource(R.drawable.bg_wood_v2), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(GameColors.WoodDark.copy(alpha = 0.64f)))
-        Column(Modifier.fillMaxSize().statusBarsPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                if (onBack != null) IconButton(onBack) { GameIcon(GameIcons.Back, "Back", tint = GameColors.TextWhite) }
-                Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-                if (coins != null) Surface(shape = RoundedCornerShape(20.dp), color = GameColors.WoodMid) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
+            BoxWithConstraints(Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                val stacked = maxWidth / LocalDensity.current.fontScale < 320.dp
+                val balance: @Composable () -> Unit = {
+                    if (coins != null) Surface(shape = RoundedCornerShape(20.dp), color = GameColors.WoodMid) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         CoinIcon(size = 20.dp); Spacer(Modifier.width(6.dp)); Text("$coins", color = GameColors.CoinGold)
                     }
                 }
-                headerAction()
+                }
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (onBack != null) IconButton(onBack) { GameIcon(GameIcons.Back, "Back", tint = GameColors.TextWhite) }
+                        Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                        if (!stacked) balance()
+                        headerAction()
+                    }
+                    if (stacked && coins != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { balance() }
+                }
             }
             Column(Modifier.weight(1f).widthIn(max = 720.dp).fillMaxWidth().verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -51,7 +61,7 @@ fun GoldButton(label: String, enabled: Boolean = true, onClick: () -> Unit) {
     Button(onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
         shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(
             containerColor = GameColors.CoinGold, contentColor = GameColors.TextDark)) {
-        Text(label, style = MaterialTheme.typography.titleMedium)
+        Text(label, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
     }
 }
 @Composable

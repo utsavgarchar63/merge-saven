@@ -200,7 +200,11 @@ class GameEngineImpl(
     }
 
     override fun undo(state: GameState): GameState {
-        return state.previousState ?: state
+        val previous = state.previousState ?: return state
+        // Undo restores a move, not elapsed countdown or already-used freeze time.
+        return if (state.modeId == com.mergeseven.game.game.modes.ModeIds.TIME_ATTACK) {
+            previous.copy(timeRemainingMs = state.timeRemainingMs, timeFrozenMs = state.timeFrozenMs)
+        } else previous
     }
 
     override fun removeTile(state: GameState, coord: HexCoord): GameState {

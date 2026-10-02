@@ -25,6 +25,13 @@ interface SettingsRepository {
     val tutorialStep: Flow<Int> get() = kotlinx.coroutines.flow.flowOf(0)
     suspend fun setTutorialStep(step: Int) {}
     val isTutorialCompleted: Flow<Boolean>
+    val isAnimatedGuideSeen: Flow<Boolean> get() = kotlinx.coroutines.flow.flowOf(true)
+    val animatedGuidePage: Flow<Int> get() = kotlinx.coroutines.flow.flowOf(0)
+    suspend fun setAnimatedGuideSeen(seen: Boolean) {}
+    suspend fun setAnimatedGuidePage(page: Int) {}
+    suspend fun resetTutorialGuide() {
+        setTutorialStep(0); setAnimatedGuidePage(0); setAnimatedGuideSeen(false); setTutorialCompleted(false)
+    }
     val colourblindMode: Flow<ColourblindMode>
     val largeTouchTargets: Flow<Boolean>
 
@@ -54,6 +61,8 @@ class SettingsRepositoryImpl @Inject constructor(
         val KEY_REDUCE_MOTION_ENABLED = booleanPreferencesKey("reduce_motion_enabled")
         val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val KEY_TUTORIAL_COMPLETED = booleanPreferencesKey("tutorial_completed")
+        val KEY_GUIDE_SEEN = booleanPreferencesKey("animated_guide_seen")
+        val KEY_GUIDE_PAGE = androidx.datastore.preferences.core.intPreferencesKey("animated_guide_page")
         val KEY_COLOURBLIND_MODE = stringPreferencesKey("colourblind_mode")
         val KEY_LARGE_TOUCH_TARGETS = booleanPreferencesKey("large_touch_targets")
     }
@@ -84,7 +93,7 @@ class SettingsRepositoryImpl @Inject constructor(
     }
 
     override val isNotificationsEnabled: Flow<Boolean> = prefsFlow.map { preferences ->
-        preferences[PreferencesKeys.KEY_NOTIFICATIONS_ENABLED] ?: true
+        preferences[PreferencesKeys.KEY_NOTIFICATIONS_ENABLED] ?: false
     }
 
     override val tutorialStep: Flow<Int> = prefsFlow.map { it[androidx.datastore.preferences.core.intPreferencesKey("tutorial_step")] ?: 0 }
@@ -94,6 +103,22 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override val isTutorialCompleted: Flow<Boolean> = prefsFlow.map { preferences ->
         preferences[PreferencesKeys.KEY_TUTORIAL_COMPLETED] ?: false
+    }
+    override val isAnimatedGuideSeen = prefsFlow.map { it[PreferencesKeys.KEY_GUIDE_SEEN] ?: false }
+    override val animatedGuidePage = prefsFlow.map { (it[PreferencesKeys.KEY_GUIDE_PAGE] ?: 0).coerceIn(0, 2) }
+    override suspend fun setAnimatedGuideSeen(seen: Boolean) {
+        dataStore.edit { it[PreferencesKeys.KEY_GUIDE_SEEN] = seen }
+    }
+    override suspend fun setAnimatedGuidePage(page: Int) {
+        dataStore.edit { it[PreferencesKeys.KEY_GUIDE_PAGE] = page.coerceIn(0, 2) }
+    }
+    override suspend fun resetTutorialGuide() {
+        dataStore.edit {
+            it[PreferencesKeys.KEY_GUIDE_SEEN] = false
+            it[PreferencesKeys.KEY_GUIDE_PAGE] = 0
+            it[androidx.datastore.preferences.core.intPreferencesKey("tutorial_step")] = 0
+            it[PreferencesKeys.KEY_TUTORIAL_COMPLETED] = false
+        }
     }
 
     override val colourblindMode: Flow<ColourblindMode> = prefsFlow.map { preferences ->

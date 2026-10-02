@@ -98,6 +98,12 @@ fun GameScreen(
     onNavigateHome: () -> Unit = {},
     onNavigateShop: () -> Unit = {}
 ) {
+    val fontContext = LocalContext.current
+    remember(fontContext) {
+        tileTypeface = com.mergeseven.game.core.audio.GameFont.bold(fontContext)
+        tileTextCache.evictAll()
+        true
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val juiceState by viewModel.juiceUiState.collectAsStateWithLifecycle()
     val boardTheme = BoardThemes.of(if (uiState.modeId == ModeIds.ZEN) "zen" else uiState.boardThemeId)
@@ -106,7 +112,10 @@ fun GameScreen(
     val layoutDirection = LocalLayoutDirection.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val compactHelp = configuration.screenHeightDp < 700 || LocalDensity.current.fontScale > 1.2f
-    var showTutorialHelp by remember { mutableStateOf(false) }
+    var showTutorialHelp by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(uiState.tutorialActive, uiState.animatedGuideSeen, uiState.isLoading) {
+        if (uiState.tutorialActive && !uiState.animatedGuideSeen && !uiState.isLoading) showTutorialHelp = true
+    }
     val tutorialMessage = when (uiState.tutorialStep) {
         0 -> "Tap a tray piece, then tap the board to place it. You can also drag a piece onto the board."
         1 -> "Tap Rotate to turn the selected piece before placing it."
@@ -114,8 +123,8 @@ fun GameScreen(
     }
     val boardPadding = if (uiState.largeTouchTargets) 4f else 8f
     val fingerLiftPx = with(LocalDensity.current) { 64.dp.toPx() }
-    val isTablet = configuration.screenWidthDp >= 600
-    val useSidePane = isLandscape || isTablet
+    // Portrait tablets have enough height for the tray below a larger board.
+    val useSidePane = isLandscape || configuration.screenWidthDp >= 840
 
     // Flush the board to disk whenever the screen leaves the foreground; the debounced autosave
     // may still be pending, and the process can be killed at any time after this point.
@@ -303,6 +312,7 @@ fun GameScreen(
         ) {
             // ─── Top Bar ─────────────────────────────────
             GameTopBar(
+                modeId = uiState.modeId,
                 level = uiState.level,
                 score = uiState.score,
                 coins = uiState.coins,
@@ -346,6 +356,7 @@ fun GameScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
+                        .navigationBarsPadding()
                         .padding(horizontal = 8.dp)
                 ) {
                     GameBoardSection(
@@ -506,7 +517,6 @@ fun GameScreen(
                 score = uiState.score,
                 starsEarned = uiState.starsEarned,
                 af8Enabled = uiState.af8Enabled,
-                submitStatus = uiState.scoreSubmitStatus,
                 canDoubleCoins = uiState.canDoubleCoins,
                 baseRewardCoins = uiState.baseRewardCoins, adBusy = uiState.adBusy,
                 onShare = {
@@ -528,20 +538,18 @@ fun GameScreen(
             val activity = context as? android.app.Activity
             GameOverDialog(
                 score = uiState.score,
+                timedOut = uiState.showTimer && uiState.timeRemainingMs <= 0L,
                 baseRewardCoins = uiState.baseRewardCoins, adBusy = uiState.adBusy, onHome = onNavigateHome,
                 af3Enabled = uiState.af3Enabled,
                 af8Enabled = uiState.af8Enabled,
-                submitStatus = uiState.scoreSubmitStatus,
                 continueCost = uiState.continueCoinCost,
                 canCoinContinue = uiState.canCoinContinue,
                 canRewardedContinue = uiState.canRewardedContinue,
-                showGhost = uiState.modeId == ModeIds.DAILY && uiState.af8Enabled,
                 onShare = {
                     viewModel.createShareIntent()?.let { intent ->
                         context.startActivity(Intent.createChooser(intent, "Share run"))
                     }
                 },
-                onWatchGhost = { viewModel.loadGhostReplay() },
                 onContinueCoins = { viewModel.onContinueWithCoins() },
                 onContinueRewarded = {
                     if (activity != null && uiState.af9Enabled) {
@@ -552,16 +560,12 @@ fun GameScreen(
             )
         }
 
-        if (uiState.showGhostOverlay && uiState.ghostFrames.isNotEmpty()) {
-            GhostOverlayBanner(
-                frameCount = uiState.ghostFrames.size,
-                onDismiss = { viewModel.dismissGhostOverlay() }
-            )
-        }
+
 
         if (uiState.showInsufficientFunds) {
             val activity = LocalContext.current as? android.app.Activity
             InsufficientFundsSheet(
+                canWatchAd = activity != null && uiState.af9Enabled && !uiState.suppressAds && !uiState.adBusy,
                 onShop = {
                     viewModel.dismissInsufficientFunds()
                     onNavigateShop()
@@ -596,19 +600,15 @@ fun GameScreen(
                 onHome = { viewModel.onStopped(); onNavigateHome() },
                 onRestart = { viewModel.startNewGame(); viewModel.onResume() },
                 onSound = { viewModel.togglePauseSound() }, onMusic = { viewModel.togglePauseMusic() },
-                onHelp = { viewModel.replayTutorial() }
+                onHelp = { viewModel.setGuidePage(0); showTutorialHelp = true }
             )
         }
-        if (showTutorialHelp) AlertDialog(onDismissRequest = { showTutorialHelp = false },
-            title = { Text("How to play · Step ${uiState.tutorialStep + 1}") },
-            text = { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Image(painterResource(when (uiState.tutorialStep) {
-                    0 -> R.drawable.tutorial_placement_v2
-                    1 -> R.drawable.tutorial_rotation_v2
-                    else -> R.drawable.tutorial_merge_v2
-                }), tutorialMessage, Modifier.fillMaxWidth().height(160.dp))
-                Text(tutorialMessage)
-            } }, confirmButton = { TextButton({ showTutorialHelp = false }) { Text("Try it") } })
+        if (showTutorialHelp) AnimatedGameGuide(
+            page = uiState.animatedGuidePage,
+            reduceMotion = juiceState.reduceMotion,
+            onPage = viewModel::setGuidePage,
+            onFinish = { viewModel.finishAnimatedGuide(); showTutorialHelp = false }
+        )
         uiState.adStatusMessage?.let { message ->
             Surface(Modifier.align(Alignment.TopCenter).padding(16.dp), color = GameColors.WoodDark,
                 shape = RoundedCornerShape(16.dp)) {
@@ -657,7 +657,7 @@ private fun PauseDialog(onResume: () -> Unit, onHome: () -> Unit, onRestart: () 
 }
 @Composable
 private fun ResultSurface(content: @Composable ColumnScope.() -> Unit) {
-    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.82f)), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.82f)).navigationBarsPadding(), contentAlignment = Alignment.Center) {
         Column(Modifier.padding(20.dp).widthIn(max = 480.dp).fillMaxWidth().verticalScroll(rememberScrollState())) {
             WoodPanel(content = content)
         }
@@ -665,25 +665,25 @@ private fun ResultSurface(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun LevelCompleteDialog(level: Int, isCampaign: Boolean, score: Long, starsEarned: Int,
-    af8Enabled: Boolean = false, submitStatus: String? = null, canDoubleCoins: Boolean = false,
+    af8Enabled: Boolean = false, canDoubleCoins: Boolean = false,
     baseRewardCoins: Int = 0, adBusy: Boolean = false, onShare: () -> Unit = {}, onDoubleCoins: () -> Unit = {},
     onNextLevel: () -> Unit, onNextLevelFresh: (() -> Unit)? = null, onNavigateHome: () -> Unit, onReplay: () -> Unit) {
     ResultSurface {
-        Image(painterResource(R.drawable.art_celebration_v2), null, Modifier.size(80.dp).align(Alignment.CenterHorizontally))
+        Image(painterResource(R.drawable.art_celebration_v3), null, Modifier.size(80.dp).align(Alignment.CenterHorizontally))
         Text("Beautiful merge!", style = MaterialTheme.typography.headlineMedium)
         Text(if (isCampaign) "Level $level complete · $starsEarned stars" else "Challenge complete")
         Text("Score $score", style = MaterialTheme.typography.titleLarge, color = GameColors.CoinGold)
         Text("+$baseRewardCoins coins earned")
-        submitStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         GoldButton(if (adBusy) "Finishing…" else if (isCampaign) "Next level" else "Back to Home", !adBusy, if (isCampaign) onNextLevel else onNavigateHome)
         if (canDoubleCoins) OutlinedButton(onDoubleCoins, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy) {
             Text("Watch ad · Get $baseRewardCoins extra coins")
         }
         if (isCampaign && onNextLevelFresh != null) TextButton(onNextLevelFresh, Modifier.fillMaxWidth(), enabled = !adBusy) { Text("Next level with a fresh board") }
-        Row {
-            TextButton(onReplay, Modifier.weight(1f), enabled = !adBusy) { Text("Replay") }
-            TextButton(onNavigateHome, Modifier.weight(1f), enabled = !adBusy) { Text("Home") }
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            TextButton(onReplay, enabled = !adBusy) { Text("Replay") }
+            TextButton(onNavigateHome, enabled = !adBusy) { Text("Home") }
             if (af8Enabled) TextButton(onShare, enabled = !adBusy) {
                 GameIcon(R.drawable.icon_share, null, tint = GameColors.CoinGold, size = 18.dp)
                 Spacer(Modifier.width(4.dp)); Text("Share")
@@ -694,6 +694,7 @@ private fun LevelCompleteDialog(level: Int, isCampaign: Boolean, score: Long, st
 
 @Composable
 private fun GameTopBar(
+    modeId: String,
     level: Int,
     score: Long,
     coins: Int,
@@ -725,6 +726,13 @@ private fun GameTopBar(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                val modeLabel = when (modeId) {
+                    ModeIds.ENDLESS -> "Endless"
+                    ModeIds.ZEN -> "Zen"
+                    ModeIds.DAILY -> "Daily puzzle"
+                    ModeIds.WEEKLY -> "Weekly challenge"
+                    else -> "Level $level"
+                }
                 val header = when {
                     showTimer -> {
                         val totalSec = (timeRemainingMs / 1000L).coerceAtLeast(0L)
@@ -732,9 +740,9 @@ private fun GameTopBar(
                         val s = totalSec % 60
                         "Time %d:%02d".format(m, s)
                     }
-                    objectiveChips.isNotEmpty() -> "Level $level"
-                    showTarget -> "Level $level • Target: $targetValue"
-                    else -> "Level $level"
+                    objectiveChips.isNotEmpty() -> modeLabel
+                    showTarget -> "$modeLabel · Target: $targetValue"
+                    else -> modeLabel
                 }
                 Text(
                     text = if (compact) "$header · $score" else header,
@@ -1343,17 +1351,18 @@ private fun PieceTrayOptionCard(
 }
 
 @Composable
-private fun GameOverDialog(score: Long, af3Enabled: Boolean, af8Enabled: Boolean = false,
-    submitStatus: String? = null, continueCost: Int, canCoinContinue: Boolean, canRewardedContinue: Boolean,
-    baseRewardCoins: Int = 0, adBusy: Boolean = false, onHome: () -> Unit = {}, showGhost: Boolean = false,
-    onShare: () -> Unit = {}, onWatchGhost: () -> Unit = {}, onContinueCoins: () -> Unit,
+@OptIn(ExperimentalLayoutApi::class)
+private fun GameOverDialog(score: Long, timedOut: Boolean, af3Enabled: Boolean, af8Enabled: Boolean = false,
+    continueCost: Int, canCoinContinue: Boolean, canRewardedContinue: Boolean,
+    baseRewardCoins: Int = 0, adBusy: Boolean = false, onHome: () -> Unit = {},
+    onShare: () -> Unit = {}, onContinueCoins: () -> Unit,
     onContinueRewarded: () -> Unit, onRestart: () -> Unit) {
     ResultSurface {
         Text("A good run", style = MaterialTheme.typography.headlineMedium)
-        Text("The board has no room for your next piece. Try a fresh approach.")
+        Text(if (timedOut) "Time's up. Try again and build your next chain."
+            else "The board has no room for your next piece. Try a fresh approach.")
         Text("Score $score", style = MaterialTheme.typography.titleLarge, color = GameColors.CoinGold)
         if (baseRewardCoins > 0) Text("+$baseRewardCoins coins earned")
-        submitStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         GoldButton("Play again", !adBusy, onRestart)
         if (af3Enabled && canCoinContinue) OutlinedButton(onContinueCoins, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy) {
             Text("Continue · $continueCost coins or owned charge")
@@ -1361,45 +1370,11 @@ private fun GameOverDialog(score: Long, af3Enabled: Boolean, af8Enabled: Boolean
         if (af3Enabled && canRewardedContinue) OutlinedButton(onContinueRewarded, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy) {
             Text("Watch ad · Clear space and continue")
         }
-        Row {
-            TextButton(onHome, Modifier.weight(1f), enabled = !adBusy) { Text("Home") }
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            TextButton(onHome, enabled = !adBusy) { Text("Home") }
             if (af8Enabled) TextButton(onShare, enabled = !adBusy) {
                 GameIcon(R.drawable.icon_share, null, tint = GameColors.CoinGold, size = 18.dp)
                 Spacer(Modifier.width(4.dp)); Text("Share")
-            }
-            if (showGhost) TextButton(onWatchGhost, enabled = !adBusy) { Text("Watch replay") }
-        }
-    }
-}
-
-@Composable
-private fun GhostOverlayBanner(
-    frameCount: Int,
-    onDismiss: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        contentAlignment = Alignment.TopCenter
-    ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = GameColors.WoodDark.copy(alpha = 0.92f),
-            border = androidx.compose.foundation.BorderStroke(1.dp, GameColors.CoinGold)
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.ghost_loaded, frameCount),
-                    color = GameColors.TextWhite,
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.close), color = GameColors.CoinGold)
-                }
             }
         }
     }
@@ -1407,50 +1382,20 @@ private fun GhostOverlayBanner(
 
 @Composable
 private fun InsufficientFundsSheet(
+    canWatchAd: Boolean,
     onShop: () -> Unit,
     onWatchAd: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.6f))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = GameColors.WoodMid)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Not enough coins",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = GameColors.TextWhite,
-                    fontWeight = FontWeight.Bold
-                )
-                Button(
-                    onClick = onWatchAd,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold)
-                ) {
-                    Text("WATCH AD (+50)", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-                OutlinedButton(onClick = onShop, modifier = Modifier.fillMaxWidth()) {
-                    Text("OPEN SHOP", color = GameColors.TextWhite)
-                }
-                TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                    Text("DISMISS", color = GameColors.TextWhite.copy(alpha = 0.7f))
-                }
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text("Not enough coins") },
+        confirmButton = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GoldButton("Watch ad · Get 50 coins", enabled = canWatchAd, onClick = onWatchAd)
+                OutlinedButton(onShop, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Rewards") }
+                TextButton(onDismiss, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Keep playing") }
             }
-        }
-    }
+        }, containerColor = GameColors.WoodMid)
 }
 
 @Composable
@@ -1460,41 +1405,12 @@ private fun BoosterConfirmSheet(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.55f))
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            modifier = Modifier.padding(32.dp),
-            colors = CardDefaults.cardColors(containerColor = GameColors.WoodMid)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "Use ${type.name.replace('_', ' ')} for $cost coins?",
-                    color = GameColors.TextWhite,
-                    fontWeight = FontWeight.Bold
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.cancel), color = GameColors.TextWhite)
-                    }
-                    Button(
-                        onClick = onConfirm,
-                        colors = ButtonDefaults.buttonColors(containerColor = GameColors.CoinGold)
-                    ) {
-                        Text(stringResource(R.string.confirm), color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-    }
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text("Use ${com.mergeseven.game.ui.shop.boosterName(type)}?") },
+        text = { Text("Spend $cost coins for this booster.") },
+        confirmButton = { TextButton(onConfirm) { Text("Use coins") } },
+        dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.cancel)) } },
+        containerColor = GameColors.WoodMid)
 }
 
 /**
@@ -1551,7 +1467,7 @@ private fun DrawScope.drawHexTile(
             this.color = key.color
             this.textSize = textSize
             textAlign = android.graphics.Paint.Align.CENTER
-            isFakeBoldText = true
+            typeface = tileTypeface
             val measuredWidth = measureText(label)
             val maxWidth = tileSize * 1.45f
             if (measuredWidth > maxWidth && measuredWidth > 0f) this.textSize *= maxWidth / measuredWidth
@@ -1563,6 +1479,7 @@ private fun DrawScope.drawHexTile(
 }
 
 private data class TileTextKey(val value: Int, val color: Int, val textSize: Int, val tileSize: Int)
+private var tileTypeface: android.graphics.Typeface? = null
 private val tileTextCache = android.util.LruCache<TileTextKey, android.graphics.Paint>(128)
 private val normalizedHex = hexPath(0f, 0f, 1f)
 

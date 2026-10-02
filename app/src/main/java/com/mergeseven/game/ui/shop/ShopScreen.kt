@@ -25,18 +25,23 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel(), onBackClick: () -> Un
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val status by viewModel.status.collectAsStateWithLifecycle()
     val activity = LocalContext.current as? android.app.Activity
+    val claimsLeft = viewModel.claimsLeft()
     var confirm by remember { mutableStateOf<BoosterType?>(null) }
     LaunchedEffect(Unit) { viewModel.onOpened() }
     WoodPage("Rewards", profile.coins, footer = { BannerAdHost() }) {
         Text("Everything is earned through play", style = MaterialTheme.typography.headlineMedium)
         Text("Collect free rewards, build your booster collection, and make the table yours.")
-        WoodLink("Daily gifts and quests", "Claim your free rewards in Challenges", R.drawable.art_gift_v2, onDailyClick)
+        WoodLink("Daily gifts and quests", "Claim your free rewards in Challenges", R.drawable.art_gift_v3, onDailyClick)
         WoodPanel {
-            Image(painterResource(R.drawable.art_coins_v2), null, Modifier.size(80.dp))
+            Image(painterResource(R.drawable.art_coins_v3), null, Modifier.size(80.dp))
             Text("A little coin boost", style = MaterialTheme.typography.titleLarge)
-            Text("${viewModel.claimsLeft()} of 3 optional coin rewards left today")
-            GoldButton(if (busy) "Claiming reward…" else if (AdPlacement.FUNDS_COINS in availability) "Watch ad · Get 100 coins" else "Get 100 coins · Try ad again",
-                enabled = !busy && activity != null && viewModel.claimsLeft() > 0) { activity?.let(viewModel::watchEarnAd) }
+            Text("$claimsLeft of 3 optional coin rewards left today")
+            GoldButton(when {
+                busy -> "Claiming reward…"
+                claimsLeft == 0 -> "More coins tomorrow"
+                AdPlacement.FUNDS_COINS in availability -> "Watch ad · Get 100 coins"
+                else -> "Get 100 coins · Try ad again"
+            }, enabled = !busy && activity != null && claimsLeft > 0) { activity?.let(viewModel::watchEarnAd) }
             Text("Ads are optional. Campaign levels and daily quests also earn coins.", style = MaterialTheme.typography.bodySmall)
         }
         status?.let { Text(it, color = GameColors.CoinGold) }
@@ -56,7 +61,7 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel(), onBackClick: () -> Un
                 }
             }
         }
-        WoodLink("Cosmetics", "Unlock styles with coins and milestones", R.drawable.art_celebration_v2, onCosmeticsClick)
+        WoodLink("Cosmetics", "Unlock styles with coins and milestones", R.drawable.art_celebration_v3, onCosmeticsClick)
     }
     confirm?.let { type -> AlertDialog(onDismissRequest = { confirm = null },
         title = { Text("Get ${boosterName(type)}?") },

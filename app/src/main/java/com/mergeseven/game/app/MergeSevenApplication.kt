@@ -1,15 +1,11 @@
 package com.mergeseven.game.app
 
 import android.app.Application
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.ProcessLifecycleOwner
-import com.google.android.gms.games.PlayGamesSdk
-import com.mergeseven.game.cloud.CloudSyncCoordinator
+import androidx.work.Configuration
 import com.mergeseven.game.core.analytics.AnalyticsEvents
 import com.mergeseven.game.core.analytics.AnalyticsTracker
 import com.mergeseven.game.core.liveops.LevelPackDownloader
-import com.mergeseven.game.core.liveops.PushTopicManager
+import com.mergeseven.game.core.liveops.LocalReminderManager
 import com.mergeseven.game.core.liveops.RemoteConfigRepository
 import com.mergeseven.game.data.local.PersistenceSeeder
 import com.mergeseven.game.di.PersistenceScope
@@ -23,7 +19,11 @@ import javax.inject.Inject
  * Annotated with @HiltAndroidApp to trigger Hilt's code generation.
  */
 @HiltAndroidApp
-class MergeSevenApplication : Application() {
+class MergeSevenApplication : Application(), Configuration.Provider {
+
+    // WorkManager can initialize safely from the background reminder sync, including cold starts.
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setMinimumLoggingLevel(android.util.Log.INFO).build()
 
     @Inject
     lateinit var persistenceSeeder: PersistenceSeeder
@@ -42,16 +42,12 @@ class MergeSevenApplication : Application() {
     lateinit var levelPackDownloader: LevelPackDownloader
 
     @Inject
-    lateinit var pushTopicManager: PushTopicManager
+    lateinit var reminderManager: LocalReminderManager
 
-    @Inject
-    lateinit var cloudSyncCoordinator: CloudSyncCoordinator
 
     override fun onCreate() {
         super.onCreate()
 
-        // Initialize Google Play Games Services v2 SDK
-        PlayGamesSdk.initialize(this)
 
         // Off the main thread: this opens the database, and startup must not wait on disk.
         persistenceScope.launch { persistenceSeeder.seedIfNeeded() }
@@ -62,16 +58,7 @@ class MergeSevenApplication : Application() {
         remoteConfigRepository.bootstrapFromActivatedCache()
         remoteConfigRepository.fetchAsync()
         levelPackDownloader.refreshAsync()
-        pushTopicManager.syncTopicsAsync()
+        reminderManager.syncAsync()
 
-        // AF7: silent sign-in + queue drain when enabled; background upload on process stop.
-        cloudSyncCoordinator.bootstrap()
-        ProcessLifecycleOwner.get().lifecycle.addObserver(
-            object : DefaultLifecycleObserver {
-                override fun onStop(owner: LifecycleOwner) {
-                    cloudSyncCoordinator.onAppBackgrounded()
-                }
-            }
-        )
     }
 }

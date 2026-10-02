@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.mergeseven.game.R
@@ -23,7 +24,6 @@ import com.mergeseven.game.ui.cosmetics.CosmeticsScreen
 import com.mergeseven.game.ui.daily.DailyScreen
 import com.mergeseven.game.ui.game.GameScreen
 import com.mergeseven.game.ui.home.HomeScreen
-import com.mergeseven.game.ui.leaderboard.LeaderboardScreen
 import com.mergeseven.game.ui.levels.LevelsScreen
 import com.mergeseven.game.ui.settings.SettingsScreen
 import com.mergeseven.game.ui.shop.ShopScreen
@@ -44,7 +44,6 @@ object Routes {
     const val ACHIEVEMENTS = "achievements"
     const val COSMETICS = "cosmetics"
     const val STATS = "stats"
-    const val LEADERBOARDS = "leaderboards"
     const val PLAY = "play/{mode}?levelId={levelId}&seed={seed}"
 
     fun play(
@@ -64,8 +63,16 @@ object Routes {
  */
 @Composable
 fun AppNavGraph(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    requestedRoute: String? = null,
+    onRouteHandled: () -> Unit = {}
 ) {
+    androidx.compose.runtime.LaunchedEffect(requestedRoute) {
+        if (requestedRoute == Routes.DAILY) {
+            navController.navigate(Routes.DAILY) { launchSingleTop = true; popUpTo(Routes.HOME) }
+            onRouteHandled()
+        }
+    }
     val entry by navController.currentBackStackEntryAsState()
     val route = entry?.destination?.route ?: Routes.HOME
     val tabs = listOf(Triple(Routes.HOME, "Home", R.drawable.icon_nav_home),
@@ -78,13 +85,14 @@ fun AppNavGraph(
                 onClick = { navController.navigate(destination) {
                     popUpTo(Routes.HOME) { saveState = true }
                     launchSingleTop = true; restoreState = true
-                } }, icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) }, label = { Text(label) },
+                } }, icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) },
+                label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = GameColors.CoinGold,
                     selectedTextColor = GameColors.CoinGold, indicatorColor = GameColors.WoodMid)) }
         }
     }) { padding ->
     NavHost(
-        modifier = Modifier.padding(padding),
+        modifier = Modifier.padding(padding).consumeWindowInsets(padding),
         navController = navController,
         startDestination = Routes.HOME
     ) {
@@ -158,16 +166,6 @@ fun AppNavGraph(
                         launchSingleTop = true
                     }
                 },
-                onLeaderboardsClick = {
-                    navController.navigate(Routes.LEADERBOARDS) {
-                        launchSingleTop = true
-                    }
-                },
-                onTournamentPlay = { seed ->
-                    navController.navigate(Routes.play(ModeIds.WEEKLY, seed = seed)) {
-                        launchSingleTop = true
-                    }
-                }
             )
         }
 
@@ -301,7 +299,7 @@ fun AppNavGraph(
         composable(Routes.PROFILE) {
             ProfileScreen(onAchievements = { navController.navigate(Routes.ACHIEVEMENTS) },
                 onStats = { navController.navigate(Routes.STATS) }, onCosmetics = { navController.navigate(Routes.COSMETICS) },
-                onLeaderboards = { navController.navigate(Routes.LEADERBOARDS) }, onSettings = { navController.navigate(Routes.SETTINGS) })
+                onSettings = { navController.navigate(Routes.SETTINGS) })
         }
 
         composable(Routes.ACHIEVEMENTS) {
@@ -322,11 +320,7 @@ fun AppNavGraph(
             )
         }
 
-        composable(Routes.LEADERBOARDS) {
-            LeaderboardScreen(
-                onBackClick = { navController.popBackStack() }
-            )
-        }
+
     }
 }
 }

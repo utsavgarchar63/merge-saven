@@ -207,12 +207,48 @@ class GameViewModelSaveResumeTest {
         assertEquals(previous.board.activeTiles().size, after.tiles.size)
     }
 
+    @Test
+    fun `expired time attack cannot spend coins on an ineffective continue`() = runTest {
+        val modeId = com.mergeseven.game.game.modes.ModeIds.TIME_ATTACK
+        val saved = savedGame(1, 4_200L).copy(modeId = modeId, targetValue = 0,
+            objectives = emptyList(), timeRemainingMs = 0)
+        val viewModel = createViewModel(FakeGameRepository(saved), 1, modeId = modeId,
+            enabledFeatures = setOf(com.mergeseven.game.core.flags.Feature.AF3,
+                com.mergeseven.game.core.flags.Feature.AF9))
+        val before = viewModel.uiState.value
+        assertTrue(before.isGameOver)
+        assertFalse(before.canCoinContinue)
+        assertFalse(before.canRewardedContinue)
+
+        // A stale control or repeated callback must also be rejected before payment.
+        viewModel.onContinueWithCoins()
+        val after = viewModel.uiState.value
+        assertTrue(after.isGameOver)
+        assertEquals(before.coins, after.coins)
+        assertEquals(before.tiles, after.tiles)
+    }
+
+    @Test
+    fun `blocked time attack retains continue offers while time remains`() = runTest {
+        val modeId = com.mergeseven.game.game.modes.ModeIds.TIME_ATTACK
+        val saved = savedGame(1, 4_200L).copy(modeId = modeId, targetValue = 0,
+            objectives = emptyList(), timeRemainingMs = 30_000, isGameOver = true,
+            resultFinished = true)
+        val viewModel = createViewModel(FakeGameRepository(saved), 1, modeId = modeId,
+            enabledFeatures = setOf(com.mergeseven.game.core.flags.Feature.AF3,
+                com.mergeseven.game.core.flags.Feature.AF9))
+        assertTrue(viewModel.uiState.value.isGameOver)
+        assertTrue(viewModel.uiState.value.canCoinContinue)
+        assertTrue(viewModel.uiState.value.canRewardedContinue)
+    }
+
     private fun TestScope.createViewModel(
         repository: GameRepository,
         levelId: Int,
         debugCommands: com.mergeseven.game.core.debug.DebugCommands =
             com.mergeseven.game.core.debug.DebugCommands(),
-        modeId: String = com.mergeseven.game.game.modes.ModeIds.CAMPAIGN
+        modeId: String = com.mergeseven.game.game.modes.ModeIds.CAMPAIGN,
+        enabledFeatures: Set<com.mergeseven.game.core.flags.Feature>? = null
     ): GameViewModel {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
@@ -257,7 +293,7 @@ class GameViewModelSaveResumeTest {
             analyticsTracker = com.mergeseven.game.core.analytics.NoOpAnalyticsTracker(),
             dateProvider = com.mergeseven.game.core.DateProvider { "2026-09-09" },
             debugCommands = debugCommands,
-            featureFlags = FakeFeatureFlags(enabled = if (modeId == com.mergeseven.game.game.modes.ModeIds.ZEN)
+            featureFlags = FakeFeatureFlags(enabled = enabledFeatures ?: if (modeId == com.mergeseven.game.game.modes.ModeIds.ZEN)
                 setOf(com.mergeseven.game.core.flags.Feature.AF3) else emptySet()),
             boosterInventory = InMemoryBoosterInventoryStore(),
             cachedMoveSolver = com.mergeseven.game.game.solver.CachedMoveSolver(
@@ -288,7 +324,6 @@ class GameViewModelSaveResumeTest {
                 dispatchers = TestPersistence.dispatchers(dispatcher),
                 userDataRepository = TestPersistence.userDataRepository(),
                 featureFlags = FakeFeatureFlags(enabled = emptySet()),
-                cloudEconomyNotifier = com.mergeseven.game.cloud.CloudEconomyNotifier()
             ),
             crashReporter = com.mergeseven.game.core.crash.NoOpCrashReporter(),
             liveConfig = com.mergeseven.game.core.liveops.ParsedLiveConfig(
@@ -296,61 +331,9 @@ class GameViewModelSaveResumeTest {
                 revision = MutableStateFlow(0L)
             ),
             seasonalEventStore = com.mergeseven.game.core.liveops.SeasonalEventRecorder { },
-            cloudUploadTrigger = com.mergeseven.game.cloud.NoOpCloudUploadTrigger(),
-            sessionReplayRecorder = com.mergeseven.game.competitive.SessionReplayRecorder(),
-            competitiveScoreSubmitter = com.mergeseven.game.competitive.CompetitiveScoreSubmitter(
-                featureFlags = FakeFeatureFlags(enabled = emptySet()),
-                recorder = com.mergeseven.game.competitive.SessionReplayRecorder(),
-                sanity = com.mergeseven.game.competitive.ScoreSanityChecker(),
-                rateLimiter = com.mergeseven.game.competitive.SubmitRateLimiter(fakeContext()),
-                leaderboards = object : com.mergeseven.game.competitive.LeaderboardRepository {
-                    override suspend fun submitScore(
-                        board: com.mergeseven.game.competitive.LeaderboardId,
-                        score: Long
-                    ) = false
-
-                    override suspend fun loadScores(
-                        board: com.mergeseven.game.competitive.LeaderboardId,
-                        scope: com.mergeseven.game.competitive.LeaderboardScope,
-                        maxResults: Int
-                    ) = emptyList<com.mergeseven.game.competitive.LeaderboardEntry>()
-
-                    override fun cachedScores(
-                        board: com.mergeseven.game.competitive.LeaderboardId,
-                        scope: com.mergeseven.game.competitive.LeaderboardScope
-                    ) = emptyList<com.mergeseven.game.competitive.LeaderboardEntry>()
-
-                    override fun openPlayGamesIntent(
-                        board: com.mergeseven.game.competitive.LeaderboardId
-                    ) = null
-                },
-                dailyValidator = object : com.mergeseven.game.competitive.DailyScoreValidator {
-                    override suspend fun validate(
-                        submission: com.mergeseven.game.competitive.ScoreSubmission,
-                        playerId: String
-                    ) = com.mergeseven.game.competitive.ValidationOutcome(accepted = true)
-
-                    override suspend fun fetchDailyLeaderGhost(dateKey: String) = null
-                },
-                auth = com.mergeseven.game.cloud.FakePlayGamesAuth(),
-                analytics = com.mergeseven.game.core.analytics.NoOpAnalyticsTracker()
-            ),
             shareRunUseCase = com.mergeseven.game.competitive.ShareRunUseCase(
                 context = fakeContext(),
                 renderer = com.mergeseven.game.competitive.ResultCardRenderer(fakeContext()),
-                analytics = com.mergeseven.game.core.analytics.NoOpAnalyticsTracker()
-            ),
-            ghostReplayController = com.mergeseven.game.competitive.GhostReplayController(
-                featureFlags = FakeFeatureFlags(enabled = emptySet()),
-                dailyValidator = object : com.mergeseven.game.competitive.DailyScoreValidator {
-                    override suspend fun validate(
-                        submission: com.mergeseven.game.competitive.ScoreSubmission,
-                        playerId: String
-                    ) = com.mergeseven.game.competitive.ValidationOutcome(accepted = true)
-
-                    override suspend fun fetchDailyLeaderGhost(dateKey: String) = null
-                },
-                engine = gameEngine,
                 analytics = com.mergeseven.game.core.analytics.NoOpAnalyticsTracker()
             ),
             adService = com.mergeseven.game.ads.FakeAdService(),

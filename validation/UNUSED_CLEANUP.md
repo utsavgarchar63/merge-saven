@@ -104,4 +104,14 @@ Additional duplicate legacy icons removed after reference audit:
 
 New help/privacy/retry/rotate/share icons are wired to their controls.
 
-Removed three unused GameIcons aliases and their unreferenced legacy resources after a Kotlin/XML audit: `logo_merge_seven.webp`, `bg_wood_main.webp`, `icon_check.xml`. Total confirmed runtime resource removals: 97. Generated v2 artwork remains.
+Removed three unused GameIcons aliases and their unreferenced legacy resources after a Kotlin/XML audit: `logo_merge_seven.webp`, `bg_wood_main.webp`, `icon_check.xml`. The earlier stage removed 97 runtime resources.
+
+## October 2 scope
+
+Removed account sign-in, export/deletion/upload, cloud synchronization, leaderboard submission/screens, remote tournament and ghost-download code. Their Firebase Auth/Firestore/Functions/Messaging and Play Games dependencies and unused version-catalog aliases are removed. Local Weekly play, deterministic engine tests, score-image sharing and package/Firebase identity are preserved. Replay validation helpers needed only by unit tests now live in test sources.
+
+Removed old mode/reward exports after replacing them with ten transparent v3 WebP icons; unused sparkle/share exports remain as source masters only. Removed two unused music stems after replacing the mix with one original loop. Removed six unreferenced leaderboard/Games/ghost/close resources identified by lint and reference checks. Removed one-time refactoring scripts created during this work after their changes were applied; reusable music, screenshot and ad-log tools remain.
+
+The existing full-screen wood, board and Zen images are preserved byte-for-byte. Generated icon editing removes the outer rectangular surrounds only.
+
+Three static tutorial XML resources were removed after the runtime guide switched to native animated Canvas diagrams. Their original SVG masters remain under art/tutorial as source records.

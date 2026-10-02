@@ -25,17 +25,28 @@ class AppNavigationTest {
         compose.onNodeWithText("Booster collection").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Profile").performClick()
         compose.onNodeWithText("Your collection").assertIsDisplayed()
+        compose.onNodeWithText("Leaderboards").assertDoesNotExist()
+        compose.onNodeWithText("Sign in").assertDoesNotExist()
         compose.onNodeWithText("Challenges").performClick()
         compose.onNodeWithText("Today's puzzle").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Home").performClick()
         compose.onNodeWithText("Merge Seven").assertIsDisplayed()
     }
 
-    @Test fun localQaInventoryUsesGoogleTestAppAndUnits() {
-        assertTrue("This local test suite expects profile=test in admob.properties", BuildConfig.TEST_ADS)
+    @Test fun everyAdFormatUsesTheSelectedConfiguration() {
+        val publisher = if (BuildConfig.TEST_ADS) "3940256099942544" else "6926810742930516"
         for (resource in listOf(R.string.admob_app_id, R.string.admob_banner_unit_id,
             R.string.admob_rewarded_unit_id, R.string.admob_interstitial_unit_id)) {
-            assertTrue(compose.activity.getString(resource).startsWith("ca-app-pub-3940256099942544"))
+            assertTrue(compose.activity.getString(resource).startsWith("ca-app-pub-$publisher"))
         }
+    }
+
+    @Test fun settingsHaveNoAccountExportOrUploadControls() {
+        compose.waitUntil(20_000) { compose.onAllNodesWithText("Merge Seven").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Profile").performClick()
+        compose.onNodeWithText("Settings").performClick()
+        for (label in listOf("SIGN IN WITH PLAY GAMES", "EXPORT MY DATA", "SIGN OUT", "Upload", "Restore cloud save?"))
+            compose.onNodeWithText(label).assertDoesNotExist()
+        compose.onNodeWithText("Replay how to play").performScrollTo().assertIsDisplayed()
     }
 }

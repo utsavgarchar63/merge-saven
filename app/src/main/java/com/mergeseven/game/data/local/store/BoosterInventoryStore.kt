@@ -28,7 +28,6 @@ class RoomBoosterInventoryStore @Inject constructor(
     private val unlockDao: UnlockDao,
     private val dispatchers: DispatcherProvider,
     private val featureFlags: com.mergeseven.game.core.flags.FeatureFlags,
-    private val cloudEconomyNotifier: com.mergeseven.game.cloud.CloudEconomyNotifier
 ) : BoosterInventoryStore {
 
     private val _owned = MutableStateFlow<Map<BoosterType, Int>>(emptyMap())
@@ -55,7 +54,7 @@ class RoomBoosterInventoryStore @Inject constructor(
             refreshLocked()
             val granted = unlockDao.grantOnce("reward:$key", BoosterCatalog.unlockId(type), amount)
             refreshLocked()
-            if (granted) notifyChanged()
+
             granted
         }
     }
@@ -64,7 +63,7 @@ class RoomBoosterInventoryStore @Inject constructor(
             refreshLocked()
             unlockDao.addBooster(BoosterCatalog.unlockId(type), amount)
             refreshLocked()
-            if (amount > 0) notifyChanged()
+
         }
     }
     override suspend fun tryConsume(type: BoosterType): Boolean = withContext(dispatchers.io) {
@@ -72,11 +71,9 @@ class RoomBoosterInventoryStore @Inject constructor(
             refreshLocked()
             val consumed = unlockDao.consumeBooster(BoosterCatalog.unlockId(type))
             refreshLocked()
-            if (consumed) notifyChanged()
+
             consumed
         }
     }
-    private fun notifyChanged() {
-        if (featureFlags.isEnabled(com.mergeseven.game.core.flags.Feature.AF7)) cloudEconomyNotifier.notifyChanged()
-    }
+
 }

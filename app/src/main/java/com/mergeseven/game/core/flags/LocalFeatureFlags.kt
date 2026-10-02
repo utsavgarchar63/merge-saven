@@ -48,22 +48,24 @@ class LocalFeatureFlags(
                 }
                 .collect { prefs ->
                     overrides.value = Feature.entries.associateWith { feature ->
-                        prefs[key(feature)] ?: true
+                        if (feature == Feature.AF7) false else prefs[key(feature)] ?: true
                     }
                 }
         }
     }
 
     override fun isEnabled(feature: Feature): Boolean {
+        if (feature == Feature.AF7) return false
         return if (!isDebug) true else overrides.value[feature] ?: true
     }
 
     override fun observe(feature: Feature): Flow<Boolean> {
+        if (feature == Feature.AF7) return flowOf(false)
         return if (!isDebug) flowOf(true) else overrides.asStateFlow().map { it[feature] ?: true }
     }
 
     override suspend fun setEnabled(feature: Feature, enabled: Boolean) {
-        if (!isDebug) return
+        if (!isDebug || feature == Feature.AF7) return
         overrides.update { it + (feature to enabled) }
         dataStore.edit { prefs ->
             prefs[key(feature)] = enabled
@@ -77,7 +79,7 @@ class LocalFeatureFlags(
     private fun key(feature: Feature) = booleanPreferencesKey(feature.name)
 
     private companion object {
-        fun allOn(): Map<Feature, Boolean> = Feature.entries.associateWith { true }
+        fun allOn(): Map<Feature, Boolean> = Feature.entries.associateWith { it != Feature.AF7 }
     }
 }
 

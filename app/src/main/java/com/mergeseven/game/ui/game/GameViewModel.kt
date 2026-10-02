@@ -8,15 +8,8 @@ import com.mergeseven.game.ads.AdPreloader
 import com.mergeseven.game.ads.AdResult
 import com.mergeseven.game.ads.AdService
 import com.mergeseven.game.ads.InterstitialPolicy
-import com.mergeseven.game.cloud.CloudUploadTrigger
-import com.mergeseven.game.cloud.UploadReason
-import com.mergeseven.game.competitive.CompetitiveScoreSubmitter
-import com.mergeseven.game.competitive.GhostFrame
-import com.mergeseven.game.competitive.GhostReplayController
-import com.mergeseven.game.competitive.SessionReplayRecorder
 import com.mergeseven.game.competitive.ShareRunData
 import com.mergeseven.game.competitive.ShareRunUseCase
-import com.mergeseven.game.competitive.SubmitStatus
 import com.mergeseven.game.economy.RewardRules
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.NonCancellable
@@ -140,6 +133,8 @@ data class GameUiState(
     val baseRewardCoins: Int = 0,
     val tutorialStep: Int = 0,
     val tutorialActive: Boolean = false,
+    val animatedGuideSeen: Boolean = true,
+    val animatedGuidePage: Int = 0,
     val isLoading: Boolean = true,
     val level: Int = 1,
     val score: Long = 0,
@@ -182,10 +177,6 @@ data class GameUiState(
     val tileThemeId: String = "classic",
     val achievementToast: String? = null,
     val af8Enabled: Boolean = false,
-    val shareReady: Boolean = false,
-    val scoreSubmitStatus: String? = null,
-    val ghostFrames: List<GhostFrame> = emptyList(),
-    val showGhostOverlay: Boolean = false,
     val af9Enabled: Boolean = false,
     val canDoubleCoins: Boolean = false,
     val canWatchHintAd: Boolean = false,
@@ -227,11 +218,7 @@ class GameViewModel @Inject constructor(
     private val crashReporter: CrashReporter,
     private val liveConfig: LiveConfig,
     private val seasonalEventStore: SeasonalEventRecorder,
-    private val cloudUploadTrigger: CloudUploadTrigger,
-    private val sessionReplayRecorder: SessionReplayRecorder,
-    private val competitiveScoreSubmitter: CompetitiveScoreSubmitter,
     private val shareRunUseCase: ShareRunUseCase,
-    private val ghostReplayController: GhostReplayController,
     private val adService: AdService,
     private val adPreloader: AdPreloader,
     private val interstitialPolicy: InterstitialPolicy,
@@ -264,7 +251,7 @@ class GameViewModel @Inject constructor(
     private var lastHintAtMs: Long = 0L
     private var hintsUsedThisRun: Int = 0
     private var deadlockWarningSuppressed: Boolean = false
-    private fun rankedMode() = featureFlags.isEnabled(Feature.AF8) && mode.id in setOf(ModeIds.DAILY, ModeIds.WEEKLY)
+    private fun unassistedChallenge() = featureFlags.isEnabled(Feature.AF8) && mode.id in setOf(ModeIds.DAILY, ModeIds.WEEKLY)
 
     private var sessionStartedAtMs: Long = 0L
     private var currentSessionSeed: Long = 0L
@@ -333,7 +320,6 @@ class GameViewModel @Inject constructor(
                     com.mergeseven.game.game.model.GameResult(saved, emptyList()),
                     gameEngine
                 )
-                sessionReplayRecorder.markIncomplete()
                 currentSessionSeed = saved.rng.seed
                 if (saved.resultFinished) {
                     sessionEndedHandled = true
@@ -358,6 +344,10 @@ class GameViewModel @Inject constructor(
             }
         }
         viewModelScope.launch { settingsRepository.isSoundEnabled.collect { audioManager.setSoundEnabled(it) } }
+        viewModelScope.launch {
+            combine(settingsRepository.isAnimatedGuideSeen, settingsRepository.animatedGuidePage) { seen, page -> seen to page }
+                .collect { (seen, page) -> _uiState.update { it.copy(animatedGuideSeen = seen, animatedGuidePage = page) } }
+        }
         viewModelScope.launch { settingsRepository.isMusicEnabled.collect { enabled ->
             audioManager.setMusicEnabled(enabled)
             if (_uiState.value.isPaused || _uiState.value.adBusy) audioManager.pauseMusic()
@@ -472,7 +462,6 @@ class GameViewModel @Inject constructor(
         )
         val initial = decorateAf4Spawn(mode.createSession(ctx)).copy(runId = java.util.UUID.randomUUID().toString())
         currentSessionSeed = seed
-        sessionReplayRecorder.start(seed = seed, level = initial.level)
         updateCrashContext(initial, "session_start")
         analyticsTracker.logEvent(
             AnalyticsEvents.GAME_START,
@@ -566,8 +555,19 @@ class GameViewModel @Inject constructor(
     fun togglePauseSound() { viewModelScope.launch { settingsRepository.setSoundEnabled(!settingsRepository.isSoundEnabled.first()) } }
     fun togglePauseMusic() { viewModelScope.launch { settingsRepository.setMusicEnabled(!settingsRepository.isMusicEnabled.first()) } }
     fun replayTutorial() {
-        viewModelScope.launch { settingsRepository.setTutorialStep(0); settingsRepository.setTutorialCompleted(false) }
+        viewModelScope.launch { settingsRepository.resetTutorialGuide() }
         onResume()
+    }
+    fun setGuidePage(page: Int) {
+        val next = page.coerceIn(0, 2)
+        _uiState.update { it.copy(animatedGuidePage = next) }
+        viewModelScope.launch { settingsRepository.setAnimatedGuidePage(next) }
+    }
+    fun finishAnimatedGuide() {
+        viewModelScope.launch {
+            settingsRepository.setAnimatedGuideSeen(true)
+            analyticsTracker.logEvent("tutorial_guide_closed", mapOf("page" to _uiState.value.animatedGuidePage))
+        }
     }
     fun skipTutorial() { viewModelScope.launch { settingsRepository.setTutorialCompleted(true); analyticsTracker.logEvent("tutorial_skipped", mapOf("step" to _uiState.value.tutorialStep)) } }
 
@@ -643,9 +643,6 @@ class GameViewModel @Inject constructor(
             levelRepository.completeLevel(gameState.level, gameState.score, stars)
             userDataRepository.updateQuestProgress("quest_level", 1)
             audioManager.playSoundCombo()
-            if (featureFlags.isEnabled(Feature.AF7)) {
-                cloudUploadTrigger.requestUpload(UploadReason.LEVEL_COMPLETE)
-            }
             if (featureFlags.isEnabled(Feature.AF5)) {
                 userDataRepository.addXp(Constants.XP_LEVEL_CLEAR)
                 analyticsTracker.logEvent(AnalyticsEvents.XP_GAINED, mapOf("source" to "level_clear"))
@@ -732,23 +729,7 @@ class GameViewModel @Inject constructor(
             grantResult(finished)
         }
 
-        if (featureFlags.isEnabled(Feature.AF8)) {
-            viewModelScope.launch {
-                val result = competitiveScoreSubmitter.maybeSubmit(gameState, mode.id)
-                _uiState.update {
-                    it.copy(
-                        shareReady = true,
-                        scoreSubmitStatus = when (result.status) {
-                            SubmitStatus.ACCEPTED -> "Score submitted"
-                            SubmitStatus.NEEDS_SIGN_IN -> "Sign in to submit scores"
-                            SubmitStatus.RATE_LIMITED -> "Submit rate limited"
-                            SubmitStatus.REJECTED -> "Score rejected: ${result.reason}"
-                            SubmitStatus.SKIPPED -> null
-                        }
-                    )
-                }
-            }
-        }
+
     }
 
     fun createShareIntent(): Intent? {
@@ -764,24 +745,11 @@ class GameViewModel @Inject constructor(
         )
     }
 
-    fun loadGhostReplay() {
-        if (!featureFlags.isEnabled(Feature.AF8) || mode.id != ModeIds.DAILY) return
-        val dateKey = currentGameState?.sessionDateKey ?: dateProvider.today()
-        viewModelScope.launch {
-            val frames = ghostReplayController.loadDailyLeaderFrames(dateKey)
-            _uiState.update {
-                it.copy(ghostFrames = frames, showGhostOverlay = frames.isNotEmpty())
-            }
-        }
-    }
 
-    fun dismissGhostOverlay() {
-        _uiState.update { it.copy(showGhostOverlay = false) }
-    }
 
-    fun dismissScoreSubmitStatus() {
-        _uiState.update { it.copy(scoreSubmitStatus = null) }
-    }
+
+
+
 
     private suspend fun grantResult(state: GameState) {
         val key = "${state.runId}:result:${state.resultWon}"
@@ -909,11 +877,14 @@ class GameViewModel @Inject constructor(
         val af4 = featureFlags.isEnabled(Feature.AF4)
         val af8 = featureFlags.isEnabled(Feature.AF8)
         val continueCost = liveContinueCost(synced.continuesUsed)
+        val timedOut = mode.hud.showTimer && synced.timeRemainingMs <= 0L
         val canCoinContinue = af3 &&
+            !timedOut &&
             synced.isGameOver &&
             synced.continuesUsed < Constants.MAX_COIN_CONTINUES_PER_RUN &&
             (boosterInventory.count(BoosterType.CONTINUE) > 0 || walletCoins >= continueCost)
         val canRewarded = af3 &&
+            !timedOut &&
             synced.isGameOver &&
             synced.rewardedContinuesUsed < Constants.REWARDED_CONTINUE_LIMIT
 
@@ -964,7 +935,7 @@ class GameViewModel @Inject constructor(
                 boosterButtons = buildBoosterButtons(synced, af3, currentState.pendingBooster),
                 continueCoinCost = continueCost,
                 canCoinContinue = canCoinContinue,
-                canRewardedContinue = canRewarded && !rankedMode() && featureFlags.isEnabled(Feature.AF9) && !mode.hud.suppressAds && !userDataRepository.rewardClaimed("${synced.runId}:continue"),
+                canRewardedContinue = canRewarded && !unassistedChallenge() && featureFlags.isEnabled(Feature.AF9) && !mode.hud.suppressAds && !userDataRepository.rewardClaimed("${synced.runId}:continue"),
                 pendingBooster = currentState.pendingBooster,
                 af4Enabled = af4,
                 af8Enabled = af8,
@@ -986,7 +957,7 @@ class GameViewModel @Inject constructor(
                 af9Enabled = featureFlags.isEnabled(Feature.AF9),
                 baseRewardCoins = synced.baseRewardCoins,
                 canDoubleCoins = featureFlags.isEnabled(Feature.AF9) && isComplete && synced.baseRewardCoins > 0 && !userDataRepository.rewardClaimed("${synced.runId}:double"),
-                canWatchHintAd = !rankedMode() && featureFlags.isEnabled(Feature.AF9) &&
+                canWatchHintAd = !unassistedChallenge() && featureFlags.isEnabled(Feature.AF9) &&
                     featureFlags.isEnabled(Feature.AF4) &&
                     !isGameOver &&
                     !isComplete && !mode.hud.suppressAds && synced.rewardedHintsUsed < RewardRules.HINT_AD_RUN_LIMIT,
@@ -1001,7 +972,7 @@ class GameViewModel @Inject constructor(
         }
         if (af4 && !isGameOver && !isComplete) {
             prefetchHint(synced)
-            if (!rankedMode() && !mode.hud.suppressAds && featureFlags.isEnabled(Feature.AF9)) adPreloader.warmHint()
+            if (!unassistedChallenge() && !mode.hud.suppressAds && featureFlags.isEnabled(Feature.AF9)) adPreloader.warmHint()
         } else {
             cachedMoveSolver.invalidate()
         }
@@ -1105,7 +1076,6 @@ class GameViewModel @Inject constructor(
         val state = currentGameState ?: return
         if (_uiState.value.isPaused || _uiState.value.adBusy || state.resultFinished) return
         if (_uiState.value.tutorialActive && _uiState.value.tutorialStep == 1) advanceTutorial()
-        sessionReplayRecorder.recordRotate(index)
         val newState = gameEngine.rotateTrayPiece(state, index)
         applyState(newState, endReason = null)
     }
@@ -1189,7 +1159,6 @@ class GameViewModel @Inject constructor(
 
         clearHintHighlight()
         cachedMoveSolver.invalidate()
-        sessionReplayRecorder.recordPlace(slotIndex, origin)
         val result = gameEngine.placePiece(state, piece, origin, slotIndex)
         dispatchFeel(result, piece, origin, dropBoardLocal, boardWidth, boardHeight)
         analyticsTracker.logEvent(
@@ -1350,7 +1319,7 @@ class GameViewModel @Inject constructor(
     }
 
     fun onHintWithRewardedAd(activity: android.app.Activity) {
-        if (rankedMode()) return
+        if (unassistedChallenge()) return
         val state = currentGameState ?: return
         if (!featureFlags.isEnabled(Feature.AF4) || state.isGameOver || _uiState.value.isLevelComplete ||
             state.rewardedHintsUsed >= RewardRules.HINT_AD_RUN_LIMIT) return
@@ -1395,7 +1364,6 @@ class GameViewModel @Inject constructor(
     }
 
     private fun applyHint(hint: MoveHint) {
-        sessionReplayRecorder.markIncomplete()
         val state = currentGameState ?: return
         val piece = state.trayPieces.getOrNull(hint.slotIndex)?.copy(rotation = hint.rotation)
             ?: return
@@ -1509,9 +1477,10 @@ class GameViewModel @Inject constructor(
     }
 
     fun onContinueWithRewardedAd(activity: android.app.Activity) {
-        if (rankedMode()) return
+        if (unassistedChallenge()) return
         val state = currentGameState ?: return
         if (!state.isGameOver || state.rewardedContinuesUsed >= Constants.REWARDED_CONTINUE_LIMIT) return
+        if (mode.hud.showTimer && state.timeRemainingMs <= 0L) return
         val key = "${state.runId}:continue"
         if (userDataRepository.rewardClaimed(key)) return
         runRewardAd(activity, AdPlacement.CONTINUE) {
@@ -1641,7 +1610,6 @@ class GameViewModel @Inject constructor(
                     if (af3 && !mode.hud.unlimitedUndo && next !== state) {
                         next = next.copy(undosUsedThisRun = state.undosUsedThisRun + 1)
                     }
-                    if (next !== state) sessionReplayRecorder.recordUndo()
                     applyState(next, null)
                     analyticsTracker.logEvent(
                         AnalyticsEvents.UNDO_USED,
@@ -1649,21 +1617,18 @@ class GameViewModel @Inject constructor(
                     )
                 }
                 BoosterType.SWAP -> {
-                    sessionReplayRecorder.recordRotate(_uiState.value.selectedSlotIndex)
                     applyState(
                         gameEngine.rotateTrayPiece(state, _uiState.value.selectedSlotIndex),
                         null
                     )
                 }
                 BoosterType.RANDOMIZE -> {
-                    sessionReplayRecorder.recordShuffle()
                     applyState(gameEngine.shuffleTray(state), null)
                 }
                 BoosterType.REMOVE -> {
                     val cell = target
                         ?: state.board.activeTiles().maxByOrNull { it.value }?.cell
                         ?: return@launch
-                    sessionReplayRecorder.recordRemove(cell)
                     applyState(gameEngine.removeTile(state, cell).copy(previousState = state), null)
                 }
                 BoosterType.HAMMER -> {
@@ -1706,6 +1671,8 @@ class GameViewModel @Inject constructor(
     private suspend fun executeContinue(rewarded: Boolean) {
         val state = currentGameState ?: return
         if (!state.isGameOver) return
+        // Clearing cells cannot revive an expired timer; reject before spending a charge or coins.
+        if (mode.hud.showTimer && state.timeRemainingMs <= 0L) return
         if (!featureFlags.isEnabled(Feature.AF3)) return
         if (rewarded) {
             if (state.rewardedContinuesUsed >= Constants.REWARDED_CONTINUE_LIMIT) return

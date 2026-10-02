@@ -36,17 +36,18 @@ class ResultCardRenderer @Inject constructor(
             color = 0xFFFFD54A.toInt()
             textAlign = Paint.Align.CENTER
             textSize = mutable.width * 0.07f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            typeface = com.mergeseven.game.core.audio.GameFont.bold(context)
         }
         val scorePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = 0xFFFFFFFF.toInt()
             textAlign = Paint.Align.CENTER
             textSize = mutable.width * 0.12f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            typeface = com.mergeseven.game.core.audio.GameFont.bold(context)
         }
         val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = 0xFFE8D5B5.toInt()
             textAlign = Paint.Align.CENTER
+            typeface = com.mergeseven.game.core.audio.GameFont.bold(context)
             textSize = mutable.width * 0.045f
         }
         val cx = mutable.width / 2f

@@ -8,8 +8,6 @@ import com.mergeseven.game.ads.AdResult
 import com.mergeseven.game.ads.AdService
 import com.mergeseven.game.ads.BannerAdHost
 import com.mergeseven.game.ads.InterstitialPolicy
-import com.mergeseven.game.competitive.Tournament
-import com.mergeseven.game.competitive.TournamentRepository
 import com.mergeseven.game.core.analytics.AnalyticsEvents
 import com.mergeseven.game.core.analytics.AnalyticsTracker
 import com.mergeseven.game.core.flags.Feature
@@ -50,7 +48,6 @@ class HomeViewModel @Inject constructor(
     private val userDataRepository: UserDataRepository,
     private val gameRepository: GameRepository,
     private val modeRecordsStore: ModeRecordsStore,
-    private val tournamentRepository: TournamentRepository,
     private val analyticsTracker: AnalyticsTracker,
     private val featureFlags: FeatureFlags,
     private val settingsRepository: SettingsRepository,
@@ -75,7 +72,6 @@ class HomeViewModel @Inject constructor(
     val reduceMotionEnabled: StateFlow<Boolean> = settingsRepository.isReduceMotionEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    val tournament: StateFlow<Tournament?> = tournamentRepository.current
 
     val nextCampaignLevel = levelRepository.highestUnlockedLevel
 
@@ -103,19 +99,9 @@ class HomeViewModel @Inject constructor(
         adPreloader.warmInterstitial()
     }
 
-    fun refreshTournament() {
-        viewModelScope.launch { tournamentRepository.refresh() }
-    }
 
-    fun joinTournament(): Tournament? {
-        val t = tournamentRepository.current.value ?: return null
-        if (!t.isActive) return null
-        analyticsTracker.logEvent(
-            AnalyticsEvents.TOURNAMENT_JOINED,
-            mapOf("id" to t.id)
-        )
-        return t
-    }
+
+
 
     fun refreshResumable() {
         viewModelScope.launch {

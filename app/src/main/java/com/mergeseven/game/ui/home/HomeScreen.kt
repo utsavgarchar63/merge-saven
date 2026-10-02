@@ -10,6 +10,8 @@ import androidx.compose.material3.*
 
 import androidx.compose.runtime.*
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 
 import androidx.compose.ui.Modifier
@@ -44,9 +46,7 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
     onSettingsClick: () -> Unit = {}, onShopClick: () -> Unit = {}, onAchievementsClick: () -> Unit = {},
 
-    onCosmeticsClick: () -> Unit = {}, onStatsClick: () -> Unit = {}, onLeaderboardsClick: () -> Unit = {},
-
-    onTournamentPlay: (Long) -> Unit = {}) {
+    onCosmeticsClick: () -> Unit = {}, onStatsClick: () -> Unit = {}) {
 
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
 
@@ -56,9 +56,12 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
     val cards by viewModel.modeCards.collectAsStateWithLifecycle()
 
+    val config = LocalConfiguration.current
+    val compactHome = config.screenHeightDp < 700 || config.screenWidthDp / LocalDensity.current.fontScale < 340
+
     var moreModes by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { viewModel.refreshResumable(); viewModel.refreshTournament() }
+    LaunchedEffect(Unit) { viewModel.refreshResumable() }
 
     WoodPage("Merge Seven", profile.coins, headerAction = {
 
@@ -66,6 +69,7 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
     }, footer = { BannerAdHost() }) {
 
+        if (!compactHome) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
 
             horizontalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -82,11 +86,17 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
         }
 
+        }
+
         WoodPanel {
 
             Text(if (resumable != null) "Your board is waiting" else "Ready for your next merge?", style = MaterialTheme.typography.titleLarge)
 
-            Text(resumable?.let { "${cards.firstOrNull { c -> c.modeId == it.modeId }?.title ?: "Campaign"} · Level ${it.level} · Score ${it.score}" }
+            Text(resumable?.let {
+                val title = cards.firstOrNull { c -> c.modeId == it.modeId }?.title ?: "Campaign"
+                val stage = if (it.modeId == ModeIds.CAMPAIGN) " · Level ${it.level}" else ""
+                "$title$stage · Score ${it.score}"
+            }
 
                 ?: "Campaign · Level $level", color = GameColors.TextWhite.copy(alpha = 0.8f))
 
@@ -100,7 +110,7 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
         }
 
-        WoodLink("Today's puzzle", "A fresh challenge with the same board for everyone", R.drawable.mode_daily_v2, onDailyClick)
+        WoodLink("Today's puzzle", "A fresh challenge with the same board for everyone", R.drawable.mode_daily_v3, onDailyClick)
 
         OutlinedButton({ moreModes = !moreModes }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
 
@@ -112,11 +122,11 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
             val descriptions = listOf("Follow the path, one satisfying merge at a time", "Build your best score without a timer",
 
-                "Make every second count", "Relax, experiment, and undo freely", "A new puzzle every day", "Compete in this week's challenge")
+                "Make every second count", "Relax, experiment, and undo freely", "A new puzzle every day", "Explore this week's personal challenge")
 
-            val art = listOf(R.drawable.mode_campaign_v2, R.drawable.mode_endless_v2, R.drawable.mode_time_attack_v2,
+            val art = listOf(R.drawable.mode_campaign_v3, R.drawable.mode_endless_v3, R.drawable.mode_time_v3,
 
-                R.drawable.mode_zen_v2, R.drawable.mode_daily_v2, R.drawable.mode_weekly_v2)
+                R.drawable.mode_zen_v3, R.drawable.mode_daily_v3, R.drawable.mode_weekly_v3)
 
             cards.forEachIndexed { i, card ->
 

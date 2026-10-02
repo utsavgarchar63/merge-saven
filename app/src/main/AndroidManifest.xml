@@ -41,14 +41,6 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".core.liveops.MergeSevenFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -59,12 +51,19 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Play Games Services project id (replace before shipping AF7 to production). -->
-        <meta-data
-            android:name="com.google.android.gms.games.APP_ID"
-            android:value="@string/game_services_project_id" />
+        <!-- App and unit IDs are selected together in root admob.properties. -->
+        <!-- Initialize WorkManager on demand; retain the other App Startup initializers. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
-        <!-- AdMob App ID: Google sample app id for test builds; replace before production. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="@string/admob_app_id" />
