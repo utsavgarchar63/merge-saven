@@ -65,7 +65,9 @@ object Routes {
 fun AppNavGraph(
     navController: NavHostController = rememberNavController(),
     requestedRoute: String? = null,
-    onRouteHandled: () -> Unit = {}
+    onRouteHandled: () -> Unit = {},
+    updateState: com.mergeseven.game.core.updates.PlayUpdateState = com.mergeseven.game.core.updates.PlayUpdateState(),
+    onUpdate: () -> Unit = {}, onRestartUpdate: () -> Unit = {}, onDismissUpdate: () -> Unit = {}
 ) {
     androidx.compose.runtime.LaunchedEffect(requestedRoute) {
         if (requestedRoute == Routes.DAILY) {
@@ -80,6 +82,8 @@ fun AppNavGraph(
         Triple(Routes.SHOP, "Rewards", R.drawable.icon_nav_rewards),
         Triple(Routes.PROFILE, "Profile", R.drawable.icon_nav_profile))
     Scaffold(containerColor = GameColors.WoodDark, contentWindowInsets = WindowInsets(0, 0, 0, 0), bottomBar = {
+        Column {
+        if (route == Routes.HOME) com.mergeseven.game.ui.components.PlayUpdatePrompt(updateState, onUpdate, onRestartUpdate, onDismissUpdate)
         if (tabs.any { it.first == route }) NavigationBar(containerColor = GameColors.WoodDark) {
             tabs.forEach { (destination, label, icon) -> NavigationBarItem(selected = destination == route,
                 onClick = { navController.navigate(destination) {
@@ -89,6 +93,7 @@ fun AppNavGraph(
                 label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = GameColors.CoinGold,
                     selectedTextColor = GameColors.CoinGold, indicatorColor = GameColors.WoodMid)) }
+        }
         }
     }) { padding ->
     NavHost(

@@ -15,6 +15,7 @@ import com.mergeseven.game.core.flags.FeatureFlags
 import com.mergeseven.game.core.flags.enabledState
 import com.mergeseven.game.data.local.store.BoosterInventoryStore
 import com.mergeseven.game.data.model.UserProfile
+import com.mergeseven.game.data.model.DailyGifts
 import com.mergeseven.game.data.repository.UserDataRepository
 import com.mergeseven.game.game.model.BoosterType
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,8 +23,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 import com.mergeseven.game.meta.AchievementMetric
@@ -60,52 +59,51 @@ class DailyViewModel @Inject constructor(
     }
 
     fun refreshDailyCheck() {
-        val today = runCatching { LocalDate.now().format(DateTimeFormatter.ISO_DATE) }
-            .getOrDefault("")
-        if (today.isNotEmpty()) {
-            userDataRepository.checkDailyLogin(today)
-            viewModelScope.launch {
-                achievementTracker.reportMetric(
-                    AchievementMetric.STREAK,
-                    userDataRepository.userProfile.value.currentStreak
-                )
-            }
+        userDataRepository.checkDailyLogin()
+        viewModelScope.launch {
+            achievementTracker.reportMetric(
+                AchievementMetric.STREAK,
+                userDataRepository.userProfile.value.currentStreak
+            )
         }
     }
 
     fun getDailyRewards(): List<DailyRewardItem> {
         val profile = userProfile.value
-        val streak = profile.currentStreak
         val claimed = profile.claimedDays
-
-        val rewardConfigs = listOf(
-            Pair(50, 0),
-            Pair(100, 0),
-            Pair(150, 2),
-            Pair(200, 0),
-            Pair(300, 3),
-            Pair(500, 5),
-            Pair(1000, 10)
-        )
-
-        return rewardConfigs.mapIndexed { index, (coins, stars) ->
-            val day = index + 1
+        val availableDay = DailyGifts.available(profile)?.day
+        return DailyGifts.rewards.map { (day, coins, stars) ->
             DailyRewardItem(
                 day = day,
                 coins = coins,
                 stars = stars,
                 isClaimed = day in claimed,
-                isAvailable = day <= streak && day !in claimed
+                isAvailable = day == availableDay
             )
         }
     }
 
     fun claimReward(item: DailyRewardItem) {
-        if (item.isAvailable && !item.isClaimed) {
-            userDataRepository.claimDailyReward(item.day, item.coins, item.stars)
-            audioManager.playSoundCombo()
+        if (_giftBusy.value) return
+        _giftBusy.value = true
+        viewModelScope.launch {
+            try {
+                val granted = kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    userDataRepository.awaitReady()
+                    val result = userDataRepository.claimDailyReward(item.day, item.coins, item.stars)
+                    userDataRepository.flush()
+                    result
+                }
+                if (granted) {
+                    audioManager.playSoundCombo()
+                    _status.value = "Gift collected · ${item.coins} coins. Your next gift is available tomorrow."
+                } else _status.value = "No gift available right now. Check back tomorrow."
+            } finally { _giftBusy.value = false }
         }
     }
+
+    private val _giftBusy = MutableStateFlow(false)
+    val giftBusy = _giftBusy.asStateFlow()
 
     val adAvailability = adService.availability
     private val _adBusy = MutableStateFlow(false)

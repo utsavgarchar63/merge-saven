@@ -20,10 +20,22 @@ fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> 
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val availability by viewModel.adAvailability.collectAsStateWithLifecycle()
     val busy by viewModel.adBusy.collectAsStateWithLifecycle()
+    val giftBusy by viewModel.giftBusy.collectAsStateWithLifecycle()
     val status by viewModel.status.collectAsStateWithLifecycle()
     val activity = LocalContext.current as? android.app.Activity
     val giftColumns = if (LocalConfiguration.current.screenWidthDp / LocalDensity.current.fontScale >= 360) 2 else 1
     LaunchedEffect(Unit) { viewModel.refreshDailyCheck(); viewModel.warmAds() }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+        viewModel.refreshDailyCheck()
+    }
+    LaunchedEffect(profile.lastLoginDate) {
+        while (true) {
+            val now = java.time.ZonedDateTime.now()
+            val next = now.toLocalDate().plusDays(1).atStartOfDay(now.zone)
+            kotlinx.coroutines.delay(java.time.Duration.between(now, next).toMillis().coerceAtLeast(1_000))
+            viewModel.refreshDailyCheck()
+        }
+    }
     WoodPage("Challenges", profile.coins, headerAction = { TextButton(onSettings) { Text("Settings") } }) {
         WoodPanel {
             Text("Today's puzzle", style = MaterialTheme.typography.headlineMedium)
@@ -44,7 +56,7 @@ fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> 
         WoodLink("Weekly challenge", "A shared board. A new chance to beat your best.", R.drawable.mode_weekly_v3, onStartWeekly)
         status?.let { Text(it, color = GameColors.CoinGold) }
         Text("Your daily gifts", style = MaterialTheme.typography.titleLarge)
-        Text("Claim available gifts free. Missing a day never blocks play.")
+        Text("One free gift each day. The next gift unlocks tomorrow after you claim. Missing a day never blocks play.")
         viewModel.getDailyRewards().chunked(giftColumns).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 row.forEach { gift ->
@@ -52,7 +64,7 @@ fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> 
                         Text("Day ${gift.day}", style = MaterialTheme.typography.titleMedium)
                         Text("${gift.coins} coins" + if (gift.stars > 0) " · ${gift.stars} stars" else "")
                         OutlinedButton({ viewModel.claimReward(gift) }, Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                            enabled = gift.isAvailable && !busy) {
+                            enabled = gift.isAvailable && !busy && !giftBusy) {
                             Text(if (gift.isClaimed) "Claimed" else if (gift.isAvailable) "Claim free" else "Coming up")
                         }
                     }

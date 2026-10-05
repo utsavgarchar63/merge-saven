@@ -1,8 +1,8 @@
 [
   {
     "path": "app/build/outputs/apk/release/app-release.apk",
-    "bytes": 5946202,
-    "sha256": "7392094d55c171f06842f3c98c4551752fcf5d384d24ac5b8d5082122392c27e",
+    "bytes": 5963287,
+    "sha256": "b9a3f08d64a715783d146a47b810aa96fad02450024a761faa776c9aebad2e1a",
     "build_profile": "production",
     "verified_on": "2026-10-05",
     "dex_compressed": true,
@@ -13,8 +13,8 @@
   },
   {
     "path": "app/build/outputs/bundle/release/app-release.aab",
-    "bytes": 11140756,
-    "sha256": "5e9cdfc72510b90277bdbc3e93195a302d57a2add8d2331972f85fa9b170fc45",
+    "bytes": 11184752,
+    "sha256": "06d82b0626450bc958042b580348897dc6b9b9993ac2ed9db9305557a189b3b3",
     "build_profile": "production",
     "verified_on": "2026-10-05",
     "dex_compressed": true,

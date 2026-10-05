@@ -239,6 +239,7 @@ dependencies {
     // Ads + UMP (AF9)
     implementation(libs.play.services.ads)
     implementation(libs.user.messaging.platform)
+    implementation(libs.play.app.update)
 
 
     // Java 8+ API desugaring

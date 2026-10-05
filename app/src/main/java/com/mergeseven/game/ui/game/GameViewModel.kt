@@ -695,7 +695,7 @@ class GameViewModel @Inject constructor(
         }
         if (effects.finishDailyAttempt) {
             val before = userDataRepository.coins()
-            userDataRepository.finishDailyAttempt(gameState.score.toInt())
+            userDataRepository.finishDailyAttempt(gameState.score.toInt(), gameState.sessionDateKey.ifEmpty { dateProvider.today() })
             finished = finished.copy(baseRewardCoins = (userDataRepository.coins() - before).coerceAtLeast(0))
         }
         if (effects.finishWeeklyAttempt) {
@@ -755,7 +755,7 @@ class GameViewModel @Inject constructor(
         val key = "${state.runId}:result:${state.resultWon}"
         if (mode.id == ModeIds.DAILY) {
             if (!userDataRepository.rewardClaimed(key) && state.baseRewardCoins > 0 && !userDataRepository.userProfile.value.dailyChallenge.isCompleted)
-                userDataRepository.finishDailyAttempt(state.score.toInt())
+                userDataRepository.finishDailyAttempt(state.score.toInt(), state.sessionDateKey.ifEmpty { dateProvider.today() })
             userDataRepository.claimReward(key, 0)
             if (currentGameState?.runId == state.runId) refreshPresentation(currentGameState!!)
             return

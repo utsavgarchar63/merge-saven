@@ -29,6 +29,15 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private lateinit var playUpdates: com.mergeseven.game.core.updates.PlayUpdateController
+    private val updateLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (::playUpdates.isInitialized) {
+            if (result.resultCode != RESULT_OK) playUpdates.dismiss() else playUpdates.check()
+        }
+    }
+
     private val reminderRoute = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
     private fun routeReminder(intent: android.content.Intent?) {
         if (intent?.action == "com.mergeseven.game.OPEN_DAILY") reminderRoute.value = com.mergeseven.game.app.Routes.DAILY
@@ -41,10 +50,15 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var featureFlags: FeatureFlags
     @Inject lateinit var audioManager: AudioManager
     @Inject lateinit var settingsRepository: com.mergeseven.game.data.preferences.SettingsRepository
+    @Inject lateinit var userDataRepository: com.mergeseven.game.data.repository.UserDataRepository
     @Inject lateinit var foregroundActivity: com.mergeseven.game.core.ForegroundActivity
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        playUpdates = com.mergeseven.game.core.updates.PlayUpdateController(
+            com.google.android.play.core.appupdate.AppUpdateManagerFactory.create(this),
+            getSharedPreferences("play_update_prompt", MODE_PRIVATE)
+        )
         foregroundActivity.attach(this)
         routeReminder(intent)
         enableEdgeToEdge(
@@ -64,7 +78,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize()
                 ) {
                     val requested by reminderRoute.collectAsState()
-                    AppNavGraph(requestedRoute = requested, onRouteHandled = { reminderRoute.value = null; intent?.action = null })
+                    val updateState by playUpdates.state.collectAsState()
+                    AppNavGraph(requestedRoute = requested, onRouteHandled = { reminderRoute.value = null; intent?.action = null },
+                        updateState = updateState, onUpdate = { playUpdates.start(updateLauncher) },
+                        onRestartUpdate = { lifecycleScope.launch {
+                            userDataRepository.awaitReady()
+                            userDataRepository.flush()
+                            playUpdates.finish()
+                        } }, onDismissUpdate = { playUpdates.dismiss() })
                 }
             }
         }
@@ -73,6 +94,8 @@ class MainActivity : ComponentActivity() {
     /** Start background music whenever the app comes to the foreground. */
     override fun onResume() {
         super.onResume()
+        playUpdates.check()
+        userDataRepository.checkDailyLogin()
         audioManager.setAppForeground(true)
         lifecycleScope.launch {
             val music = settingsRepository.isMusicEnabled.first()
@@ -92,6 +115,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        playUpdates.close()
         foregroundActivity.detach(this)
         super.onDestroy()
     }

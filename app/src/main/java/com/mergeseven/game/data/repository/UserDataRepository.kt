@@ -6,6 +6,7 @@ import com.mergeseven.game.core.flags.Feature
 import com.mergeseven.game.core.flags.FeatureFlags
 import com.mergeseven.game.data.local.store.UserProfileStore
 import com.mergeseven.game.data.model.DailyChallengeState
+import com.mergeseven.game.data.model.DailyGifts
 import com.mergeseven.game.data.model.UserProfile
 import com.mergeseven.game.data.model.defaultDailyQuests
 import com.mergeseven.game.di.PersistenceScope
@@ -68,7 +69,8 @@ class UserDataRepository @Inject constructor(
             }
             flush()
             ready.complete(Unit)
-            checkDailyLogin()
+            // Hydration may happen in an offline reminder worker. Only foreground entry or
+            // an explicit gift claim records a login; background work must not extend a streak.
         }
     }
 
@@ -102,7 +104,12 @@ class UserDataRepository @Inject constructor(
         profile.copy(totalStars = profile.totalStars + amount)
     }
 
-    fun checkDailyLogin(todayDate: String = dateProvider.today()) = mutate { profile ->
+    fun checkDailyLogin(todayDate: String = dateProvider.today()) = mutate { stored ->
+        if (runCatching { LocalDate.parse(todayDate) }.isFailure) return@mutate stored
+        val profile = DailyGifts.migrate(stored)
+        // Moving the device date backwards must not reset quests or reopen a gift claim.
+        val lastDate = runCatching { LocalDate.parse(profile.lastLoginDate) }.getOrNull()
+        if (lastDate != null && LocalDate.parse(todayDate).isBefore(lastDate)) return@mutate profile
         when {
             profile.lastLoginDate.isEmpty() -> profile.copy(
                 lastLoginDate = todayDate,
@@ -136,9 +143,14 @@ class UserDataRepository @Inject constructor(
         }
     }
 
-    fun claimDailyReward(day: Int, coinsReward: Int, starsReward: Int) =
+    fun claimDailyReward(day: Int, coinsReward: Int, starsReward: Int): Boolean {
+        checkDailyLogin()
+        var granted = false
         mutate(source = "daily_login") { profile ->
-            if (day in profile.claimedDays) return@mutate profile
+            val gift = DailyGifts.available(profile)
+            if (profile.lastLoginDate != dateProvider.today() || gift == null || gift.day != day || gift.coins != coinsReward || gift.stars != starsReward)
+                return@mutate profile
+            granted = true
 
             val nextStreak = if (day >= profile.currentStreak && day < FINAL_STREAK_DAY) {
                 day + 1
@@ -149,9 +161,12 @@ class UserDataRepository @Inject constructor(
                 coins = profile.coins + coinsReward,
                 totalStars = profile.totalStars + starsReward,
                 claimedDays = profile.claimedDays + day,
+                rewardClaims = profile.rewardClaims + (DailyGifts.claimKey(profile.lastLoginDate) to coinsReward),
                 currentStreak = nextStreak
             )
         }
+        return granted
+    }
 
     fun updateQuestProgress(questId: String, progressValue: Int, isAbsolute: Boolean = false) = mutate { profile ->
         profile.copy(
@@ -191,8 +206,9 @@ class UserDataRepository @Inject constructor(
      * ADV-003: first finished run of the day locks the official score and may award rewards;
      * later finishes that day are practice (attempts++ only).
      */
-    fun finishDailyAttempt(score: Int) = mutate(source = "daily_challenge") { profile ->
+    fun finishDailyAttempt(score: Int, expectedDate: String? = null) = mutate(source = "daily_challenge") { profile ->
         val challenge = profile.dailyChallenge
+        if (expectedDate != null && challenge.dateSeed != expectedDate) return@mutate profile
         if (challenge.attempts > 0 || "${challenge.dateSeed}:daily:result" in profile.rewardClaims) {
             val bonus = challenge.attempts == 0 && "${challenge.dateSeed}:extra_daily" in profile.rewardClaims &&
                 "${challenge.dateSeed}:extra_daily_used" !in profile.rewardClaims

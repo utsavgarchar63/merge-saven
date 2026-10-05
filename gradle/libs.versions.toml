@@ -23,6 +23,7 @@ crashlytics = "3.0.2"
 playServiceAds = "24.9.0"
 workManager = "2.11.2"
 userMessagingPlatform = "4.0.0"
+playAppUpdate = "2.1.0"
 serialization = "1.7.3"
 desugarJdkLibs = "2.1.4"
 
@@ -82,6 +83,7 @@ firebase-config = { group = "com.google.firebase", name = "firebase-config-ktx" 
 play-services-ads = { group = "com.google.android.gms", name = "play-services-ads", version.ref = "playServiceAds" }
 user-messaging-platform = { group = "com.google.android.ump", name = "user-messaging-platform", version.ref = "userMessagingPlatform" }
 androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
+play-app-update = { group = "com.google.android.play", name = "app-update", version.ref = "playAppUpdate" }
 
 
 # Java 8+ API desugaring (required for java.time on minSdk 24)

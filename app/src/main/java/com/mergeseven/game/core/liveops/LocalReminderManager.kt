@@ -77,10 +77,11 @@ class PuzzleReminderWorker(context: Context, params: WorkerParameters) : Corouti
         val date = now.toLocalDate().toString()
         val prefs = applicationContext.getSharedPreferences("local_reminders", Context.MODE_PRIVATE)
         deps.userData().awaitReady()
-        val daily = deps.userData().userProfile.value.dailyChallenge
+        val content = DailyReminderContent.forPlayer(deps.userData().userProfile.value, now.toLocalDate())
+            ?: return Result.success()
         val foreground = ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
         if (!ReminderPolicy.shouldNotify(now.hour, foreground, prefs.getString("last_sent", null) == date,
-                daily.dateSeed == date && daily.isCompleted)) return Result.success()
+                false)) return Result.success()
         if (!NotificationManagerCompat.from(applicationContext).areNotificationsEnabled()) return Result.success()
         if (Build.VERSION.SDK_INT >= 26) applicationContext.getSystemService(NotificationManager::class.java)
             .createNotificationChannel(NotificationChannel(LocalReminderManager.CHANNEL, "Daily puzzle reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
@@ -93,8 +94,11 @@ class PuzzleReminderWorker(context: Context, params: WorkerParameters) : Corouti
         val pending = PendingIntent.getActivity(applicationContext, 701, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(applicationContext, LocalReminderManager.CHANNEL)
             .setSmallIcon(R.drawable.icon_nav_challenges)
-            .setContentTitle("A fresh puzzle, a satisfying chain")
-            .setContentText("Take a quiet moment with today's Merge Seven challenge.")
+            .setContentTitle(content.title)
+            .setContentText(content.body)
+            .setStyle(NotificationCompat.BigTextStyle().setBigContentTitle(content.title).bigText(content.body))
+            .setColor(android.graphics.Color.rgb(241, 194, 86))
+            .addAction(0, content.action, pending)
             .setContentIntent(pending).setAutoCancel(true).setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_REMINDER).build()
         try {

@@ -89,6 +89,10 @@ class DailyViewModelTest {
         val updatedProfile = userDataRepository.userProfile.value
         assertEquals(initialCoins + 50, updatedProfile.coins)
         assertTrue(updatedProfile.claimedDays.contains(1))
+        assertFalse(viewModel.getDailyRewards().any { it.isAvailable })
+        viewModel.claimReward(day1Item)
+        viewModel.claimReward(DailyRewardItem(2, 100, 0, false, true))
+        assertEquals(initialCoins + 50, userDataRepository.coins())
     }
 
     @Test

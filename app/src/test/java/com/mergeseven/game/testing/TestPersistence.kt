@@ -37,7 +37,7 @@ object TestPersistence {
         scope = scope,
         dateProvider = DateProvider { today },
         featureFlags = featureFlags,
-    )
+    ).also { it.checkDailyLogin(today) }
 
     fun levelRepository(
         store: LevelProgressStore = InMemoryLevelProgressStore(),
