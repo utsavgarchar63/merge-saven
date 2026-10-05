@@ -1,18 +1,22 @@
 [
   {
-    "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\apk\\debug\\app-debug.apk",
-    "Hash": "4A4A8B3D016E7DD9B3BF8A22077F7105AEC4E7AD09FCFEB4CED854404013BB24"
-  },
-  {
-    "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\apk\\androidTest\\debug\\app-debug-androidTest.apk",
-    "Hash": "89ADB4734A98DB06B1742769E8EBBF8D3BD50A90E478A6F811AB52A88189AE0E"
-  },
-  {
     "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\apk\\release\\app-release.apk",
-    "Hash": "1F98784709FBC2433EDDE553F45C768C362405249DF8D59E71A41A08ECB7AAF6"
+    "Hash": "7392094D55C171F06842F3C98C4551752FCF5D384D24AC5B8D5082122392C27E",
+    "Profile": "production"
   },
   {
     "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\bundle\\release\\app-release.aab",
-    "Hash": "251951CB839B628F9F5D153F1935DB03A32454499F8B0BDBD719D3E748CDC4AA"
+    "Hash": "5E9CDFC72510B90277BDBC3E93195A302D57A2ADD8D2331972F85FA9B170FC45",
+    "Profile": "production"
+  },
+  {
+    "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\apk\\admob-qa\\merge-seven-demo-ads.apk",
+    "Hash": "56853E546AD1DBB4BE982D9EEE7AC7CF18F3A876AED24BCC733779CEF795EC13",
+    "Profile": "test"
+  },
+  {
+    "Path": "E:\\test\\merge-saven\\app\\build\\outputs\\apk\\androidTest\\debug\\app-debug-androidTest.apk",
+    "Hash": "0F725EF0BB2AA4E5997B159C0D204797BE57372124D3BA4DFBDE7EECEB733694",
+    "Profile": "test-instrumentation"
   }
 ]

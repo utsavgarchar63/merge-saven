@@ -54,6 +54,7 @@ class AdMobAdService @Inject constructor(
             combine(consentManager.canRequestAds, featureFlags.observe(Feature.AF9), liveOpsGates.revision) { can, enabled, _ ->
                 can && enabled && liveOpsGates.adsAllowed()
             }.collect { allowed ->
+                Log.i("MergeSevenAds", "request_gate allowed=$allowed consent=${consentManager.canRequestAds.value} feature=${featureFlags.isEnabled(Feature.AF9)} kill_switch=${!liveOpsGates.adsAllowed()}")
                 if (allowed) requested.toList().forEach { preload(it) }
                 else clearInventory()
             }
@@ -67,8 +68,8 @@ class AdMobAdService @Inject constructor(
             val devices = BuildConfig.AD_TEST_DEVICE_IDS.split(',').map(String::trim).filter(String::isNotEmpty)
             MobileAds.setRequestConfiguration(RequestConfiguration.Builder().setTestDeviceIds(devices).build())
             MobileAds.initialize(context) { status ->
-                if (BuildConfig.DEBUG) status.adapterStatusMap.forEach { (adapter, value) ->
-                    Log.d("MergeSevenAds", "initialized adapter=$adapter state=${value.initializationState} latency_ms=${value.latency} description=${value.description}")
+                status.adapterStatusMap.forEach { (adapter, value) ->
+                    Log.i("MergeSevenAds", "initialized adapter=$adapter state=${value.initializationState} latency_ms=${value.latency} description=${value.description}")
                 }
                 initialization.complete(Unit)
             }
@@ -91,8 +92,11 @@ class AdMobAdService @Inject constructor(
     }
     override fun isReady(placement: AdPlacement): Boolean = enabled() && placement in ready.value &&
         (placement == AdPlacement.BANNER || System.currentTimeMillis() - (loadedAt[inventoryKey(placement)] ?: 0) < 3_600_000)
-    private fun telemetry(name: String, p: AdPlacement, extra: Map<String, Any?> = emptyMap()) =
+    private fun telemetry(name: String, p: AdPlacement, extra: Map<String, Any?> = emptyMap()) {
         analytics.logEvent(name, mapOf("placement" to p.name.lowercase(), "inventory" to inventorySource(p)) + extra)
+        if (name in setOf("ad_shown", "ad_impression", "ad_reward_granted", "ad_reward_failed", "ad_show_failed"))
+            diagnostic(name, p)
+    }
     private fun inventoryPlacements(p: AdPlacement): Set<AdPlacement> =
         if (inventoryKey(p) == AdPlacement.FUNDS_COINS) rewardedPlacements else setOf(p)
     private fun loaded(p: AdPlacement) {
@@ -121,7 +125,7 @@ class AdMobAdService @Inject constructor(
     private fun failed(p: AdPlacement, error: LoadAdError) {
         ready.value -= inventoryPlacements(p)
         telemetry("ad_load_failed", p, mapOf("code" to error.code))
-        if (BuildConfig.DEBUG) Log.w("MergeSevenAds", "load_failed placement=$p domain=${error.domain} code=${error.code} message=${error.message} cause=${error.cause}")
+        Log.w("MergeSevenAds", "load_failed placement=$p domain=${error.domain} code=${error.code} message=${error.message} cause=${error.cause}")
         diagnostic("load_failed", p, error.responseInfo)
         if (tryQaFallback(p)) return
         loadGate.finished(p)
@@ -147,10 +151,9 @@ class AdMobAdService @Inject constructor(
         }
     }
     private fun diagnostic(event: String, p: AdPlacement, response: ResponseInfo? = null) {
-        if (!BuildConfig.DEBUG) return
-        Log.d("MergeSevenAds", "$event placement=$p profile=${inventorySource(p)} unit=${unit(p)} response_id=${response?.responseId} adapter=${response?.mediationAdapterClassName}")
+        Log.i("MergeSevenAds", "$event placement=$p profile=${inventorySource(p)} unit=${unit(p)} response_id=${response?.responseId} adapter=${response?.mediationAdapterClassName}")
         response?.adapterResponses?.forEach { adapter ->
-            Log.d("MergeSevenAds", "adapter=${adapter.adapterClassName} latency_ms=${adapter.latencyMillis} error=${adapter.adError}")
+            Log.i("MergeSevenAds", "adapter=${adapter.adapterClassName} latency_ms=${adapter.latencyMillis} error=${adapter.adError}")
         }
     }
     private fun paid(p: AdPlacement, value: AdValue) = telemetry("ad_paid", p,
@@ -230,6 +233,7 @@ class AdMobAdService @Inject constructor(
                             }
                         }
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                            Log.w("MergeSevenAds", "show_failed placement=$placement domain=${error.domain} code=${error.code} message=${error.message}")
                             showing.value = false; telemetry("ad_show_failed", placement, mapOf("code" to error.code))
                             if (cont.isActive) cont.resume(AdResult.Failed("Ad unavailable"))
                             loadGate.allowRetry(placement); preload(placement)
@@ -266,6 +270,7 @@ class AdMobAdService @Inject constructor(
                         }
                     }
                     override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                        Log.w("MergeSevenAds", "show_failed placement=INTERSTITIAL domain=${error.domain} code=${error.code} message=${error.message}")
                         showing.value = false
                         telemetry("ad_show_failed", AdPlacement.INTERSTITIAL, mapOf("code" to error.code))
                         if (cont.isActive) cont.resume(AdResult.Failed("Ad unavailable"))

@@ -54,8 +54,9 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MergeSevenTheme {
-                LaunchedEffect(Unit) {
-                    if (featureFlags.isEnabled(Feature.AF9)) {
+                val adsEnabled by featureFlags.observe(Feature.AF9).collectAsState(initial = featureFlags.isEnabled(Feature.AF9))
+                LaunchedEffect(adsEnabled) {
+                    if (adsEnabled) {
                         consentManager.gatherConsent(this@MainActivity)
                     }
                 }

@@ -27,7 +27,7 @@ Existing signing selection is preserved. These locally signed artifacts do not e
 - [AGP 8.7 DexPackaging API](https://developer.android.com/reference/tools/gradle-api/8.7/com/android/build/api/dsl/DexPackaging)
 - [App Bundle configuration splits](https://developer.android.com/guide/app-bundle/configure-base)
 
-## Verified local delivery
+## Verified local delivery — October 2
 
 | Artifact | Bytes | MiB |
 |---|---:|---:|
@@ -42,3 +42,14 @@ The AAB is 12.4% smaller than the previous release bundle. The release APK is a 
 - APK signature verification passed (v2, one signer); 16KB-page zip alignment check passed. Both archive integrity checks passed; all direct APK dex files are compressed. Runtime Ogg hash matches the source; APK music remains stored uncompressed so MediaPlayer can use its resource file descriptor.
 - The release APK upgraded the workspace-owned Android 30 QA app without deleting data. Wallet 760 and the Time Attack save remained; Resume, tray selection, rotation, placement, pause and save-and-exit worked. No crash/ANR events appeared. Native MediaPlayer loaded audio/vorbis with the Android Vorbis decoder, mono/22,050 Hz and looping enabled. The headless emulator does not verify listening quality; physical audio QA remains.
 - Final hashes and archive details are in compressed-artifacts.json and artifact-hashes.json. Background image bytes remain unchanged.
+
+## AdMob update delivery — October 5
+
+GMA 24.9.0 and UMP 4.0.0 replace the earlier SDKs. The final artifacts preserve version 1.7.0 / code 8. Compression settings, original backgrounds, music and English resource filtering remain unchanged.
+
+| Artifact | Bytes | MiB |
+|---|---:|---:|
+| Current production release APK | 5,946,202 | 5.67 |
+| Current production release AAB | 11,140,756 | 10.62 |
+
+The current release build passed release vital lint and 286 release unit tests. Signature, 16KB-page zip alignment, archive integrity, compressed dex and runtime music-hash checks passed. Current hashes are in `compressed-artifacts.json`, `artifact-hashes.json` and `admob-review-artifacts.json`; they supersede the October 2 artifact hashes. The separate demo QA APK is a debug build, not a release-size comparison. Production requests still receive HTTP 403; see `AD_DIAGNOSTICS.md` for evidence and dashboard actions.

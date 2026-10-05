@@ -22,12 +22,6 @@
         android:theme="@style/Theme.MergeSeven"
         tools:targetApi="35">
 
-        <!-- Resolve AdMob vs Analytics AD_SERVICES_CONFIG conflict -->
-        <property
-            android:name="android.adservices.AD_SERVICES_CONFIG"
-            android:resource="@xml/gma_ad_services_config"
-            tools:replace="android:resource" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -67,6 +61,13 @@
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="@string/admob_app_id" />
+        <!-- Explicitly retain optimized SDK initialization and ad loading. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+            android:value="true" />
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+            android:value="true" />
 
     </application>
 

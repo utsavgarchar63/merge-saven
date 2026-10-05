@@ -1,0 +1,50 @@
+[
+  {
+    "path": "app/build/outputs/apk/release/app-release.apk",
+    "bytes": 5946202,
+    "sha256": "7392094d55c171f06842f3c98c4551752fcf5d384d24ac5b8d5082122392c27e",
+    "build_profile": "production",
+    "verified_on": "2026-10-05",
+    "dex_compressed": true,
+    "music_matches_runtime": true,
+    "archive_integrity": "passed",
+    "target_game_version": "1.7.0",
+    "target_game_version_code": 8
+  },
+  {
+    "path": "app/build/outputs/bundle/release/app-release.aab",
+    "bytes": 11140756,
+    "sha256": "5e9cdfc72510b90277bdbc3e93195a302d57a2add8d2331972f85fa9b170fc45",
+    "build_profile": "production",
+    "verified_on": "2026-10-05",
+    "dex_compressed": true,
+    "music_matches_runtime": true,
+    "archive_integrity": "passed",
+    "target_game_version": "1.7.0",
+    "target_game_version_code": 8
+  },
+  {
+    "path": "app/build/outputs/apk/admob-qa/merge-seven-demo-ads.apk",
+    "bytes": 26632183,
+    "sha256": "56853e546ad1dbb4be982d9eee7ac7cf18f3a876aed24bcc733779cef795ec13",
+    "build_profile": "test",
+    "verified_on": "2026-10-05",
+    "dex_compressed": true,
+    "music_matches_runtime": true,
+    "archive_integrity": "passed",
+    "target_game_version": "1.7.0",
+    "target_game_version_code": 8
+  },
+  {
+    "path": "app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk",
+    "bytes": 1165046,
+    "sha256": "0f725ef0bb2aa4e5997b159c0d204797be57372124d3ba4dfbde7eeceb733694",
+    "build_profile": "test-instrumentation",
+    "verified_on": "2026-10-05",
+    "dex_compressed": true,
+    "music_matches_runtime": false,
+    "archive_integrity": "passed",
+    "target_game_version": "1.7.0",
+    "target_game_version_code": 8
+  }
+]

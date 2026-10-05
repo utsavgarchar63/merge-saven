@@ -42,7 +42,8 @@ class UmpConsentManager @Inject constructor(
 
     override suspend fun showPrivacyOptions(activity: Activity) {
         suspendCancellableCoroutine<Unit> { cont ->
-            UserMessagingPlatform.showPrivacyOptionsForm(activity) {
+            UserMessagingPlatform.showPrivacyOptionsForm(activity) { error ->
+                if (error != null) Log.w(TAG, "Privacy options error code=${error.errorCode}: ${error.message}")
                 finish()
                 if (cont.isActive) cont.resume(Unit)
             }
@@ -53,6 +54,7 @@ class UmpConsentManager @Inject constructor(
         UserMessagingPlatform.getConsentInformation(context)
 
     override suspend fun gatherConsent(activity: Activity) {
+        _resolved.value = false
         val params = ConsentRequestParameters.Builder().build()
         suspendCancellableCoroutine { cont ->
             consentInformation.requestConsentInfoUpdate(
@@ -61,25 +63,33 @@ class UmpConsentManager @Inject constructor(
                 {
                     UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { formError ->
                         if (formError != null) {
-                            Log.w(TAG, "Consent form error: ${formError.message}")
+                            Log.w(TAG, "Consent form error code=${formError.errorCode}: ${formError.message}")
                         }
                         finish()
                         if (cont.isActive) cont.resume(Unit)
                     }
                 },
                 { error ->
-                    Log.w(TAG, "Consent info update failed: ${error.message}")
+                    Log.w(TAG, "Consent info update failed code=${error.errorCode}: ${error.message}")
                     finish()
                     if (cont.isActive) cont.resume(Unit)
                 }
             )
+            // UMP permits using its previous-session status after starting this update.
+            // Do not wait for a slow network response when the SDK already allows ads.
+            refreshPermission()
         }
     }
 
-    private fun finish() {
+    private fun refreshPermission() {
         _privacyOptionsRequired.value = consentInformation.privacyOptionsRequirementStatus == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
         _canRequestAds.value = consentInformation.canRequestAds()
+    }
+
+    private fun finish() {
+        refreshPermission()
         _resolved.value = true
+        Log.i(TAG, "Consent resolved status=${consentInformation.consentStatus} can_request_ads=${_canRequestAds.value} privacy_options_required=${_privacyOptionsRequired.value}")
     }
 
     private companion object {

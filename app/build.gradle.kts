@@ -20,8 +20,14 @@ tasks.configureEach {
 val adMobSettings = Properties().apply {
     rootProject.file("admob.properties").inputStream().use { load(it) }
 }
-val adMobProfile = adMobSettings.getProperty("profile")
+val adMobProfile = providers.gradleProperty("admobProfile").orNull ?: adMobSettings.getProperty("profile")
 require(adMobProfile in setOf("test", "production")) { "admob.properties: profile must be test or production" }
+val adMobTestDeviceHashes = adMobSettings.getProperty("test.devices", "").split(',')
+    .map { it.trim().uppercase() }.filter(String::isNotEmpty)
+require(adMobTestDeviceHashes.all { it.matches(Regex("[0-9A-F]{32}")) }) {
+    "admob.properties: test.devices needs the SDK's 32-character test-device hash from logcat. " +
+        "Register advertising-ID UUIDs in the AdMob dashboard instead."
+}
 fun adMobId(format: String, profile: String = adMobProfile): String = requireNotNull(adMobSettings.getProperty("$profile.$format")) {
     "Missing $profile.$format in admob.properties"
 }.also { require(it.startsWith("ca-app-pub-")) { "Invalid AdMob ID for $format" } }
@@ -50,7 +56,7 @@ android {
         resValue("string", "admob_demo_banner_unit_id", adMobId("banner", "test"))
         buildConfigField("boolean", "TEST_ADS", (adMobProfile == "test").toString())
         buildConfigField("boolean", "QA_AD_FALLBACK", "false")
-        buildConfigField("String", "AD_TEST_DEVICE_IDS", "\"${adMobSettings.getProperty("test.devices", "")}\"")
+        buildConfigField("String", "AD_TEST_DEVICE_IDS", "\"${adMobTestDeviceHashes.joinToString(",")}\"")
 
     }
 
