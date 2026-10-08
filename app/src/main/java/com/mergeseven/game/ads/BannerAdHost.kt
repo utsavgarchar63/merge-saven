@@ -46,6 +46,12 @@ fun BannerAdHost(viewModel: BannerAdViewModel = hiltViewModel(), modifier: Modif
         AndroidView(factory = { FrameLayout(it).apply {
             host.container = this
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            addOnLayoutChangeListener { view, left, _, right, _, oldLeft, _, oldRight, _ ->
+                if (right - left != oldRight - oldLeft && right > left) view.post {
+                    if (view === host.container && view.isAttachedToWindow && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+                        viewModel.adService.bindBanner(activity, this)
+                }
+            }
         } }, modifier = Modifier.fillMaxWidth().height(height), update = { container ->
             container.post {
                 if (container === host.container && container.isAttachedToWindow && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))

@@ -46,6 +46,8 @@ class AdMobAdService @Inject constructor(
     private var interstitial: InterstitialAd? = null
     private var banner: AdView? = null
     private var bannerContainer: ViewGroup? = null
+    private var bannerWidthDp = 0
+    private var bannerBindingGeneration = 0
     private var generation = 0
     private val retries = mutableMapOf<AdPlacement, Int>()
     private val qaFallback = mutableSetOf<AdPlacement>()
@@ -138,6 +140,9 @@ class AdMobAdService @Inject constructor(
             val retryBanner = banner
             scope.launch {
                 delay(30_000L * attempt)
+                // A rewarded creative can outlast this delay. Resume the scheduled retry
+                // after it closes instead of permanently losing this format's retry.
+                while (token == generation && enabled() && showing.value) delay(1_000L)
                 if (token == generation && enabled() && !showing.value) {
                     if (p == AdPlacement.BANNER) {
                         if (banner === retryBanner && bannerContainer?.isAttachedToWindow == true &&
@@ -210,7 +215,7 @@ class AdMobAdService @Inject constructor(
     }
     override suspend fun showRewarded(activity: Activity, placement: AdPlacement, onEarned: suspend () -> Unit): AdResult =
         withContext(Dispatchers.Main.immediate) {
-            if (!isReady(placement) || showing.value || activity.isFinishing || activity.isDestroyed || !showMutex.tryLock()) {
+            if (placement !in rewardedPlacements || !isReady(placement) || showing.value || !canShow(activity) || !showMutex.tryLock()) {
                 preload(placement); return@withContext AdResult.NoFill
             }
             try {
@@ -239,17 +244,19 @@ class AdMobAdService @Inject constructor(
                             loadGate.allowRetry(placement); preload(placement)
                         }
                     }
-                    ad.show(activity) {
-                        if (earnedJob == null) earnedJob = scope.async {
-                            runCatching { onEarned(); telemetry("ad_reward_granted", placement); true }
-                                .getOrElse { telemetry("ad_reward_failed", placement); false }
+                    try {
+                        ad.show(activity) {
+                            if (earnedJob == null) earnedJob = scope.async {
+                                runCatching { onEarned(); telemetry("ad_reward_granted", placement); true }
+                                    .getOrElse { telemetry("ad_reward_failed", placement); false }
+                            }
                         }
-                    }
+                    } catch (error: Exception) { showException(placement, error, cont) }
                 }
             } finally { showMutex.unlock() }
         }
     override suspend fun showInterstitial(activity: Activity): AdResult = withContext(Dispatchers.Main.immediate) {
-        if (!isReady(AdPlacement.INTERSTITIAL) || showing.value || activity.isFinishing || activity.isDestroyed || !showMutex.tryLock())
+        if (!isReady(AdPlacement.INTERSTITIAL) || showing.value || !canShow(activity) || !showMutex.tryLock())
             return@withContext AdResult.NoFill
         try {
             val ad = interstitial ?: return@withContext AdResult.NoFill
@@ -277,21 +284,37 @@ class AdMobAdService @Inject constructor(
                         loadGate.allowRetry(AdPlacement.INTERSTITIAL); preload(AdPlacement.INTERSTITIAL)
                     }
                 }
-                ad.show(activity)
+                try { ad.show(activity) }
+                catch (error: Exception) { showException(AdPlacement.INTERSTITIAL, error, cont) }
             }
         } finally { showMutex.unlock() }
+    }
+    private fun canShow(activity: Activity): Boolean = !activity.isFinishing && !activity.isDestroyed &&
+        ((activity as? androidx.lifecycle.LifecycleOwner)?.lifecycle?.currentState
+            ?.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) != false)
+
+    private fun showException(placement: AdPlacement, error: Exception, cont: CancellableContinuation<AdResult>) {
+        Log.w("MergeSevenAds", "show_exception placement=$placement type=${error.javaClass.simpleName}")
+        showing.value = false
+        telemetry("ad_show_failed", placement, mapOf("reason" to "sdk_exception"))
+        if (cont.isActive) cont.resume(AdResult.Failed("Ad unavailable"))
+        loadGate.allowRetry(placement); preload(placement)
     }
     override fun bindBanner(activity: Activity, container: ViewGroup) {
         scope.launch {
             if (!enabled()) { unbindBanner(); return@launch }
             if (!container.isAttachedToWindow || activity.isDestroyed) { unbindBanner(container); return@launch }
-            if (bannerContainer === container) return@launch
+            val width = (container.width / activity.resources.displayMetrics.density).toInt()
+            if (width <= 0) return@launch // Wait for layout, never request using an unrelated screen width.
+            if (bannerContainer === container && bannerWidthDp == width) return@launch
             unbindBanner()
             // Claim the host before suspending initialization, so recomposition cannot bind twice.
             bannerContainer = container
+            bannerWidthDp = width
             val token = generation
+            val bindingToken = bannerBindingGeneration
             initialize()
-            if (token != generation || bannerContainer !== container) return@launch
+            if (token != generation || bindingToken != bannerBindingGeneration || bannerContainer !== container) return@launch
             val resumed = (activity as? androidx.lifecycle.LifecycleOwner)?.lifecycle?.currentState
                 ?.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) != false
             if (!enabled() || !container.isAttachedToWindow || activity.isDestroyed || !resumed) {
@@ -305,8 +328,7 @@ class AdMobAdService @Inject constructor(
             if (token != generation || bannerContainer !== container || !enabled() ||
                 !container.isAttachedToWindow || activity.isDestroyed) return
             banner?.destroy(); container.removeAllViews(); banner = null
-            val density = activity.resources.displayMetrics.density
-            val width = ((container.width.takeIf { it > 0 } ?: activity.resources.displayMetrics.widthPixels) / density).toInt()
+            val width = bannerWidthDp
             val ad = AdView(activity)
             ad.apply {
                 setAdSize(AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(activity, width))
@@ -325,7 +347,9 @@ class AdMobAdService @Inject constructor(
     }
     override fun unbindBanner(container: ViewGroup?) {
         if (container != null && bannerContainer !== container) return
+        bannerBindingGeneration++
         banner?.destroy(); bannerContainer?.removeAllViews(); banner = null; bannerContainer = null
+        bannerWidthDp = 0
         ready.value -= AdPlacement.BANNER
     }
     override fun pauseBanner(container: ViewGroup?) { if (container == null || bannerContainer === container) banner?.pause() }

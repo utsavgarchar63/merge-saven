@@ -1,10 +1,10 @@
 [
   {
     "path": "app/build/outputs/apk/release/app-release.apk",
-    "bytes": 5963287,
-    "sha256": "b9a3f08d64a715783d146a47b810aa96fad02450024a761faa776c9aebad2e1a",
+    "bytes": 5963296,
+    "sha256": "64b29f9ae2477653c6e52e2cad37eae3c9b9d06dee41c493f6c8392fd1a2d74a",
     "build_profile": "production",
-    "verified_on": "2026-10-05",
+    "verified_on": "2026-10-08",
     "dex_compressed": true,
     "music_matches_runtime": true,
     "archive_integrity": "passed",
@@ -13,10 +13,10 @@
   },
   {
     "path": "app/build/outputs/bundle/release/app-release.aab",
-    "bytes": 11184752,
-    "sha256": "06d82b0626450bc958042b580348897dc6b9b9993ac2ed9db9305557a189b3b3",
+    "bytes": 11185582,
+    "sha256": "d8331ace04717bcf6893d8accac16ce75327423279eac1a911cb0a82984a5b6b",
     "build_profile": "production",
-    "verified_on": "2026-10-05",
+    "verified_on": "2026-10-08",
     "dex_compressed": true,
     "music_matches_runtime": true,
     "archive_integrity": "passed",

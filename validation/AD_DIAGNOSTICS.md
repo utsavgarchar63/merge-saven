@@ -82,3 +82,9 @@ With profile=production and qa.fallback=true on the SDK-marked emulator, each fo
 The exact combined log is production-fallback-ad-diagnostics.log. The successful demo requests do not establish production serving. Release configuration keeps QA_AD_FALLBACK=false. Missing production messages require dashboard correction; the October 5 fresh-profile checks above supersede any earlier assumption that this error necessarily blocks SDK request permission.
 
 The later October 5 gift/reminder/Play-update rebuild supersedes the earlier artifact sizes and hashes above. The current JSON manifests describe that build; see `GIFTS_REMINDERS_UPDATES_REVIEW.md` for its results. UMP setup and production IDs were preserved.
+
+## Production review — October 8
+
+The user confirmed the published Play URL uses package `com.mergeseven.game`. The later ad-reliability rebuild preserves the production IDs and UMP SDK gate. It fixes adaptive-banner resizing, retries lost during fullscreen ads, and stuck state after synchronous SDK show exceptions. All 297 debug and 297 release unit tests passed, plus 23 executed device checks. Demo banner/rewarded/interstitial loaded; actual test interstitial display/dismiss/reload and rewarded +100 (860→960, restart retained) were verified.
+
+Fresh production-unit requests still receive HTTP 403 for every format. The Google adapter was READY and UMP can_request_ads=true; no consent form appeared or blocked these requests. The no-forms configuration warning remains a separate account diagnostic. No production inventory displayed, and release fallback remains disabled. See `ADMOB_PRODUCTION_REVIEW_2026-10-08.md` for exact evidence and the published-app checklist: store association/readiness, account/Policy Center, app-ads.txt, unit formats and applicable privacy messages. Its current artifact hashes supersede earlier measurements above.

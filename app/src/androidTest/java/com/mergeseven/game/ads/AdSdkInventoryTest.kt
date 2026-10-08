@@ -53,6 +53,31 @@ class AdSdkInventoryTest {
                 listOf(AdPlacement.FUNDS_COINS, AdPlacement.INTERSTITIAL, AdPlacement.BANNER)
                     .all(ads::isReady)
             }
+            fun bannerWidth(): Int {
+                var width = 0
+                scenario.onActivity { activity ->
+                    fun visit(view: android.view.View) {
+                        if (view is com.google.android.gms.ads.AdView) width = view.adSize?.width ?: 0
+                        if (view is android.view.ViewGroup) for (i in 0 until view.childCount) visit(view.getChildAt(i))
+                    }
+                    visit(activity.window.decorView)
+                }
+                return width
+            }
+            val portraitWidth = bannerWidth()
+            assertTrue(portraitWidth > 0)
+            var originalOrientation = 0
+            try {
+                scenario.onActivity { activity ->
+                    originalOrientation = activity.requestedOrientation
+                    activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                }
+                await("landscape gets newly sized banner inventory") {
+                    bannerWidth() > portraitWidth && ads.isReady(AdPlacement.BANNER)
+                }
+            } finally {
+                scenario.onActivity { it.requestedOrientation = originalOrientation }
+            }
         }
     }
 
