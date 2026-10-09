@@ -40,8 +40,8 @@ android {
         applicationId = "com.mergeseven.game"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.7.0"
+        versionCode = 9
+        versionName = "1.8.0"
 
         // The app currently ships English only; omit unused library translations.
         resourceConfigurations += listOf("en")
