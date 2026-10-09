@@ -64,7 +64,7 @@ fun BannerAdHost(viewModel: BannerAdViewModel = hiltViewModel(), modifier: Modif
             Lifecycle.Event.ON_PAUSE -> host.container?.let(viewModel.adService::pauseBanner)
             Lifecycle.Event.ON_RESUME -> host.container?.let { container ->
                 container.post {
-                    if (container.isAttachedToWindow && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    if (container === host.container && container.isAttachedToWindow && owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                         viewModel.adService.bindBanner(activity, container)
                         viewModel.adService.resumeBanner(container)
                     }
@@ -73,6 +73,10 @@ fun BannerAdHost(viewModel: BannerAdViewModel = hiltViewModel(), modifier: Modif
             else -> Unit
         } }
         owner.lifecycle.addObserver(observer)
-        onDispose { owner.lifecycle.removeObserver(observer); host.container?.let(viewModel.adService::unbindBanner) }
+        onDispose {
+            owner.lifecycle.removeObserver(observer)
+            host.container?.let(viewModel.adService::unbindBanner)
+            host.container = null
+        }
     }
 }

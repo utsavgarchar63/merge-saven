@@ -40,8 +40,9 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel(), onBackClick: () -> Un
                 busy -> "Claiming reward…"
                 claimsLeft == 0 -> "More coins tomorrow"
                 AdPlacement.FUNDS_COINS in availability -> "Watch ad · Get 100 coins"
-                else -> "Get 100 coins · Try ad again"
-            }, enabled = !busy && activity != null && claimsLeft > 0) { activity?.let(viewModel::watchEarnAd) }
+                else -> "Ad not ready yet"
+            }, enabled = !busy && activity != null && claimsLeft > 0 &&
+                AdPlacement.FUNDS_COINS in availability) { activity?.let(viewModel::watchEarnAd) }
             Text("Ads are optional. Campaign levels and daily quests also earn coins.", style = MaterialTheme.typography.bodySmall)
         }
         status?.let { Text(it, color = GameColors.CoinGold) }

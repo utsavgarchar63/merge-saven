@@ -49,7 +49,8 @@ fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> 
             if (!viewModel.extraClaimed() && profile.dailyChallenge.attempts > 0 && !profile.dailyChallenge.isCompleted) {
                 OutlinedButton({ activity?.let(viewModel::watchAdForExtraAttempt) }, Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     enabled = !busy && activity != null && AdPlacement.EXTRA_DAILY in availability) {
-                    Text("Watch ad · Get one more try for ${profile.dailyChallenge.coinsReward} coins")
+                    Text(if (AdPlacement.EXTRA_DAILY in availability)
+                        "Watch ad · Get one more try for ${profile.dailyChallenge.coinsReward} coins" else "Ad not ready yet")
                 }
             }
         }

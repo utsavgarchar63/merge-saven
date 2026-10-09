@@ -3,11 +3,17 @@ package com.mergeseven.game.ads
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Warms high-value rewarded placements (AF9-04). */
+/** Warms shared inventory before a player reaches an ad offer. */
 @Singleton
 class AdPreloader @Inject constructor(
     private val adService: AdService
 ) {
+    fun warmApp() {
+        // Every rewarded placement shares this inventory; one request warms all offers.
+        adService.preload(AdPlacement.FUNDS_COINS)
+        adService.preload(AdPlacement.INTERSTITIAL)
+    }
+
     fun warmGameOver() {
         adService.preload(AdPlacement.CONTINUE)
         adService.preload(AdPlacement.FUNDS_COINS)

@@ -47,6 +47,7 @@ class MainActivity : ComponentActivity() {
     }
     @Inject lateinit var reminderManager: com.mergeseven.game.core.liveops.LocalReminderManager
     @Inject lateinit var consentManager: ConsentManager
+    @Inject lateinit var adPreloader: com.mergeseven.game.ads.AdPreloader
     @Inject lateinit var featureFlags: FeatureFlags
     @Inject lateinit var audioManager: AudioManager
     @Inject lateinit var settingsRepository: com.mergeseven.game.data.preferences.SettingsRepository
@@ -60,6 +61,8 @@ class MainActivity : ComponentActivity() {
             getSharedPreferences("play_update_prompt", MODE_PRIVATE)
         )
         foregroundActivity.attach(this)
+        // Record demand now; the service waits for UMP permission before requesting ads.
+        adPreloader.warmApp()
         routeReminder(intent)
         enableEdgeToEdge(
             statusBarStyle = androidx.activity.SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -94,6 +97,7 @@ class MainActivity : ComponentActivity() {
     /** Start background music whenever the app comes to the foreground. */
     override fun onResume() {
         super.onResume()
+        adPreloader.warmApp()
         playUpdates.check()
         userDataRepository.checkDailyLogin()
         audioManager.setAppForeground(true)

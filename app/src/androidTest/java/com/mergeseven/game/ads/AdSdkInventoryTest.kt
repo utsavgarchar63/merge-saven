@@ -47,8 +47,7 @@ class AdSdkInventoryTest {
                 ads = ViewModelProvider(activity)[BannerAdViewModel::class.java].adService
             }
             await("fresh consent allows demo requests") { consent.canRequestAds.value }
-            ads.preload(AdPlacement.FUNDS_COINS)
-            ads.preload(AdPlacement.INTERSTITIAL)
+            // Startup must warm these without a test or reward button requesting them.
             await("rewarded, interstitial and Home banner are loaded") {
                 listOf(AdPlacement.FUNDS_COINS, AdPlacement.INTERSTITIAL, AdPlacement.BANNER)
                     .all(ads::isReady)

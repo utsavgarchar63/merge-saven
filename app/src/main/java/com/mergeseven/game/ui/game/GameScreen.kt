@@ -518,6 +518,7 @@ fun GameScreen(
                 starsEarned = uiState.starsEarned,
                 af8Enabled = uiState.af8Enabled,
                 canDoubleCoins = uiState.canDoubleCoins,
+                adReady = uiState.rewardedAdReady && activity != null,
                 baseRewardCoins = uiState.baseRewardCoins, adBusy = uiState.adBusy,
                 onShare = {
                     viewModel.createShareIntent()?.let { intent ->
@@ -545,6 +546,7 @@ fun GameScreen(
                 continueCost = uiState.continueCoinCost,
                 canCoinContinue = uiState.canCoinContinue,
                 canRewardedContinue = uiState.canRewardedContinue,
+                adReady = uiState.rewardedAdReady && activity != null,
                 onShare = {
                     viewModel.createShareIntent()?.let { intent ->
                         context.startActivity(Intent.createChooser(intent, "Share run"))
@@ -565,7 +567,7 @@ fun GameScreen(
         if (uiState.showInsufficientFunds) {
             val activity = LocalContext.current as? android.app.Activity
             InsufficientFundsSheet(
-                canWatchAd = activity != null && uiState.af9Enabled && !uiState.suppressAds && !uiState.adBusy,
+                canWatchAd = activity != null && uiState.af9Enabled && !uiState.suppressAds && !uiState.adBusy && uiState.rewardedAdReady,
                 onShop = {
                     viewModel.dismissInsufficientFunds()
                     onNavigateShop()
@@ -667,7 +669,7 @@ private fun ResultSurface(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun LevelCompleteDialog(level: Int, isCampaign: Boolean, score: Long, starsEarned: Int,
-    af8Enabled: Boolean = false, canDoubleCoins: Boolean = false,
+    af8Enabled: Boolean = false, canDoubleCoins: Boolean = false, adReady: Boolean = false,
     baseRewardCoins: Int = 0, adBusy: Boolean = false, onShare: () -> Unit = {}, onDoubleCoins: () -> Unit = {},
     onNextLevel: () -> Unit, onNextLevelFresh: (() -> Unit)? = null, onNavigateHome: () -> Unit, onReplay: () -> Unit) {
     ResultSurface {
@@ -677,8 +679,8 @@ private fun LevelCompleteDialog(level: Int, isCampaign: Boolean, score: Long, st
         Text("Score $score", style = MaterialTheme.typography.titleLarge, color = GameColors.CoinGold)
         Text("+$baseRewardCoins coins earned")
         GoldButton(if (adBusy) "Finishing…" else if (isCampaign) "Next level" else "Back to Home", !adBusy, if (isCampaign) onNextLevel else onNavigateHome)
-        if (canDoubleCoins) OutlinedButton(onDoubleCoins, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy) {
-            Text("Watch ad · Get $baseRewardCoins extra coins")
+        if (canDoubleCoins) OutlinedButton(onDoubleCoins, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy && adReady) {
+            Text(if (adReady) "Watch ad · Get $baseRewardCoins extra coins" else "Ad not ready yet")
         }
         if (isCampaign && onNextLevelFresh != null) TextButton(onNextLevelFresh, Modifier.fillMaxWidth(), enabled = !adBusy) { Text("Next level with a fresh board") }
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -867,8 +869,8 @@ private fun GameHintRow(uiState: GameUiState, viewModel: GameViewModel, onAction
             if (uiState.canWatchHintAd) {
                 val activity = LocalContext.current as? android.app.Activity
                 OutlinedButton(onClick = { onAction(); activity?.let(viewModel::onHintWithRewardedAd) },
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp), enabled = activity != null && !uiState.adBusy) {
-                    Text(stringResource(R.string.game_hint_ad), style = MaterialTheme.typography.labelMedium)
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp), enabled = activity != null && !uiState.adBusy && uiState.rewardedAdReady) {
+                    Text(if (uiState.rewardedAdReady) stringResource(R.string.game_hint_ad) else "Ad not ready yet", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
@@ -1353,7 +1355,7 @@ private fun PieceTrayOptionCard(
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun GameOverDialog(score: Long, timedOut: Boolean, af3Enabled: Boolean, af8Enabled: Boolean = false,
-    continueCost: Int, canCoinContinue: Boolean, canRewardedContinue: Boolean,
+    continueCost: Int, canCoinContinue: Boolean, canRewardedContinue: Boolean, adReady: Boolean = false,
     baseRewardCoins: Int = 0, adBusy: Boolean = false, onHome: () -> Unit = {},
     onShare: () -> Unit = {}, onContinueCoins: () -> Unit,
     onContinueRewarded: () -> Unit, onRestart: () -> Unit) {
@@ -1367,8 +1369,8 @@ private fun GameOverDialog(score: Long, timedOut: Boolean, af3Enabled: Boolean, 
         if (af3Enabled && canCoinContinue) OutlinedButton(onContinueCoins, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy) {
             Text("Continue · $continueCost coins or owned charge")
         }
-        if (af3Enabled && canRewardedContinue) OutlinedButton(onContinueRewarded, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy) {
-            Text("Watch ad · Clear space and continue")
+        if (af3Enabled && canRewardedContinue) OutlinedButton(onContinueRewarded, Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !adBusy && adReady) {
+            Text(if (adReady) "Watch ad · Clear space and continue" else "Ad not ready yet")
         }
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
             TextButton(onHome, enabled = !adBusy) { Text("Home") }
@@ -1391,7 +1393,7 @@ private fun InsufficientFundsSheet(
         title = { Text("Not enough coins") },
         confirmButton = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                GoldButton("Watch ad · Get 50 coins", enabled = canWatchAd, onClick = onWatchAd)
+                GoldButton(if (canWatchAd) "Watch ad · Get 50 coins" else "Ad not ready yet", enabled = canWatchAd, onClick = onWatchAd)
                 OutlinedButton(onShop, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Rewards") }
                 TextButton(onDismiss, Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Keep playing") }
             }

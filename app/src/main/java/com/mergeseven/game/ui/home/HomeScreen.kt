@@ -59,8 +59,6 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
     val config = LocalConfiguration.current
     val compactHome = config.screenHeightDp < 700 || config.screenWidthDp / LocalDensity.current.fontScale < 340
 
-    var moreModes by remember { mutableStateOf(false) }
-
     LaunchedEffect(Unit) { viewModel.refreshResumable() }
 
     WoodPage("Merge Seven", profile.coins, headerAction = {
@@ -112,27 +110,17 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
         WoodLink("Today's puzzle", "A fresh challenge with the same board for everyone", R.drawable.mode_daily_v3, onDailyClick)
 
-        OutlinedButton({ moreModes = !moreModes }, Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+        val descriptions = listOf("Follow the path, one satisfying merge at a time", "Build your best score without a timer",
 
-            Text(if (moreModes) "Hide game modes" else "Explore all six modes")
+            "Make every second count", "Relax, experiment, and undo freely", "A new puzzle every day", "Explore this week's personal challenge")
 
-        }
+        val art = listOf(R.drawable.mode_campaign_v3, R.drawable.mode_endless_v3, R.drawable.mode_time_v3,
 
-        if (moreModes) {
+            R.drawable.mode_zen_v3, R.drawable.mode_daily_v3, R.drawable.mode_weekly_v3)
 
-            val descriptions = listOf("Follow the path, one satisfying merge at a time", "Build your best score without a timer",
+        cards.forEachIndexed { i, card ->
 
-                "Make every second count", "Relax, experiment, and undo freely", "A new puzzle every day", "Explore this week's personal challenge")
-
-            val art = listOf(R.drawable.mode_campaign_v3, R.drawable.mode_endless_v3, R.drawable.mode_time_v3,
-
-                R.drawable.mode_zen_v3, R.drawable.mode_daily_v3, R.drawable.mode_weekly_v3)
-
-            cards.forEachIndexed { i, card ->
-
-                WoodLink(card.title, "${descriptions[i]} · Best ${card.bestScore}", art[i]) { onModeClick(card.modeId) }
-
-            }
+            WoodLink(card.title, "${descriptions[i]} · Best ${card.bestScore}", art[i]) { onModeClick(card.modeId) }
 
         }
 

@@ -178,6 +178,7 @@ data class GameUiState(
     val achievementToast: String? = null,
     val af8Enabled: Boolean = false,
     val af9Enabled: Boolean = false,
+    val rewardedAdReady: Boolean = false,
     val canDoubleCoins: Boolean = false,
     val canWatchHintAd: Boolean = false,
     val adStatusMessage: String? = null,
@@ -955,6 +956,7 @@ class GameViewModel @Inject constructor(
                     null
                 },
                 af9Enabled = featureFlags.isEnabled(Feature.AF9),
+                rewardedAdReady = adService.isReady(AdPlacement.FUNDS_COINS),
                 baseRewardCoins = synced.baseRewardCoins,
                 canDoubleCoins = featureFlags.isEnabled(Feature.AF9) && isComplete && synced.baseRewardCoins > 0 && !userDataRepository.rewardClaimed("${synced.runId}:double"),
                 canWatchHintAd = !unassistedChallenge() && featureFlags.isEnabled(Feature.AF9) &&

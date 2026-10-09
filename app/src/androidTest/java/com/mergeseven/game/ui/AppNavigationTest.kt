@@ -19,6 +19,15 @@ import org.junit.runner.RunWith
 class AppNavigationTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
+    @Test fun homeModesAreDirectlyAccessibleWithoutVisibilityToggle() {
+        compose.waitUntil(20_000) { compose.onAllNodesWithText("Weekly").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Explore all six modes").assertDoesNotExist()
+        compose.onNodeWithText("Hide game modes").assertDoesNotExist()
+        for (mode in listOf("Campaign", "Endless", "Time Attack", "Zen", "Daily Puzzle", "Weekly")) {
+            compose.onNodeWithText(mode).performScrollTo().assertIsDisplayed()
+        }
+    }
+
     @Test fun primaryDestinationsStayUsableWithoutPurchases() {
         compose.waitUntil(20_000) { compose.onAllNodesWithText("Merge Seven").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Rewards").performClick()
