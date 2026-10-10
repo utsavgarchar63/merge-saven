@@ -1,0 +1,127 @@
+{
+  "version": 4,
+  "created": "2026-10-10",
+  "generation_mode": "built-in image_gen",
+  "export_script": "tools/export_promo_art.py",
+  "direction": "Use case: ads-marketing. Original polished promotional artwork for the mobile hexagon number puzzle game Merge Seven. Premium playful 3D game illustration, tactile beveled hexagonal tiles, rich walnut brown background, luminous gold highlights, vivid cyan 2 tiles, green 4 tiles, coral-red 8 tiles, purple 16 tiles and amber 32 tiles. Crisp clean large embossed numerals, believable hexagonal geometry, beautiful soft studio lighting, vivid selective glow, curated composition, restrained sparkles, excellent visual hierarchy. This is original advertising artwork, with no phone, device frame, app UI, menus, status bars, screenshots, invented characters, watermarks, badges or fake reviews. Keep text legible with generous safe margins. ",
+  "assets": [
+    {
+      "master": "art/masters/promo_v4/feature.png",
+      "prompt": "Use case: ads-marketing. Original polished promotional artwork for the mobile hexagon number puzzle game Merge Seven. Premium playful 3D game illustration, tactile beveled hexagonal tiles, rich walnut brown background, luminous gold highlights, vivid cyan 2 tiles, green 4 tiles, coral-red 8 tiles, purple 16 tiles and amber 32 tiles. Crisp clean large embossed numerals, believable hexagonal geometry, beautiful soft studio lighting, vivid selective glow, curated composition, restrained sparkles, excellent visual hierarchy. This is original advertising artwork, with no phone, device frame, app UI, menus, status bars, screenshots, invented characters, watermarks, badges or fake reviews. Keep text legible with generous safe margins. Asset type: wide landscape game feature graphic and banner, aspect ratio exactly 2.048:1. Composition: large beautiful bold cream and gold title \"MERGE SEVEN\" in two lines at left, small readable tagline \"PLACE. MATCH. MERGE.\" underneath. Right side: spectacular cluster of colorful hexagonal tiles across a walnut game table, cyan 2, green 4, coral 8, purple 16 and a prominent radiant golden 32, a sweeping luminous golden merge trail, satisfying tactile depth. Left 46 percent reserved for title, no lettering overlapping tiles. Cinematic dynamic hero composition with all text safely within center 85 percent. Make it much richer than a plain wooden texture with seven blank tiles."
+    },
+    {
+      "master": "art/masters/promo_v4/01-place-match-merge.png",
+      "prompt": "Use case: ads-marketing. Original polished promotional artwork for the mobile hexagon number puzzle game Merge Seven. Premium playful 3D game illustration, tactile beveled hexagonal tiles, rich walnut brown background, luminous gold highlights, vivid cyan 2 tiles, green 4 tiles, coral-red 8 tiles, purple 16 tiles and amber 32 tiles. Crisp clean large embossed numerals, believable hexagonal geometry, beautiful soft studio lighting, vivid selective glow, curated composition, restrained sparkles, excellent visual hierarchy. This is original advertising artwork, with no phone, device frame, app UI, menus, status bars, screenshots, invented characters, watermarks, badges or fake reviews. Keep text legible with generous safe margins. Asset type: full-bleed portrait promotional poster, 9:16 aspect ratio. Top compact brand text \"MERGE SEVEN\". Large bold cream headline exactly \"PLACE. MATCH.\" and next line \"MERGE.\" Under headline small gold supporting copy exactly \"Connect 3. Keep climbing.\" Hero illustration in middle and lower portion: three clearly adjacent cyan hexagon tiles each labeled 2 converging toward a large radiant green hexagon tile labeled 4, joined by a flowing gold motion trail and a little golden star burst. Additional beautiful coral 8 and purple 16 tiles in foreground. A subtle honeycomb walnut tabletop supports the scene, dramatic close-up, an easy-to-understand beautiful merging story. Bottom tiny readable gold text exactly \"A little puzzle. A big chain.\" No UI or fake gameplay screenshot."
+    },
+    {
+      "master": "art/masters/promo_v4/02-six-ways-to-play.png",
+      "prompt": "Use case: ads-marketing. Original polished promotional artwork for the mobile hexagon number puzzle game Merge Seven. Premium playful 3D game illustration, tactile beveled hexagonal tiles, rich walnut brown background, luminous gold highlights, vivid cyan 2 tiles, green 4 tiles, coral-red 8 tiles, purple 16 tiles and amber 32 tiles. Crisp clean large embossed numerals, believable hexagonal geometry, beautiful soft studio lighting, vivid selective glow, curated composition, restrained sparkles, excellent visual hierarchy. This is original advertising artwork, with no phone, device frame, app UI, menus, status bars, screenshots, invented characters, watermarks, badges or fake reviews. Keep text legible with generous safe margins. Asset type: full-bleed portrait promotional poster, 9:16 aspect ratio. Top compact brand text \"MERGE SEVEN\". Large bold cream headline exactly \"SIX WAYS\" and next line \"TO PLAY\". Small supporting copy exactly \"Find your kind of puzzle.\" Below headline, six beautiful floating hexagonal jewel emblems in an airy 2-column by 3-row layout. Each emblem framed in gold over walnut and has a clear original illustrative symbol: colorful hex tile stairs for Campaign; infinity loop with cyan tiles for Endless; gold hourglass for Time Attack; peaceful green leaves and stones for Zen; calendar with small sun for Daily; gold star medallion for Weekly. Typeset readable exact labels directly beneath each emblem: \"Campaign\", \"Endless\", \"Time Attack\", \"Zen\", \"Daily\", \"Weekly\". Calm spacious composition, consistent craft, visually exciting at thumbnail size. No UI or menu cards."
+    },
+    {
+      "master": "art/masters/promo_v4/03-build-big-chains.png",
+      "prompt": "Use case: ads-marketing. Original polished promotional artwork for the mobile hexagon number puzzle game Merge Seven. Premium playful 3D game illustration, tactile beveled hexagonal tiles, rich walnut brown background, luminous gold highlights, vivid cyan 2 tiles, green 4 tiles, coral-red 8 tiles, purple 16 tiles and amber 32 tiles. Crisp clean large embossed numerals, believable hexagonal geometry, beautiful soft studio lighting, vivid selective glow, curated composition, restrained sparkles, excellent visual hierarchy. This is original advertising artwork, with no phone, device frame, app UI, menus, status bars, screenshots, invented characters, watermarks, badges or fake reviews. Keep text legible with generous safe margins. Asset type: full-bleed portrait promotional poster, 9:16 aspect ratio. Top compact brand text \"MERGE SEVEN\". Large bold cream headline exactly \"SMALL MOVES.\" and next line \"BIG CHAINS.\" Small gold supporting copy exactly \"Plan the next satisfying merge.\" Hero illustration: a dramatic curved cascading ribbon of colorful numbered hex tiles on a deep walnut tabletop, ascending from cyan 2 to green 4 to coral 8 to purple 16, ending at a large radiant golden 32 near lower middle. Golden arcs connect groups of matching tiles, tasteful golden sparks and dimensional flying tiles, conveys deliberate strategic cascading merges. Numbers remain legible. Premium energetic closeup game key art, clear breathing space beneath headline. No multipliers, unsupported rewards, UI, phone or screenshots."
+    },
+    {
+      "master": "art/masters/promo_v4/04-a-fresh-challenge.png",
+      "prompt": "Use case: ads-marketing. Original polished promotional artwork for the mobile hexagon number puzzle game Merge Seven. Premium playful 3D game illustration, tactile beveled hexagonal tiles, rich walnut brown background, luminous gold highlights, vivid cyan 2 tiles, green 4 tiles, coral-red 8 tiles, purple 16 tiles and amber 32 tiles. Crisp clean large embossed numerals, believable hexagonal geometry, beautiful soft studio lighting, vivid selective glow, curated composition, restrained sparkles, excellent visual hierarchy. This is original advertising artwork, with no phone, device frame, app UI, menus, status bars, screenshots, invented characters, watermarks, badges or fake reviews. Keep text legible with generous safe margins. Asset type: full-bleed portrait promotional poster, 9:16 aspect ratio. Top compact brand text \"MERGE SEVEN\". Large bold cream headline exactly \"A FRESH\" and next line \"CHALLENGE\". Small supporting copy exactly \"Your daily puzzle is waiting.\" Hero illustration: a premium golden calendar emblem embossed with a small sun, a small wrapped gold gift with green ribbon, and colorful numbered hexagonal tiles cyan 2, green 4, coral 8, purple 16 arranged in an inviting arc on rich walnut. Warm morning glow with a few golden sparks; a delightful inviting feeling of daily ritual, beautiful dimensional game art and tidy composition. Bottom tiny gold text exactly \"Daily puzzles. New possibilities.\" No dates, numeric reward claims, UI, phone or screenshots."
+    },
+    {
+      "master": "art/masters/promo_v4/home_banner.png",
+      "generation_brief": "Wide walnut game table, colorful beveled hex tiles with a golden central tile clustered at right, quiet negative space at left for native readable text; no words or UI.",
+      "brief_note": "Recovered generated artwork; reusable brief rather than the unavailable original verbatim prompt."
+    },
+    {
+      "master": "art/masters/promo_v4/launcher_emblem.png",
+      "prompt": "Use case: logo-brand. Asset type: original Android launcher icon foreground and Merge Seven app store icon emblem, square canvas with genuinely transparent background. Primary request: a striking premium casual hexagon merge puzzle game app icon matching warm walnut and gold promotional art, readable at 48 pixels. One large upright glossy golden beveled hexagonal tile with a large bold ivory numeral \"7\" at center, flanked behind lower left by a smaller vivid cyan hex tile and behind lower right by a smaller vivid green hex tile, with a tiny coral accent hex behind upper left. Compact tightly connected iconic silhouette; central gold 7 is dominant. Friendly tactile polished 3D game style, controlled highlights and subtle shadow, crisp outlines, no busy effects. No words, logos, ribbons, frame, platform badge, watermarks, extra numbers, stars, foliage, table or opaque background. All artwork, including shadows, must fit inside the central 60 percent of square canvas with generous truly transparent margins, to keep the logo safe inside Android circular adaptive masks. Flat front-facing symbol with a modest bevel, no perspective floor."
+    }
+  ],
+  "exports": [
+    {
+      "path": "store/feature_graphic_v4.png",
+      "dimensions": [
+        1024,
+        500
+      ],
+      "mode": "RGB",
+      "bytes": 810537
+    },
+    {
+      "path": "store/banners/merge_seven_landscape_v4.png",
+      "dimensions": [
+        2048,
+        1000
+      ],
+      "mode": "RGB",
+      "bytes": 2659657
+    },
+    {
+      "path": "store/app_icon_v4.png",
+      "dimensions": [
+        512,
+        512
+      ],
+      "mode": "RGB",
+      "bytes": 104974
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/home_banner_v4.webp",
+      "dimensions": [
+        1024,
+        426
+      ],
+      "mode": "RGB",
+      "bytes": 57290
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/ic_launcher_foreground_v4.webp",
+      "dimensions": [
+        432,
+        432
+      ],
+      "mode": "RGBA",
+      "bytes": 43220
+    },
+    {
+      "path": "store/promotional/01-place-match-merge.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 2638683
+    },
+    {
+      "path": "store/promotional/02-six-ways-to-play.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 2539342
+    },
+    {
+      "path": "store/promotional/03-build-big-chains.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 2571177
+    },
+    {
+      "path": "store/promotional/04-a-fresh-challenge.png",
+      "dimensions": [
+        1080,
+        1920
+      ],
+      "mode": "RGB",
+      "bytes": 2423440
+    }
+  ],
+  "validation": [
+    "Gradle :app:assembleDebug passed after the v4 Home and launcher changes.",
+    "Visually inspected all generated masters and text.",
+    "Export script verifies genuine alpha and Android 66dp safe-circle fit.",
+    "Posters are illustrations of existing features, stored separately from actual screenshots."
+  ]
+}

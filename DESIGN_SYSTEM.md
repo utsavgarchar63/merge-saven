@@ -1,6 +1,6 @@
 # Merge Seven — walnut design system
 
-Updated 2026-10-02. Preserve all six game modes and engine rules. Compose/Canvas owns presentation; engine/configuration owns gameplay.
+Updated 2026-10-10. Preserve all six game modes and engine rules. Compose/Canvas owns presentation; engine/configuration owns gameplay.
 
 | Element | Shipping direction |
 |---|---|
@@ -17,6 +17,8 @@ Shared components: WoodPage, WoodPanel, WoodLink, GoldButton. Background texture
 Four primary destinations: Home, Challenges, Rewards, Profile. Settings opens from headers. Home offers one-tap Play/Resume, next level, daily challenge and expandable six-mode cards. Challenges groups Daily/Weekly, login gifts and quests. Rewards offers optional exact-benefit ads, owned booster quantities and coin costs, and cosmetics. Profile links local achievements, statistics and cosmetics. There is no sign-in, leaderboard, save upload or account export.
 
 Compact Home omits its decorative hero so Play/Resume appears first. Enlarged-text headers move balances to a second row when needed; navigation labels stay on one line. All secondary pages respect safe drawing insets and the centered page bound. Cosmetics scrolls its preview with the catalog; narrow Challenges uses one gift column. Native confirmation dialogs support Android Back and scrollable level details. Result actions wrap instead of squeezing labels.
+
+Home's decorative hero now uses text-free v4 walnut-and-hex artwork with a dark gradient behind native text. The v4 launcher is a bold ivory 7 on a gold hex with cyan/green/coral accents; its transparent foreground is fitted within the Android 66dp safe circle. Opaque square store icons and five legacy launcher densities use the same emblem. Feature banners and four portrait promotional illustrations live in store, with prompts and export records in art/promo-manifest-v4.json. Promotional panels are artwork; actual app screenshots remain in store/screenshots.
 
 Gameplay hides navigation and banners. Select/tap-to-place and drag are supported. Drag starts after touch slop so rotation remains tappable. Press/drag previews placement and affected cells. Invalid moves explain rotation or another location without penalty. Primary boosters are Undo, Shuffle, Remove; More has advanced descriptions. Owned charges precede coins. Coin use requires confirmation. Zen preserves unlimited undo and ad suppression.
 
