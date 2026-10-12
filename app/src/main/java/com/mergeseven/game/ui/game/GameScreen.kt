@@ -6,7 +6,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.graphics.toArgb
 import com.mergeseven.game.ui.components.WoodPanel
 import com.mergeseven.game.ui.components.GoldButton
 import androidx.compose.foundation.background
@@ -29,9 +28,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.withTransform
+import com.mergeseven.game.ui.feel.GameMotion
 import com.mergeseven.game.ui.feel.MergeFlight
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
@@ -98,12 +96,7 @@ fun GameScreen(
     onNavigateHome: () -> Unit = {},
     onNavigateShop: () -> Unit = {}
 ) {
-    val fontContext = LocalContext.current
-    remember(fontContext) {
-        tileTypeface = com.mergeseven.game.core.audio.GameFont.bold(fontContext)
-        tileTextCache.evictAll()
-        true
-    }
+    val tileTypeface = rememberTileTypeface()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val juiceState by viewModel.juiceUiState.collectAsStateWithLifecycle()
     val boardTheme = BoardThemes.of(if (uiState.modeId == ModeIds.ZEN) "zen" else uiState.boardThemeId)
@@ -112,6 +105,7 @@ fun GameScreen(
     val layoutDirection = LocalLayoutDirection.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val compactHelp = configuration.screenHeightDp < 700 || LocalDensity.current.fontScale > 1.2f
+    val compactControls = configuration.screenHeightDp < 640 && LocalDensity.current.fontScale <= 1.3f
     var showTutorialHelp by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(uiState.tutorialActive, uiState.animatedGuideSeen, uiState.isLoading) {
         if (uiState.tutorialActive && !uiState.animatedGuideSeen && !uiState.isLoading) showTutorialHelp = true
@@ -429,7 +423,7 @@ fun GameScreen(
                         .fillMaxWidth()
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(if (compactControls) 4.dp else 8.dp))
 
 
                 BoosterTray(
@@ -458,7 +452,7 @@ fun GameScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = if (compactControls) 4.dp else 12.dp)
                 )
             }
         }
@@ -500,7 +494,8 @@ fun GameScreen(
                             previewHexSize,
                             tileTheme.tileColor(cell.value),
                             cell.value,
-                            showShapeCue = uiState.colourblindMode != ColourblindMode.OFF
+                            showShapeCue = uiState.colourblindMode != ColourblindMode.OFF,
+                            material = TileMaterial.of(tileTheme.id), typeface = tileTypeface
                         )
                     }
                 }
@@ -707,7 +702,8 @@ private fun GameTopBar(
     timeRemainingMs: Long = 0L,
     onPauseClick: () -> Unit
 ) {
-    val compact = LocalConfiguration.current.screenHeightDp < 700 && LocalDensity.current.fontScale > 1.2f
+    val compact = LocalConfiguration.current.screenHeightDp < 640 ||
+        (LocalConfiguration.current.screenHeightDp < 700 && LocalDensity.current.fontScale > 1.2f)
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -916,6 +912,7 @@ private fun GameBoardSection(
                     hoveredCells = uiState.hoveredCells,
                     hintCells = uiState.hintCells,
                     boardTheme = boardTheme,
+                    tileThemeId = uiState.tileThemeId,
                     focusedCell = if (uiState.af11Enabled) focusedCell else null,
                     colourblindMode = uiState.colourblindMode,
                     largeTouchTargets = uiState.largeTouchTargets,
@@ -981,6 +978,7 @@ private fun HexBoardCanvas(
     hoveredCells: List<Pair<HexCoord, Boolean>> = emptyList(),
     hintCells: List<HexCoord> = emptyList(),
     boardTheme: com.mergeseven.game.ui.theme.BoardTheme = BoardThemes.Wood,
+    tileThemeId: String = "classic",
     focusedCell: HexCoord? = null,
     colourblindMode: ColourblindMode = ColourblindMode.OFF,
     largeTouchTargets: Boolean = false,
@@ -992,6 +990,9 @@ private fun HexBoardCanvas(
     onBoardBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val tileTypeface = rememberTileTypeface()
+    val material = TileMaterial.of(tileThemeId)
+    val tileTheme = remember(tileThemeId, colourblindMode) { TileThemes.of(tileThemeId).withColourblindMode(colourblindMode) }
     val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
     val boardPad = if (largeTouchTargets) 8.dp else 16.dp
     val arrival = remember { Animatable(1f) }
@@ -1003,14 +1004,14 @@ private fun HexBoardCanvas(
         previousTiles = tiles
         if (!reduceMotion && arrivingCells.isNotEmpty()) {
             arrival.snapTo(0.72f)
-            arrival.animateTo(1f, spring(dampingRatio = 0.78f, stiffness = 650f))
+            arrival.animateTo(1f, spring(dampingRatio = GameMotion.LANDING_DAMPING, stiffness = GameMotion.LANDING_STIFFNESS))
         } else arrival.snapTo(1f)
         arrivingCells = emptySet()
     }
     LaunchedEffect(motionRevision, reduceMotion) {
         if (!reduceMotion && mergeFlights.isNotEmpty()) {
             mergeProgress.snapTo(0f)
-            mergeProgress.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
+            mergeProgress.animateTo(1f, tween(GameMotion.MERGE_MS, easing = FastOutSlowInEasing))
         } else mergeProgress.snapTo(1f)
     }
 
@@ -1053,7 +1054,7 @@ private fun HexBoardCanvas(
 
         for (cell in hintCells) {
             val (px, py) = HexGeometry.hexToPixel(cell, hexSize, centerX, centerY)
-            drawHexCell(px, py, hexSize, boardTheme.cellHint)
+            drawHexHighlight(px, py, hexSize, boardTheme.cellHint)
         }
 
         for ((coord, tile) in tiles) {
@@ -1068,7 +1069,7 @@ private fun HexBoardCanvas(
                 tile.freezeStage,
                 tile.multiplierFactor,
                 showShapeCue = colourblindMode != ColourblindMode.OFF,
-                fontScale = fontScale
+                fontScale = fontScale, material = material, typeface = tileTypeface
             )
             cellModifiers[coord]?.let { mod ->
                 if (mod.type != CellModifierType.SPAWN_VENT) {
@@ -1081,16 +1082,17 @@ private fun HexBoardCanvas(
         if (!reduceMotion && mergeT < 1f) for (flight in mergeFlights) {
             val (fx, fy) = HexGeometry.hexToPixel(flight.from, hexSize, centerX, centerY)
             val (tx, ty) = HexGeometry.hexToPixel(flight.to, hexSize, centerX, centerY)
-            val flightColor = tiles[flight.from]?.color ?: TileThemes.of("classic").tileColor(flight.value)
+            val flightColor = tiles[flight.from]?.color ?: tileTheme.tileColor(flight.value)
             drawHexTile(fx + (tx - fx) * mergeT, fy + (ty - fy) * mergeT,
                 hexSize * (1f - mergeT * 0.75f), flightColor, flight.value,
-                showShapeCue = colourblindMode != ColourblindMode.OFF, fontScale = fontScale)
+                showShapeCue = colourblindMode != ColourblindMode.OFF, fontScale = fontScale,
+                material = material, typeface = tileTypeface)
         }
 
         for ((cell, isValid) in hoveredCells) {
             val (px, py) = HexGeometry.hexToPixel(cell, hexSize, centerX, centerY)
             val hoverColor = if (isValid) boardTheme.cellHighlight else boardTheme.cellInvalid
-            drawHexCell(px, py, hexSize, hoverColor)
+            drawHexHighlight(px, py, hexSize, hoverColor)
         }
 
         focusedCell?.let { cell ->
@@ -1162,7 +1164,8 @@ private fun ThreeOptionBottomTray(
     modifier: Modifier = Modifier
 ) {
     val narrow = LocalConfiguration.current.screenWidthDp < 360
-    val trayHeight = if (largeTouchTargets) 96.dp else if (narrow) 64.dp else 80.dp
+    val compact = LocalConfiguration.current.screenHeightDp < 640 && LocalDensity.current.fontScale <= 1.3f
+    val trayHeight = if (largeTouchTargets) 96.dp else if (compact) 48.dp else if (narrow) 64.dp else 80.dp
     // Whether the selected slot actually has a piece to rotate
     val canRotate = trayPieces.getOrNull(selectedSlotIndex) != null
 
@@ -1275,6 +1278,12 @@ private fun PieceTrayOptionCard(
     val borderWidth = if (isSelected) 3.dp else 1.dp
     val bgColor = if (isSelected) GameColors.WoodLight.copy(alpha = 0.35f) else GameColors.WoodDark.copy(alpha = 0.4f)
     val slotDesc = stringResource(R.string.game_tray_slot, slotIndex + 1)
+    val tileTypeface = rememberTileTypeface()
+    val selection = animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = tween(if (reduceMotion) 0 else GameMotion.SELECT_MS), label = "traySelection"
+    )
+    val lift = with(LocalDensity.current) { 2.dp.toPx() }
     val turn = remember { Animatable(0f) }
     var previousPiece by remember { mutableStateOf(piece) }
     LaunchedEffect(piece, reduceMotion) {
@@ -1283,7 +1292,7 @@ private fun PieceTrayOptionCard(
         if (!reduceMotion && old != null && piece != null && old.cells == piece.cells && old.rotation != piece.rotation) {
             val steps = (piece.rotation - old.rotation + 6) % 6
             turn.snapTo(if (steps <= 3) -steps * 60f else (6 - steps) * 60f)
-            turn.animateTo(0f, tween(160, easing = FastOutSlowInEasing))
+            turn.animateTo(0f, tween(GameMotion.ROTATE_MS, easing = FastOutSlowInEasing))
         } else turn.snapTo(0f)
     }
 
@@ -1303,7 +1312,7 @@ private fun PieceTrayOptionCard(
             Canvas(modifier = Modifier.fillMaxSize().padding(6.dp)) {
                 val hexSize = minOf(size.width, size.height) / 4.2f
                 val centerX = size.width / 2f
-                val centerY = size.height / 2f
+                val centerY = size.height / 2f - selection.value * lift
 
                 for (cell in piece.rotatedCells()) {
                     val (rawX, rawY) = HexGeometry.hexToPixel(cell.offset, hexSize, centerX, centerY)
@@ -1318,7 +1327,8 @@ private fun PieceTrayOptionCard(
                         hexSize,
                         tileTheme.tileColor(cell.value),
                         cell.value,
-                        showShapeCue = colourblindMode != ColourblindMode.OFF
+                        showShapeCue = colourblindMode != ColourblindMode.OFF,
+                        material = TileMaterial.of(tileTheme.id), typeface = tileTypeface
                     )
                 }
             }
@@ -1413,83 +1423,6 @@ private fun BoosterConfirmSheet(
         confirmButton = { TextButton(onConfirm) { Text("Use coins") } },
         dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.cancel)) } },
         containerColor = GameColors.WoodMid)
-}
-
-/**
- * Draw empty hex cell outline.
- */
-private fun DrawScope.drawHexCell(
-    centerX: Float,
-    centerY: Float,
-    size: Float,
-    color: Color
-) {
-    drawCachedHex(centerX, centerY, size * 0.95f, color)
-
-}
-
-/**
- * Draw filled hex tile with number value.
- */
-private fun DrawScope.drawHexTile(
-    centerX: Float,
-    centerY: Float,
-    size: Float,
-    color: Color,
-    value: Int,
-    trait: TileTrait = TileTrait.NORMAL,
-    freezeStage: Int = 0,
-    multiplierFactor: Int = 1,
-    showShapeCue: Boolean = false,
-    fontScale: Float = 1f
-) {
-    if (!size.isFinite() || size <= 0f) return
-    val tileSize = size * 0.9f
-
-    drawCachedHex(centerX + 2f, centerY + 4f, tileSize, Color.Black.copy(alpha = 0.32f))
-    drawCachedHex(centerX, centerY + 2f, tileSize, color.copy(alpha = 0.8f))
-    drawCachedHex(centerX, centerY, tileSize, color)
-    drawCachedHex(centerX, centerY - 1f, tileSize * 0.85f, Color.White.copy(alpha = 0.15f))
-
-    drawTraitSilhouette(centerX, centerY, tileSize, trait, freezeStage, multiplierFactor)
-    if (showShapeCue) {
-        drawValueShapeCue(centerX, centerY, tileSize, value)
-    }
-
-    drawContext.canvas.nativeCanvas.apply {
-        val baseText = when {
-            value >= 1000 -> tileSize * 0.35f
-            value >= 100 -> tileSize * 0.45f
-            else -> tileSize * 0.55f
-        }
-        val textSize = (baseText * fontScale).coerceAtMost(tileSize * 0.72f)
-        val label = value.toString()
-        val key = TileTextKey(value, GameColors.textOnTile(color).toArgb(), textSize.toBits(), tileSize.toBits())
-        val paint = tileTextCache.get(key) ?: android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = key.color
-            this.textSize = textSize
-            textAlign = android.graphics.Paint.Align.CENTER
-            typeface = tileTypeface
-            val measuredWidth = measureText(label)
-            val maxWidth = tileSize * 1.45f
-            if (measuredWidth > maxWidth && measuredWidth > 0f) this.textSize *= maxWidth / measuredWidth
-            tileTextCache.put(key, this)
-        }
-        val textY = centerY - (paint.ascent() + paint.descent()) / 2f
-        drawText(label, centerX, textY, paint)
-    }
-}
-
-private data class TileTextKey(val value: Int, val color: Int, val textSize: Int, val tileSize: Int)
-private var tileTypeface: android.graphics.Typeface? = null
-private val tileTextCache = android.util.LruCache<TileTextKey, android.graphics.Paint>(128)
-private val normalizedHex = hexPath(0f, 0f, 1f)
-
-private fun DrawScope.drawCachedHex(x: Float, y: Float, radius: Float, color: Color) {
-    if (!radius.isFinite() || radius <= 0f) return
-    withTransform({ translate(x, y); scale(radius, radius, Offset.Zero) }) {
-        drawPath(normalizedHex, color)
-    }
 }
 
 private fun hexPath(

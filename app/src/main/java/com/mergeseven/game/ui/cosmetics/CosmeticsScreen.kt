@@ -1,5 +1,7 @@
 package com.mergeseven.game.ui.cosmetics
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,6 +37,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.mergeseven.game.ui.game.TileMaterial
+import com.mergeseven.game.ui.game.drawHexTile
+import com.mergeseven.game.ui.game.drawHexCell
+import com.mergeseven.game.ui.game.drawHexHighlight
+import com.mergeseven.game.ui.game.rememberTileTypeface
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -363,108 +374,48 @@ private fun CosmeticPreviewBanner(
             } else {
                 val theme = BoardThemes.of(previewId)
                 // Render mini board preview
-                BoardGridPreview(theme = theme)
+                BoardGridPreview(theme = theme, tileTheme = TileThemes.of(equippedTileId))
             }
         }
     }
 }
 
-/**
- * Styled mini tile chip for preview header.
- */
+/** The same material, font and hex renderer used on the playing board. */
 @Composable
 private fun TileChipPreview(theme: TileTheme, value: Int) {
-    val bgColor = theme.tileColor(value)
-    val txtColor = theme.tileTextColor(value)
-
-    Box(
-        modifier = Modifier
-            .size(46.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(bgColor)
-            .border(1.5.dp, Color.White.copy(alpha = theme.strokeAlpha), RoundedCornerShape(10.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "$value",
-            color = txtColor,
-            fontWeight = FontWeight.Bold,
-            fontSize = 15.sp
-        )
+    val typeface = rememberTileTypeface()
+    val fontScale = LocalDensity.current.fontScale
+    Canvas(Modifier.size(46.dp).semantics { contentDescription = "Tile $value" }) {
+        drawHexTile(size.width / 2f, size.height / 2f, size.minDimension * 0.47f,
+            theme.tileColor(value), value, fontScale = fontScale,
+            material = TileMaterial.of(theme.id), typeface = typeface)
     }
 }
 
-/**
- * Styled mini board grid preview for board cosmetics.
- */
+/** Actual equipped board artwork and real hex cells, rather than square color samples. */
 @Composable
-private fun BoardGridPreview(theme: BoardTheme) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(theme.overlayColor.compositeOverWood())
-            .border(1.dp, GameColors.WoodLight.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-            .padding(10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Empty Cell
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(theme.cellEmpty)
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("EMPTY", color = GameColors.TextWhite.copy(alpha = 0.5f), fontSize = 8.sp)
-            }
-
-            // Highlighted Cell
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(theme.cellHighlight)
-                    .border(1.5.dp, GameColors.CoinGold, RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("CELL", color = Color.White, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-            }
-
-            // Cell with Sample Tile
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(theme.cellEmpty),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(GameColors.TileRed),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("8", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+private fun BoardGridPreview(theme: BoardTheme, tileTheme: TileTheme) {
+    val typeface = rememberTileTypeface()
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+        .border(1.dp, GameColors.WoodLight.copy(alpha = 0.4f), RoundedCornerShape(12.dp))) {
+        Image(painterResource(theme.backgroundRes), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.matchParentSize().background(theme.overlayColor))
+        Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf("Empty", "Selected", "Tile", "Hint").forEachIndexed { index, label ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Canvas(Modifier.size(44.dp).semantics { contentDescription = "$label cell" }) {
+                        val x = size.width / 2f; val y = size.height / 2f; val radius = size.minDimension * 0.45f
+                        drawHexCell(x, y, radius, theme.cellEmpty)
+                        when (index) {
+                            1 -> drawHexHighlight(x, y, radius, theme.cellHighlight)
+                            2 -> drawHexTile(x, y, radius, tileTheme.tileColor(8), 8,
+                                material = TileMaterial.of(tileTheme.id), typeface = typeface)
+                            3 -> drawHexHighlight(x, y, radius, theme.cellHint)
+                        }
+                    }
+                    Text(label, color = GameColors.TextWhite, fontSize = 11.sp)
                 }
-            }
-
-            // Hint Cell
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(theme.cellHint)
-                    .border(1.dp, Color.Cyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("HINT", color = Color.White, fontSize = 8.sp)
             }
         }
     }

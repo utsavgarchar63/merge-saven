@@ -50,8 +50,10 @@ fun BoosterTray(
     var more by remember { mutableStateOf(false) }
     val primary = setOf(BoosterType.UNDO, BoosterType.RANDOMIZE, BoosterType.REMOVE)
     val shown = buttons.filter { it.type in primary }
-    val stackedLabels = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 360 ||
-        androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
+    val compact = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp < 640 &&
+        androidx.compose.ui.platform.LocalDensity.current.fontScale <= 1.3f
+    val stackedLabels = !compact && (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 360 ||
+        androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f)
     if (verticalLayout) {
         Column(modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             shown.forEach { btn -> PrimaryBoosterCard(btn, onBooster, Modifier.fillMaxWidth(), false) }
@@ -60,7 +62,7 @@ fun BoosterTray(
     } else {
         Row(modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            shown.forEach { btn -> PrimaryBoosterCard(btn, onBooster, Modifier.weight(1f), stackedLabels) }
+            shown.forEach { btn -> PrimaryBoosterCard(btn, onBooster, Modifier.weight(1f), stackedLabels, compact) }
             if (af3Enabled) TextButton({ more = true }, Modifier.widthIn(min = 48.dp).heightIn(min = 48.dp)) { Text("More") }
         }
     }
@@ -101,9 +103,9 @@ private fun labelFor(type: BoosterType): String = when (type) {
 
 @Composable
 private fun PrimaryBoosterCard(btn: BoosterButtonUi, onBooster: (BoosterType) -> Unit,
-    modifier: Modifier, stacked: Boolean) {
+    modifier: Modifier, stacked: Boolean, compact: Boolean = false) {
     Surface(onClick = { onBooster(btn.type) }, enabled = btn.enabled,
-        modifier = modifier.heightIn(min = 56.dp).semantics(mergeDescendants = true) {
+        modifier = modifier.heightIn(min = if (compact) 48.dp else 56.dp).semantics(mergeDescendants = true) {
             contentDescription = "${boosterName(btn.type)}. ${boosterDescription(btn.type)}. " +
                 if (btn.unlimited) "Unlimited. No coins or charges used." else "Owned ${btn.owned}. ${btn.cost} coins if no charge."
         }, shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp), color = GameColors.WoodMid) {
@@ -117,11 +119,19 @@ private fun PrimaryBoosterCard(btn: BoosterButtonUi, onBooster: (BoosterType) ->
             }, style = MaterialTheme.typography.labelSmall)
             Text(if (btn.unlimited) "Free" else if (btn.owned > 0) btn.owned.toString() else "${btn.cost}c",
                 style = MaterialTheme.typography.labelSmall, color = GameColors.CoinGold)
-        } else Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            GameIcon(GameIcons.booster(btn.type), null, size = 24.dp)
+        } else Row(Modifier.padding(if (compact) 4.dp else 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            GameIcon(GameIcons.booster(btn.type), null, size = if (compact) 20.dp else 24.dp)
             Column(Modifier.weight(1f).padding(start = 4.dp)) {
-                Text(labelFor(btn.type), style = MaterialTheme.typography.labelMedium)
-                Text(quantity, style = MaterialTheme.typography.labelSmall, color = GameColors.CoinGold)
+                Text(if (compact) when (btn.type) {
+                    BoosterType.RANDOMIZE -> "Mix"
+                    BoosterType.REMOVE -> "Clear"
+                    else -> labelFor(btn.type)
+                } else labelFor(btn.type), style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium)
+                Text(if (compact) when {
+                    btn.unlimited -> "Free"
+                    btn.owned > 0 -> btn.owned.toString()
+                    else -> "${btn.cost}c"
+                } else quantity, style = MaterialTheme.typography.labelSmall, color = GameColors.CoinGold)
             }
         }
     }

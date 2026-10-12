@@ -1,6 +1,6 @@
 # Merge Seven — walnut design system
 
-Updated 2026-10-10. Preserve all six game modes and engine rules. Compose/Canvas owns presentation; engine/configuration owns gameplay.
+Updated 2026-10-12. Preserve all six game modes and engine rules. Compose/Canvas owns presentation; engine/configuration owns gameplay.
 
 | Element | Shipping direction |
 |---|---|
@@ -35,6 +35,10 @@ Existing wood, board and Zen background images are unchanged. Generated badge ic
 On compact screens, tutorial instructions use concise prompts. Hints and advanced boosters live in More so the board keeps practical space. Canvas drawing skips nonpositive geometry, and number fitting is a bounded proportional calculation.
 
 ## Smooth board presentation
+
+The shared HexTileRenderer now supplies normalized bevels, side faces, contact shadows, material-specific rims and fitted Nunito digits for gameplay, tray, drag ghosts, merge flights and cosmetic previews. The center of each face retains its theme fill for number contrast. Jewel, Marble, Neon and Gold surfaces share the same geometry. Empty cells have inset edges; hint/placement outlines use a light fill so occupied numbers remain visible. Surface and text caches are bounded.
+
+On short screens at normal text sizes, the header combines mode/score, booster controls remain at least 48dp, and the tray uses 48dp slots with less outer spacing. Large-touch settings and enlarged-font control layouts retain their existing sizing. A 140ms tray selection lift respects reduced motion. GameMotion holds existing rotation, merge and landing timings; game rules, timers and saving are independent of presentation.
 
 Use short placement springs, 160 ms rotation interpolation and 260 ms merge flights. Keep labels upright and commit engine moves immediately. Reuse normalized Canvas hex paths and bounded text paint caches. Run particle frame clocks only while effects are active; pause them offscreen and cancel them with reduced motion. Read per-frame shake offsets in graphicsLayer. Deduplicate identical drag previews.
 
