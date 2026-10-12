@@ -36,6 +36,7 @@ def main():
     export("feature.png", STORE / "feature_graphic_v4.png", (1024, 500), optimize=True)
     export("feature.png", STORE / "banners/merge_seven_landscape_v4.png", (2048, 1000), optimize=True)
     export("home_banner.png", DRAWABLE / "home_banner_v4.webp", (1024, 426), quality=86, method=6)
+    export("feature.png", DRAWABLE / "home_brand_banner_v4.webp", (1024, 500), quality=90, method=6)
     for name in ("01-place-match-merge", "02-six-ways-to-play", "03-build-big-chains", "04-a-fresh-challenge"):
         export(name + ".png", STORE / "promotional" / (name + ".png"), (1080, 1920), optimize=True)
 
@@ -90,7 +91,7 @@ def main():
     manifest_path = ROOT / "art/promo-manifest-v4.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     exports = [STORE / "feature_graphic_v4.png", STORE / "banners/merge_seven_landscape_v4.png",
-               STORE / "app_icon_v4.png", DRAWABLE / "home_banner_v4.webp",
+               STORE / "app_icon_v4.png", DRAWABLE / "home_banner_v4.webp", DRAWABLE / "home_brand_banner_v4.webp",
                DRAWABLE / "ic_launcher_foreground_v4.webp"]
     exports.extend(sorted((STORE / "promotional").glob("*.png")))
     manifest["exports"] = []

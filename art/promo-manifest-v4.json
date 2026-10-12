@@ -116,6 +116,15 @@
       ],
       "mode": "RGB",
       "bytes": 2423440
+    },
+    {
+      "path": "app/src/main/res/drawable-nodpi/home_brand_banner_v4.webp",
+      "dimensions": [
+        1024,
+        500
+      ],
+      "mode": "RGB",
+      "bytes": 125054
     }
   ],
   "validation": [

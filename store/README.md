@@ -19,7 +19,7 @@ Original built-in imagegen artwork, reviewed and exported on 2026-10-10. Open `p
 
 The portrait panels are promotional illustrations, created without app captures or phone frames. The existing `screenshots/` directory contains actual app captures. Use the asset type appropriate to the placement.
 
-The app uses an optimized text-free Home banner with native Compose copy, a transparent adaptive foreground inside Android's 66dp safe circle, and square/round legacy launcher icons at all five densities. Promotional posters and PNG masters are excluded from the APK. Store icon backgrounds are opaque and square; the launcher applies its own system mask.
+The app shows an optimized version of the generated Merge Seven feature banner first on Home, including compact screens, with its complete composition and accessible description. It uses a transparent adaptive foreground inside Android's 66dp safe circle, and square/round legacy launcher icons at all five densities. Promotional posters and PNG masters are excluded from the APK. Store icon backgrounds are opaque and square; the launcher applies its own system mask.
 
 Source masters and prompts: `../art/masters/promo_v4/`, `../art/promo-manifest-v4.json`. Regenerate deterministic exports with `python tools/export_promo_art.py` from the project root (requires Pillow). Some exports resize the generated masters slightly; this is recorded in the manifest. Publishing to a store has not been requested.
 

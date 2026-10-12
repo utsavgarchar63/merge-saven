@@ -3,7 +3,6 @@ package com.mergeseven.game.ui.home
 
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 
 import androidx.compose.foundation.layout.*
@@ -12,12 +11,8 @@ import androidx.compose.material3.*
 
 import androidx.compose.runtime.*
 
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 
 import androidx.compose.ui.res.painterResource
@@ -60,8 +55,6 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
     val cards by viewModel.modeCards.collectAsStateWithLifecycle()
 
-    val config = LocalConfiguration.current
-    val compactHome = config.screenHeightDp < 700 || config.screenWidthDp / LocalDensity.current.fontScale < 340
 
     LaunchedEffect(Unit) { viewModel.refreshResumable() }
 
@@ -71,28 +64,13 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
     }, footer = { BannerAdHost() }) {
 
-        if (!compactHome) {
-            Surface(shape = RoundedCornerShape(24.dp)) {
-                Box(Modifier.fillMaxWidth().heightIn(min = 156.dp)) {
-                    Image(
-                        painterResource(R.drawable.home_banner_v4), null,
-                        Modifier.matchParentSize(), contentScale = ContentScale.Crop
-                    )
-                    Box(Modifier.matchParentSize().background(Brush.horizontalGradient(
-                        listOf(GameColors.WoodDark, GameColors.WoodDark.copy(alpha = 0.75f), Color.Transparent)
-                    )))
-                    Column(
-                        Modifier.fillMaxWidth(0.58f).padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("A little puzzle. A big chain.", style = MaterialTheme.typography.headlineSmall,
-                            color = GameColors.TextWhite)
-                        Text("Place · Match · Merge", style = MaterialTheme.typography.bodyMedium,
-                            color = GameColors.CoinGold)
-                    }
-                }
-            }
-
+        Surface(shape = RoundedCornerShape(20.dp)) {
+            Image(
+                painter = painterResource(R.drawable.home_brand_banner_v4),
+                contentDescription = "Merge Seven. Place. Match. Merge.",
+                modifier = Modifier.fillMaxWidth().aspectRatio(1024f / 500f),
+                contentScale = ContentScale.Fit
+            )
         }
 
         WoodPanel {
