@@ -22,6 +22,8 @@ interface SettingsRepository {
     val isHapticsEnabled: Flow<Boolean>
     val isReduceMotionEnabled: Flow<Boolean>
     val isNotificationsEnabled: Flow<Boolean>
+    /** Claims first-launch notification setup once; existing explicit choices count as handled. */
+    suspend fun beginNotificationStartup(): Boolean = false
     val tutorialStep: Flow<Int> get() = kotlinx.coroutines.flow.flowOf(0)
     suspend fun setTutorialStep(step: Int) {}
     val isTutorialCompleted: Flow<Boolean>
@@ -60,6 +62,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val KEY_HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
         val KEY_REDUCE_MOTION_ENABLED = booleanPreferencesKey("reduce_motion_enabled")
         val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
+        val KEY_NOTIFICATION_STARTUP_HANDLED = booleanPreferencesKey("notification_startup_handled")
         val KEY_TUTORIAL_COMPLETED = booleanPreferencesKey("tutorial_completed")
         val KEY_GUIDE_SEEN = booleanPreferencesKey("animated_guide_seen")
         val KEY_GUIDE_PAGE = androidx.datastore.preferences.core.intPreferencesKey("animated_guide_page")
@@ -159,6 +162,18 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun beginNotificationStartup(): Boolean {
+        var claimed = false
+        dataStore.edit { preferences ->
+            if (preferences[PreferencesKeys.KEY_NOTIFICATION_STARTUP_HANDLED] != true &&
+                !preferences.contains(PreferencesKeys.KEY_NOTIFICATIONS_ENABLED)) {
+                preferences[PreferencesKeys.KEY_NOTIFICATION_STARTUP_HANDLED] = true
+                claimed = true
+            }
+        }
+        return claimed
+    }
+
     override suspend fun setTutorialCompleted(completed: Boolean) {
         dataStore.edit { preferences ->
             preferences[PreferencesKeys.KEY_TUTORIAL_COMPLETED] = completed
@@ -179,7 +194,10 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun resetSettings() {
         dataStore.edit { preferences ->
+            val startupHandled = preferences[PreferencesKeys.KEY_NOTIFICATION_STARTUP_HANDLED] == true ||
+                preferences.contains(PreferencesKeys.KEY_NOTIFICATIONS_ENABLED)
             preferences.clear()
+            if (startupHandled) preferences[PreferencesKeys.KEY_NOTIFICATION_STARTUP_HANDLED] = true
         }
     }
 }

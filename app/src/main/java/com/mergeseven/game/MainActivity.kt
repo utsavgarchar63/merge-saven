@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.withResumed
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -32,6 +33,21 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    private val notificationStartupReady = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    private val notificationPermission = activityResultRegistry.register(
+        "notification_startup", this,
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        lifecycleScope.launch {
+            try {
+                settingsRepository.setNotificationsEnabled(granted)
+                reminderManager.sync()
+                android.util.Log.i("NotificationStartup", "permission_result granted=$granted")
+            } finally { notificationStartupReady.value = true }
+        }
+    }
 
     private lateinit var playUpdates: com.mergeseven.game.core.updates.PlayUpdateController
     private val updateLauncher = registerForActivityResult(
@@ -78,6 +94,7 @@ class MainActivity : ComponentActivity() {
                 val adsEnabled by featureFlags.observe(Feature.AF9).collectAsState(initial = featureFlags.isEnabled(Feature.AF9))
                 LaunchedEffect(adsEnabled) {
                     if (adsEnabled) {
+                        notificationStartupReady.first { it }
                         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                             while (isActive) {
                                 if (!consentManager.resolved.value || !consentManager.canRequestAds.value)
@@ -85,6 +102,28 @@ class MainActivity : ComponentActivity() {
                                 delay(30_000L)
                             }
                         }
+                    }
+                }
+                LaunchedEffect(this@MainActivity) {
+                    // Notification setup must work offline and precede the privacy dialog.
+                    lifecycle.withResumed { }
+                    if (!settingsRepository.beginNotificationStartup()) {
+                        notificationStartupReady.value = true
+                        return@LaunchedEffect
+                    }
+                    if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                        !com.mergeseven.game.core.liveops.LocalReminderManager.permissionGranted(this@MainActivity)) {
+                        lifecycle.withResumed {
+                            notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                            android.util.Log.i("NotificationStartup", "permission_requested")
+                        }
+                    } else {
+                        try {
+                            val allowed = androidx.core.app.NotificationManagerCompat.from(this@MainActivity).areNotificationsEnabled()
+                            settingsRepository.setNotificationsEnabled(allowed)
+                            reminderManager.sync()
+                            android.util.Log.i("NotificationStartup", "setup_complete enabled=$allowed")
+                        } finally { notificationStartupReady.value = true }
                     }
                 }
                 Surface(

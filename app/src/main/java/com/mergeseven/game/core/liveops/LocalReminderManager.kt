@@ -27,6 +27,8 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -39,23 +41,35 @@ class LocalReminderManager @Inject constructor(
     private val settingsRepository: SettingsRepository,
     @PersistenceScope private val scope: CoroutineScope
 ) {
+    private val syncMutex = Mutex()
     fun syncAsync() { scope.launch { sync() } }
     suspend fun sync() {
+        // Serialize foreground refresh and the permission callback so an older OFF read
+        // cannot cancel the work just created after Allow.
+        syncMutex.withLock {
         val work = WorkManager.getInstance(context)
         if (!settingsRepository.isNotificationsEnabled.first() || !permissionGranted(context)) {
             work.cancelUniqueWork(WORK)
             NotificationManagerCompat.from(context).cancel(NOTIFICATION)
-            return
+            return@withLock
         }
+        ensureChannel(context)
         val request = PeriodicWorkRequestBuilder<PuzzleReminderWorker>(24, TimeUnit.HOURS)
             .setInitialDelay(ReminderPolicy.delayUntilEvening(ZonedDateTime.now()), TimeUnit.MILLISECONDS)
             .addTag(WORK).build()
         work.enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, request)
+        }
     }
     companion object {
         const val WORK = "local_daily_puzzle_reminder"
         const val CHANNEL = "daily_puzzles"
         const val NOTIFICATION = 701
+        internal fun ensureChannel(context: Context) {
+            if (Build.VERSION.SDK_INT >= 26) context.getSystemService(NotificationManager::class.java)
+                ?.createNotificationChannel(NotificationChannel(CHANNEL, "Daily puzzle reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    description = "One gentle evening invitation to today's puzzle"; enableVibration(false)
+                })
+        }
         fun permissionGranted(context: Context) = Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     }
@@ -83,10 +97,7 @@ class PuzzleReminderWorker(context: Context, params: WorkerParameters) : Corouti
         if (!ReminderPolicy.shouldNotify(now.hour, foreground, prefs.getString("last_sent", null) == date,
                 false)) return Result.success()
         if (!NotificationManagerCompat.from(applicationContext).areNotificationsEnabled()) return Result.success()
-        if (Build.VERSION.SDK_INT >= 26) applicationContext.getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(NotificationChannel(LocalReminderManager.CHANNEL, "Daily puzzle reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
-                description = "One gentle evening invitation to today's puzzle"; enableVibration(false)
-            })
+        LocalReminderManager.ensureChannel(applicationContext)
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
             action = "com.mergeseven.game.OPEN_DAILY"
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
