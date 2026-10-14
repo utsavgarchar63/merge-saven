@@ -106,6 +106,7 @@ class DailyViewModel @Inject constructor(
     val giftBusy = _giftBusy.asStateFlow()
 
     val adAvailability = adService.availability
+    val adLoadStates = adService.loadStates
     private val _adBusy = MutableStateFlow(false)
     val adBusy = _adBusy.asStateFlow()
     fun extraClaimed() = userDataRepository.rewardClaimed("${userProfile.value.dailyChallenge.dateSeed}:extra_daily")
@@ -114,7 +115,8 @@ class DailyViewModel @Inject constructor(
         val key = "${userProfile.value.dailyChallenge.dateSeed}:extra_daily"
         if (!featureFlags.isEnabled(Feature.AF9) || _adBusy.value || extraClaimed()) return
         if (!adService.isReady(AdPlacement.EXTRA_DAILY)) {
-            warmAds(); _status.value = "No ad available right now. You can keep playing."; return
+            adService.requestAd(activity, AdPlacement.EXTRA_DAILY)
+            _status.value = "Availability updates automatically. You can keep playing while we check."; return
         }
         _adBusy.value = true
         viewModelScope.launch {

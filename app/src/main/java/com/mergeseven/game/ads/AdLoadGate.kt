@@ -24,6 +24,13 @@ internal class AdLoadGate(private val retryMs: Long = 30_000L) {
         return true
     }
     @Synchronized fun finished(placement: AdPlacement) { loading -= inventoryKey(placement) }
+    /** Explicit retry may shorten exponential backoff, but never the base request interval. */
+    @Synchronized fun requestRetry(placement: AdPlacement, now: Long): Boolean {
+        val key = inventoryKey(placement)
+        if (key in loading || attempts[key]?.let { now - it < retryMs } == true) return false
+        retryAt.remove(key)
+        return true
+    }
     /** Keep recovering after no-fill/offline errors without retrying on every button tap. */
     @Synchronized fun failed(placement: AdPlacement, now: Long): Long {
         val key = inventoryKey(placement)

@@ -179,6 +179,7 @@ data class GameUiState(
     val af8Enabled: Boolean = false,
     val af9Enabled: Boolean = false,
     val rewardedAdReady: Boolean = false,
+    val rewardedAdState: com.mergeseven.game.ads.AdLoadState = com.mergeseven.game.ads.AdLoadState.UNAVAILABLE,
     val canDoubleCoins: Boolean = false,
     val canWatchHintAd: Boolean = false,
     val adStatusMessage: String? = null,
@@ -335,6 +336,9 @@ class GameViewModel @Inject constructor(
 
         viewModelScope.launch {
             adService.availability.collect { currentGameState?.let { refreshPresentation(it) } }
+        }
+        viewModelScope.launch {
+            adService.loadStates.collect { currentGameState?.let { refreshPresentation(it) } }
         }
         viewModelScope.launch {
             settingsRepository.tutorialStep.collect { step -> _uiState.update { it.copy(tutorialStep = step) } }
@@ -805,8 +809,8 @@ class GameViewModel @Inject constructor(
 
     private fun runRewardAd(activity: android.app.Activity, placement: AdPlacement, onEarned: suspend () -> Unit) {
         if (_uiState.value.adBusy || !featureFlags.isEnabled(Feature.AF9) || mode.hud.suppressAds) return
-        adService.preload(placement)
         if (!adService.isReady(placement)) {
+            adService.requestAd(activity, placement)
             _uiState.update { it.copy(adStatusMessage = "No ad available right now. You can keep playing.") }
             return
         }
@@ -957,6 +961,7 @@ class GameViewModel @Inject constructor(
                 },
                 af9Enabled = featureFlags.isEnabled(Feature.AF9),
                 rewardedAdReady = adService.isReady(AdPlacement.FUNDS_COINS),
+                rewardedAdState = adService.loadStates.value[AdPlacement.FUNDS_COINS] ?: com.mergeseven.game.ads.AdLoadState.UNAVAILABLE,
                 baseRewardCoins = synced.baseRewardCoins,
                 canDoubleCoins = featureFlags.isEnabled(Feature.AF9) && isComplete && synced.baseRewardCoins > 0 && !userDataRepository.rewardClaimed("${synced.runId}:double"),
                 canWatchHintAd = !unassistedChallenge() && featureFlags.isEnabled(Feature.AF9) &&

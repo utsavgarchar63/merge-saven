@@ -37,6 +37,8 @@ class AdMobAdService @Inject constructor(
 ) : AdService {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val showMutex = Mutex()
+    private val loadState = AdLoadStateStore()
+    override val loadStates = loadState.flow
     private val ready = MutableStateFlow<Set<AdPlacement>>(emptySet())
     override val availability = ready.asStateFlow()
     private val showing = MutableStateFlow(false)
@@ -59,12 +61,19 @@ class AdMobAdService @Inject constructor(
     private val qaFallback = mutableSetOf<AdPlacement>()
     init {
         scope.launch {
-            combine(consentManager.canRequestAds, featureFlags.observe(Feature.AF9), liveOpsGates.revision) { can, enabled, _ ->
-                can && enabled && liveOpsGates.adsAllowed()
-            }.collect { allowed ->
+            combine(consentManager.canRequestAds, consentManager.resolved,
+                featureFlags.observe(Feature.AF9), liveOpsGates.revision) { can, resolved, enabled, _ ->
+                val allowed = enabled && liveOpsGates.adsAllowed()
+                (can && allowed) to when {
+                    !allowed -> AdLoadState.DISABLED
+                    !can && !resolved -> AdLoadState.CHECKING_PRIVACY
+                    !can -> AdLoadState.PRIVACY_REQUIRED
+                    else -> AdLoadState.UNAVAILABLE
+                }
+            }.collect { (allowed, blockedState) ->
                 Log.i("MergeSevenAds", "request_gate allowed=$allowed consent=${consentManager.canRequestAds.value} feature=${featureFlags.isEnabled(Feature.AF9)} kill_switch=${!liveOpsGates.adsAllowed()}")
                 if (allowed) requested.toList().forEach { preload(it) }
-                else clearInventory()
+                else clearInventory(blockedState)
             }
         }
         scope.launch {
@@ -129,6 +138,7 @@ class AdMobAdService @Inject constructor(
         val timestamp = SystemClock.elapsedRealtime()
         loadedAt[key] = timestamp
         ready.value += inventoryPlacements(p)
+        loadState.set(p, AdLoadState.READY)
         telemetry("ad_loaded", p)
         diagnostic("loaded", p, when (inventoryKey(p)) {
             AdPlacement.BANNER -> banner?.responseInfo
@@ -142,12 +152,14 @@ class AdMobAdService @Inject constructor(
                 ready.value -= inventoryPlacements(p)
                 loadedAt.remove(key)
                 if (key == AdPlacement.FUNDS_COINS) rewarded = null else interstitial = null
+                loadState.set(p, AdLoadState.UNAVAILABLE)
                 loadGate.allowRetry(p); preload(p)
             }
         }
     }
     private fun failed(p: AdPlacement, error: LoadAdError) {
         ready.value -= inventoryPlacements(p)
+        loadState.set(p, AdLoadState.UNAVAILABLE)
         telemetry("ad_load_failed", p, mapOf("code" to error.code))
         Log.w("MergeSevenAds", "load_failed placement=$p domain=${error.domain} code=${error.code} message=${error.message} cause=${error.cause}")
         diagnostic("load_failed", p, error.responseInfo)
@@ -166,6 +178,7 @@ class AdMobAdService @Inject constructor(
                 if (token == generation && enabled() && !showing.value) {
                     if (banner === retryBanner && bannerContainer?.isAttachedToWindow == true &&
                         bannerContainer?.isShown == true) {
+                        loadState.set(p, AdLoadState.LOADING)
                         diagnostic("retry_started", p)
                         retryBanner?.loadAd(AdRequest.Builder().build())
                     }
@@ -182,6 +195,17 @@ class AdMobAdService @Inject constructor(
     private fun paid(p: AdPlacement, value: AdValue) = telemetry("ad_paid", p,
         mapOf("value_micros" to value.valueMicros, "currency" to value.currencyCode,
             "precision" to value.precisionType))
+    override fun requestAd(activity: Activity, placement: AdPlacement) {
+        if (activity.isFinishing || activity.isDestroyed) return
+        requested += placement
+        if (!consentManager.canRequestAds.value) {
+            if (featureFlags.isEnabled(Feature.AF9) && liveOpsGates.adsAllowed()) {
+                scope.launch { consentManager.gatherConsent(activity) }
+            }
+            return
+        }
+        if (loadGate.requestRetry(placement, SystemClock.elapsedRealtime())) preload(placement)
+    }
     override fun preload(placement: AdPlacement) {
         scope.launch {
             requested += placement
@@ -189,11 +213,14 @@ class AdMobAdService @Inject constructor(
                 !processLifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@launch
             val now = SystemClock.elapsedRealtime()
             if (!loadGate.tryBegin(placement, now)) return@launch
+            loadState.set(placement, AdLoadState.LOADING)
             val token = generation
             initialize()
             if (token != generation) return@launch
             if (!enabled() || !processLifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-                loadGate.finished(placement); loadGate.allowRetry(placement); return@launch
+                loadGate.finished(placement); loadGate.allowRetry(placement)
+                if (enabled()) loadState.set(placement, AdLoadState.UNAVAILABLE)
+                return@launch
             }
             qaFallback.remove(inventoryKey(placement))
             loadFullscreen(placement, token)
@@ -214,6 +241,7 @@ class AdMobAdService @Inject constructor(
     }
     private fun loadFullscreen(placement: AdPlacement, token: Int) {
             if (token != generation || !enabled()) return
+            loadState.set(placement, AdLoadState.LOADING)
             telemetry("ad_load_started", placement)
             diagnostic("load_started", placement)
             if (placement == AdPlacement.INTERSTITIAL) {
@@ -244,7 +272,7 @@ class AdMobAdService @Inject constructor(
                 rewarded = null
                 expiryJobs.remove(AdPlacement.FUNDS_COINS)?.cancel()
                 loadedAt.remove(AdPlacement.FUNDS_COINS)
-                ready.value -= rewardedPlacements; showing.value = true
+                ready.value -= rewardedPlacements; loadState.set(placement, AdLoadState.UNAVAILABLE); showing.value = true
                 ad.setOnPaidEventListener { paid(placement, it) }
                 suspendCancellableCoroutine<AdResult> { cont ->
                     var earnedJob: Deferred<Boolean>? = null
@@ -282,7 +310,7 @@ class AdMobAdService @Inject constructor(
             return@withContext AdResult.NoFill
         try {
             val ad = interstitial ?: return@withContext AdResult.NoFill
-            interstitial = null; ready.value -= AdPlacement.INTERSTITIAL; showing.value = true
+            interstitial = null; ready.value -= AdPlacement.INTERSTITIAL; loadState.set(AdPlacement.INTERSTITIAL, AdLoadState.UNAVAILABLE); showing.value = true
             expiryJobs.remove(AdPlacement.INTERSTITIAL)?.cancel()
             loadedAt.remove(AdPlacement.INTERSTITIAL)
             suspendCancellableCoroutine<AdResult> { cont ->
@@ -364,6 +392,7 @@ class AdMobAdService @Inject constructor(
                 setOnPaidEventListener { paid(AdPlacement.BANNER, it) }
             }
             banner = ad; bannerContainer = container; container.addView(ad)
+            loadState.set(AdPlacement.BANNER, AdLoadState.LOADING)
             telemetry("ad_load_started", AdPlacement.BANNER)
             diagnostic("load_started", AdPlacement.BANNER)
             ad.loadAd(AdRequest.Builder().build())
@@ -376,16 +405,17 @@ class AdMobAdService @Inject constructor(
         banner?.destroy(); bannerContainer?.removeAllViews(); banner = null; bannerContainer = null
         bannerWidthDp = 0
         ready.value -= AdPlacement.BANNER
+        loadState.set(AdPlacement.BANNER, AdLoadState.UNAVAILABLE)
     }
     override fun pauseBanner(container: ViewGroup?) { if (container == null || bannerContainer === container) banner?.pause() }
     override fun resumeBanner(container: ViewGroup?) {
         if (container != null && bannerContainer !== container) return
         if (enabled()) banner?.resume() else unbindBanner()
     }
-    private fun clearInventory() {
+    private fun clearInventory(state: AdLoadState = AdLoadState.UNAVAILABLE) {
         generation++; rewarded = null; interstitial = null; loadGate.clear(); loadedAt.clear(); qaFallback.clear()
         expiryJobs.values.forEach { it.cancel() }; expiryJobs.clear()
-        ready.value = emptySet(); unbindBanner()
+        ready.value = emptySet(); unbindBanner(); loadState.reset(state)
     }
     override fun destroy() { scope.launch { requested.clear(); clearInventory() } }
 }

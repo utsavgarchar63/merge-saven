@@ -52,8 +52,11 @@ class UmpConsentManager @Inject constructor(
 
     private val consentInformation: ConsentInformation =
         UserMessagingPlatform.getConsentInformation(context)
+    private var requestInFlight = false
 
     override suspend fun gatherConsent(activity: Activity) {
+        if (requestInFlight || activity.isFinishing || activity.isDestroyed) return
+        requestInFlight = true
         _resolved.value = false
         val params = ConsentRequestParameters.Builder().build()
         suspendCancellableCoroutine { cont ->
@@ -65,12 +68,14 @@ class UmpConsentManager @Inject constructor(
                         if (formError != null) {
                             Log.w(TAG, "Consent form error code=${formError.errorCode}: ${formError.message}")
                         }
+                        requestInFlight = false
                         finish()
                         if (cont.isActive) cont.resume(Unit)
                     }
                 },
                 { error ->
                     Log.w(TAG, "Consent info update failed code=${error.errorCode}: ${error.message}")
+                    requestInFlight = false
                     finish()
                     if (cont.isActive) cont.resume(Unit)
                 }

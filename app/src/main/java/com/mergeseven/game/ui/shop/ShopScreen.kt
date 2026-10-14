@@ -22,13 +22,15 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel(), onBackClick: () -> Un
     val profile by viewModel.profile.collectAsStateWithLifecycle()
     val inventory by viewModel.owned.collectAsStateWithLifecycle()
     val availability by viewModel.availability.collectAsStateWithLifecycle()
+    val adStates by viewModel.adLoadStates.collectAsStateWithLifecycle()
+    val adState = adStates[AdPlacement.FUNDS_COINS] ?: AdLoadState.UNAVAILABLE
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val status by viewModel.status.collectAsStateWithLifecycle()
     val activity = LocalContext.current as? android.app.Activity
     val claimsLeft = viewModel.claimsLeft()
     var confirm by remember { mutableStateOf<BoosterType?>(null) }
     LaunchedEffect(Unit) { viewModel.onOpened() }
-    WoodPage("Rewards", profile.coins, footer = { BannerAdHost() }) {
+    WoodPage("Rewards", profile.coins, onBack = onBackClick, footer = { BannerAdHost() }) {
         Text("Everything is earned through play", style = MaterialTheme.typography.headlineMedium)
         Text("Collect free rewards, build your booster collection, and make the table yours.")
         WoodLink("Daily gifts and quests", "Claim your free rewards in Challenges", R.drawable.art_gift_v3, onDailyClick)
@@ -40,9 +42,9 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel(), onBackClick: () -> Un
                 busy -> "Claiming reward…"
                 claimsLeft == 0 -> "More coins tomorrow"
                 AdPlacement.FUNDS_COINS in availability -> "Watch ad · Get 100 coins"
-                else -> "Ad not ready yet"
+                else -> adState.actionLabel(false, "Watch ad · Get 100 coins")
             }, enabled = !busy && activity != null && claimsLeft > 0 &&
-                AdPlacement.FUNDS_COINS in availability) { activity?.let(viewModel::watchEarnAd) }
+                (AdPlacement.FUNDS_COINS in availability || adState.canRequest)) { activity?.let(viewModel::watchEarnAd) }
             Text("Ads are optional. Campaign levels and daily quests also earn coins.", style = MaterialTheme.typography.bodySmall)
         }
         status?.let { Text(it, color = GameColors.CoinGold) }

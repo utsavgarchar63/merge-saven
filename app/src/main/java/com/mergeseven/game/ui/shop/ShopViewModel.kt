@@ -21,6 +21,7 @@ class ShopViewModel @Inject constructor(private val userData: UserDataRepository
     val profile = userData.userProfile
     val owned = inventory.owned
     val availability = ads.availability
+    val adLoadStates = ads.loadStates
     private val _busy = MutableStateFlow(false)
     val busy = _busy.asStateFlow()
     private val _status = MutableStateFlow<String?>(null)
@@ -35,7 +36,8 @@ class ShopViewModel @Inject constructor(private val userData: UserDataRepository
     fun watchEarnAd(activity: Activity) {
         if (_busy.value || claimsLeft() == 0) return
         if (!ads.isReady(AdPlacement.FUNDS_COINS)) {
-            ads.preload(AdPlacement.FUNDS_COINS); _status.value = "No ad available right now. Play to earn coins."; return
+            ads.requestAd(activity, AdPlacement.FUNDS_COINS)
+            _status.value = "Availability updates automatically. You can keep playing while we check."; return
         }
         _busy.value = true
         val prefix = prefix()

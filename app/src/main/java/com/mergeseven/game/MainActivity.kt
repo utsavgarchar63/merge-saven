@@ -10,6 +10,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Modifier
@@ -74,7 +78,13 @@ class MainActivity : ComponentActivity() {
                 val adsEnabled by featureFlags.observe(Feature.AF9).collectAsState(initial = featureFlags.isEnabled(Feature.AF9))
                 LaunchedEffect(adsEnabled) {
                     if (adsEnabled) {
-                        consentManager.gatherConsent(this@MainActivity)
+                        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                            while (isActive) {
+                                if (!consentManager.resolved.value || !consentManager.canRequestAds.value)
+                                    consentManager.gatherConsent(this@MainActivity)
+                                delay(30_000L)
+                            }
+                        }
                     }
                 }
                 Surface(

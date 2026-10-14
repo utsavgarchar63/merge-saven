@@ -11,6 +11,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mergeseven.game.R
 import com.mergeseven.game.ads.AdPlacement
+import com.mergeseven.game.ads.AdLoadState
 import com.mergeseven.game.ui.components.*
 import com.mergeseven.game.ui.theme.GameColors
 
@@ -19,6 +20,8 @@ fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> 
     onStartDailyChallenge: () -> Unit = {}, onStartWeekly: () -> Unit = {}, onSettings: () -> Unit = {}) {
     val profile by viewModel.userProfile.collectAsStateWithLifecycle()
     val availability by viewModel.adAvailability.collectAsStateWithLifecycle()
+    val adStates by viewModel.adLoadStates.collectAsStateWithLifecycle()
+    val adState = adStates[AdPlacement.EXTRA_DAILY] ?: AdLoadState.UNAVAILABLE
     val busy by viewModel.adBusy.collectAsStateWithLifecycle()
     val giftBusy by viewModel.giftBusy.collectAsStateWithLifecycle()
     val status by viewModel.status.collectAsStateWithLifecycle()
@@ -48,9 +51,9 @@ fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> 
             GoldButton(if (profile.dailyChallenge.attempts > 0) "Practice today's puzzle" else "Play today's puzzle", !busy, onStartDailyChallenge)
             if (!viewModel.extraClaimed() && profile.dailyChallenge.attempts > 0 && !profile.dailyChallenge.isCompleted) {
                 OutlinedButton({ activity?.let(viewModel::watchAdForExtraAttempt) }, Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    enabled = !busy && activity != null && AdPlacement.EXTRA_DAILY in availability) {
+                    enabled = !busy && activity != null && (AdPlacement.EXTRA_DAILY in availability || adState.canRequest)) {
                     Text(if (AdPlacement.EXTRA_DAILY in availability)
-                        "Watch ad · Get one more try for ${profile.dailyChallenge.coinsReward} coins" else "Ad not ready yet")
+                        "Watch ad · Get one more try for ${profile.dailyChallenge.coinsReward} coins" else adState.actionLabel(false, ""))
                 }
             }
         }

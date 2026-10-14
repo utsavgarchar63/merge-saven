@@ -86,10 +86,7 @@ fun AppNavGraph(
         if (route == Routes.HOME) com.mergeseven.game.ui.components.PlayUpdatePrompt(updateState, onUpdate, onRestartUpdate, onDismissUpdate)
         if (tabs.any { it.first == route }) NavigationBar(containerColor = GameColors.WoodDark) {
             tabs.forEach { (destination, label, icon) -> NavigationBarItem(selected = destination == route,
-                onClick = { navController.navigate(destination) {
-                    popUpTo(Routes.HOME) { saveState = true }
-                    launchSingleTop = true; restoreState = true
-                } }, icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) },
+                onClick = { navController.openPrimary(destination) }, icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) },
                 label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = GameColors.CoinGold,
                     selectedTextColor = GameColors.CoinGold, indicatorColor = GameColors.WoodMid)) }
@@ -178,7 +175,7 @@ fun AppNavGraph(
         composable(Routes.GAME) {
             GameScreen(
                 onNavigateHome = {
-                    navController.popBackStack(Routes.HOME, inclusive = false)
+                    navController.goHome()
                 },
                 onNavigateShop = {
                     navController.navigate(Routes.SHOP) {
@@ -194,7 +191,7 @@ fun AppNavGraph(
         ) {
             GameScreen(
                 onNavigateHome = {
-                    navController.popBackStack(Routes.HOME, inclusive = false)
+                    navController.goHome()
                 },
                 onNavigateShop = {
                     navController.navigate(Routes.SHOP) {
@@ -220,7 +217,7 @@ fun AppNavGraph(
         ) {
             GameScreen(
                 onNavigateHome = {
-                    navController.popBackStack(Routes.HOME, inclusive = false)
+                    navController.goHome()
                 },
                 onNavigateShop = {
                     navController.navigate(Routes.SHOP) {
@@ -233,7 +230,7 @@ fun AppNavGraph(
         composable(Routes.LEVELS) {
             LevelsScreen(
                 onBackClick = {
-                    navController.popBackStack()
+                    navController.backOrHome()
                 },
                 onStartLevel = { levelId ->
                     navController.navigate(Routes.play(ModeIds.CAMPAIGN, levelId = levelId)) {
@@ -246,7 +243,7 @@ fun AppNavGraph(
         composable(Routes.DAILY) {
             DailyScreen(
                 onBackClick = {
-                    navController.popBackStack()
+                    navController.backOrHome()
                 },
                 onStartWeekly = { navController.navigate(Routes.play(ModeIds.WEEKLY)) { launchSingleTop = true } },
                 onSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } },
@@ -262,7 +259,7 @@ fun AppNavGraph(
             SettingsScreen(
                 onReplayTutorial = { navController.navigate(Routes.play(ModeIds.CAMPAIGN, 1)) { launchSingleTop = true } },
                 onBackClick = {
-                    navController.popBackStack()
+                    navController.backOrHome()
                 },
                 onShopClick = {
                     navController.navigate(Routes.SHOP) {
@@ -289,9 +286,9 @@ fun AppNavGraph(
 
         composable(Routes.SHOP) {
             ShopScreen(
-                onDailyClick = { navController.navigate(Routes.DAILY) { launchSingleTop = true } },
+                onDailyClick = { navController.openPrimary(Routes.DAILY) },
                 onBackClick = {
-                    navController.popBackStack()
+                    navController.backOrHome()
                 },
                 onCosmeticsClick = {
                     navController.navigate(Routes.COSMETICS) {
@@ -302,30 +299,48 @@ fun AppNavGraph(
         }
 
         composable(Routes.PROFILE) {
-            ProfileScreen(onAchievements = { navController.navigate(Routes.ACHIEVEMENTS) },
-                onStats = { navController.navigate(Routes.STATS) }, onCosmetics = { navController.navigate(Routes.COSMETICS) },
-                onSettings = { navController.navigate(Routes.SETTINGS) })
+            ProfileScreen(onAchievements = { navController.navigate(Routes.ACHIEVEMENTS) { launchSingleTop = true } },
+                onStats = { navController.navigate(Routes.STATS) { launchSingleTop = true } },
+                onCosmetics = { navController.navigate(Routes.COSMETICS) { launchSingleTop = true } },
+                onSettings = { navController.navigate(Routes.SETTINGS) { launchSingleTop = true } })
         }
 
         composable(Routes.ACHIEVEMENTS) {
             AchievementsScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.backOrHome() }
             )
         }
 
         composable(Routes.COSMETICS) {
             CosmeticsScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.backOrHome() }
             )
         }
 
         composable(Routes.STATS) {
             StatsScreen(
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.backOrHome() }
             )
         }
 
 
     }
 }
+}
+
+/** Primary tabs keep one Home anchor instead of stacking Rewards/Challenges repeatedly. */
+private fun NavHostController.openPrimary(destination: String) {
+    navigate(destination) {
+        popUpTo(Routes.HOME) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
+private fun NavHostController.goHome() {
+    if (!popBackStack(Routes.HOME, inclusive = false)) openPrimary(Routes.HOME)
+}
+
+private fun NavHostController.backOrHome() {
+    if (!popBackStack()) openPrimary(Routes.HOME)
 }

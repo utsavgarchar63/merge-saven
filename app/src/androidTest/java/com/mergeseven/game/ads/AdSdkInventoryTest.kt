@@ -16,9 +16,32 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Explicit online demo QA. Never requests real inventory or clears game data. */
+/** Explicit online SDK QA on test devices. Never clears game data. */
 @RunWith(AndroidJUnit4::class)
 class AdSdkInventoryTest {
+    /** Explicit production-unit check; Google still marks the emulator as a test device. */
+    @Test fun productionInventoryPublishesReadyStateWithoutDemoFallback() {
+        assumeTrue("Explicit production QA only", BuildConfig.DEBUG && !BuildConfig.TEST_ADS &&
+            InstrumentationRegistry.getArguments().getString("productionInventoryQa") == "true")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        assumeTrue("Only SDK-marked test devices", AdRequest.Builder().build().isTestDevice(context))
+        assertFalse(BuildConfig.QA_AD_FALLBACK)
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            lateinit var consent: ConsentManager
+            lateinit var ads: AdService
+            scenario.onActivity { activity ->
+                consent = activity.consentManager
+                ads = ViewModelProvider(activity)[BannerAdViewModel::class.java].adService
+            }
+            await("consent permits production-unit requests") { consent.canRequestAds.value }
+            await("production-unit inventory and ready states agree") {
+                listOf(AdPlacement.FUNDS_COINS, AdPlacement.INTERSTITIAL, AdPlacement.BANNER).all {
+                    ads.isReady(it) && ads.loadStates.value[it] == AdLoadState.READY
+                }
+            }
+        }
+    }
+
     /** Run explicitly before manual fresh-production QA; skipped by the regular suite. */
     @Test fun resetConsentForExplicitManualQa() {
         assumeTrue("Explicit debug QA only", BuildConfig.DEBUG &&
