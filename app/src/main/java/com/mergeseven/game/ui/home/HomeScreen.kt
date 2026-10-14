@@ -1,7 +1,5 @@
 package com.mergeseven.game.ui.home
 
-
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
 
@@ -11,8 +9,10 @@ import androidx.compose.material3.*
 
 import androidx.compose.runtime.*
 
-
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.layout.ContentScale
 
 import androidx.compose.ui.res.painterResource
@@ -33,8 +33,6 @@ import com.mergeseven.game.ui.components.*
 
 import com.mergeseven.game.ui.theme.GameColors
 
-
-
 @Composable
 
 fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Unit = {},
@@ -54,7 +52,7 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
     val level by viewModel.nextCampaignLevel.collectAsStateWithLifecycle(initialValue = 1)
 
     val cards by viewModel.modeCards.collectAsStateWithLifecycle()
-
+    val shortWindow = LocalConfiguration.current.screenHeightDp < 400
 
     LaunchedEffect(Unit) { viewModel.refreshResumable() }
 
@@ -64,6 +62,7 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
     }, footer = { BannerAdHost() }) {
 
+        val banner: @Composable () -> Unit = {
         Surface(shape = RoundedCornerShape(20.dp)) {
             Image(
                 painter = painterResource(R.drawable.home_brand_banner_v4),
@@ -73,7 +72,9 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
             )
         }
 
-        WoodPanel {
+        }
+        val playCard: @Composable () -> Unit = {
+        WoodPanel(compact = shortWindow) {
 
             Text(if (resumable != null) "Your board is waiting" else "Ready for your next merge?", style = MaterialTheme.typography.titleLarge)
 
@@ -95,6 +96,18 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
         }
 
+        }
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            if (maxWidth / LocalDensity.current.fontScale >= (if (shortWindow) 380.dp else 600.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) { banner() }
+                    Box(Modifier.weight(1f)) { playCard() }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { banner(); playCard() }
+            }
+        }
+
         WoodLink("Today's puzzle", "A fresh challenge with the same board for everyone", R.drawable.mode_daily_v3, onDailyClick)
 
         val descriptions = listOf("Follow the path, one satisfying merge at a time", "Build your best score without a timer",
@@ -105,7 +118,8 @@ fun HomeScreen(viewModel: HomeViewModel = hiltViewModel(), onPlayClick: () -> Un
 
             R.drawable.mode_zen_v3, R.drawable.mode_daily_v3, R.drawable.mode_weekly_v3)
 
-        cards.forEachIndexed { i, card ->
+        ResponsiveCards(cards, minCardWidth = 220.dp, itemKey = { it.modeId }) { card ->
+            val i = cards.indexOf(card)
 
             WoodLink(card.title, "${descriptions[i]} · Best ${card.bestScore}", art[i]) { onModeClick(card.modeId) }
 

@@ -49,7 +49,7 @@ fun ShopScreen(viewModel: ShopViewModel = hiltViewModel(), onBackClick: () -> Un
         }
         status?.let { Text(it, color = GameColors.CoinGold) }
         Text("Booster collection", style = MaterialTheme.typography.titleLarge)
-        BoosterCatalog.specs.values.forEach { spec ->
+        ResponsiveCards(BoosterCatalog.specs.values.toList(), itemKey = { it.type }) { spec ->
             WoodPanel {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     GameIcon(GameIcons.booster(spec.type), null, size = 40.dp)

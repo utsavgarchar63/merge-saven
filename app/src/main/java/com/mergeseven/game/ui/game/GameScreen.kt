@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -118,7 +119,6 @@ fun GameScreen(
     val tileTheme = TileThemes.of(uiState.tileThemeId).withColourblindMode(uiState.colourblindMode)
     val configuration = LocalConfiguration.current
     val layoutDirection = LocalLayoutDirection.current
-    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val compactHelp = configuration.screenHeightDp < 700 || LocalDensity.current.fontScale > 1.2f
     val compactControls = configuration.screenHeightDp < 640 && LocalDensity.current.fontScale <= 1.3f
     var showTutorialHelp by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -132,8 +132,6 @@ fun GameScreen(
     }
     val boardPadding = if (uiState.largeTouchTargets) 4f else 8f
     val fingerLiftPx = with(LocalDensity.current) { 64.dp.toPx() }
-    // Portrait tablets have enough height for the tray below a larger board.
-    val useSidePane = isLandscape || configuration.screenWidthDp >= 840
 
     // Flush the board to disk whenever the screen leaves the foreground; the debounced autosave
     // may still be pending, and the process can be killed at any time after this point.
@@ -304,7 +302,7 @@ fun GameScreen(
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
@@ -314,10 +312,12 @@ fun GameScreen(
                         boardTheme.overlayColor
                     }
                 )
-                .statusBarsPadding()
+                .safeDrawingPadding()
         ) {
+        val useSidePane = (maxWidth > maxHeight && maxWidth >= 480.dp) || maxWidth >= 1000.dp
+        val controlsWidth = (maxWidth * 0.4f).coerceIn(240.dp, 360.dp)
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.widthIn(max = 1200.dp).fillMaxSize().align(Alignment.Center)
         ) {
             // ─── Top Bar ─────────────────────────────────
             GameTopBar(
@@ -382,24 +382,15 @@ fun GameScreen(
                         onSelectTraySlot = viewModel::onSelectTraySlot,
                         onClearDropSnap = viewModel::clearDropSnap,
                         modifier = Modifier
-                            .weight(1.2f)
+                            .weight(1f)
                             .fillMaxHeight()
                     )
                     Column(
                         modifier = Modifier
-                            .weight(0.9f)
+                            .width(controlsWidth)
                             .fillMaxHeight()
                             .padding(start = 8.dp).verticalScroll(rememberScrollState())
                     ) {
-                        BoosterTray(
-                            buttons = uiState.boosterButtons,
-                            af3Enabled = uiState.af3Enabled,
-                            largeTouchTargets = uiState.largeTouchTargets,
-                            verticalLayout = true,
-                            onBooster = { type -> dispatchBooster(viewModel, type) },
-                            extraContent = { dismiss -> GameHintRow(uiState = uiState, viewModel = viewModel, onAction = dismiss) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
                         ThreeOptionBottomTray(
                             trayPieces = uiState.trayPieces,
                             selectedSlotIndex = uiState.selectedSlotIndex,
@@ -414,7 +405,16 @@ fun GameScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .navigationBarsPadding()
-                                .padding(horizontal = 8.dp, vertical = 8.dp)
+                                .padding(horizontal = 4.dp, vertical = 4.dp)
+                        )
+                        BoosterTray(
+                            buttons = uiState.boosterButtons,
+                            af3Enabled = uiState.af3Enabled,
+                            largeTouchTargets = uiState.largeTouchTargets,
+                            verticalLayout = true,
+                            onBooster = { type -> dispatchBooster(viewModel, type) },
+                            extraContent = { dismiss -> GameHintRow(uiState = uiState, viewModel = viewModel, onAction = dismiss) },
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -804,15 +804,17 @@ private fun GameTopBar(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ObjectiveChipsRow(
     chips: List<ObjectiveProgress>
 ) {
-    Row(
+    FlowRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         chips.forEach { chip ->
             ObjectiveChip(progress = chip)
@@ -1035,6 +1037,7 @@ private fun HexBoardCanvas(
 
     Canvas(
         modifier = modifier
+            .testTag("game_board")
             .fillMaxSize()
             .padding(boardPad)
             .onGloballyPositioned { onBoardBounds(it.boundsInRoot()) }

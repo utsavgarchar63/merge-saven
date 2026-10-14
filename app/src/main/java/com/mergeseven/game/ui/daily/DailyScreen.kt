@@ -26,7 +26,6 @@ fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> 
     val giftBusy by viewModel.giftBusy.collectAsStateWithLifecycle()
     val status by viewModel.status.collectAsStateWithLifecycle()
     val activity = LocalContext.current as? android.app.Activity
-    val giftColumns = if (LocalConfiguration.current.screenWidthDp / LocalDensity.current.fontScale >= 360) 2 else 1
     LaunchedEffect(Unit) { viewModel.refreshDailyCheck(); viewModel.warmAds() }
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
         viewModel.refreshDailyCheck()
@@ -61,10 +60,8 @@ fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> 
         status?.let { Text(it, color = GameColors.CoinGold) }
         Text("Your daily gifts", style = MaterialTheme.typography.titleLarge)
         Text("One free gift each day. The next gift unlocks tomorrow after you claim. Missing a day never blocks play.")
-        viewModel.getDailyRewards().chunked(giftColumns).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEach { gift ->
-                    WoodPanel(Modifier.weight(1f)) {
+        ResponsiveCards(viewModel.getDailyRewards(), minCardWidth = 160.dp, maxColumns = 4, itemKey = { it.day }) { gift ->
+                    WoodPanel {
                         Text("Day ${gift.day}", style = MaterialTheme.typography.titleMedium)
                         Text("${gift.coins} coins" + if (gift.stars > 0) " · ${gift.stars} stars" else "")
                         OutlinedButton({ viewModel.claimReward(gift) }, Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -72,12 +69,9 @@ fun DailyScreen(viewModel: DailyViewModel = hiltViewModel(), onBackClick: () -> 
                             Text(if (gift.isClaimed) "Claimed" else if (gift.isAvailable) "Claim free" else "Coming up")
                         }
                     }
-                }
-                if (row.size < giftColumns) Spacer(Modifier.weight(1f))
-            }
         }
         Text("Daily quests", style = MaterialTheme.typography.titleLarge)
-        profile.dailyQuests.forEach { quest ->
+        ResponsiveCards(profile.dailyQuests, itemKey = { it.id }) { quest ->
             WoodPanel {
                 Text(quest.title, style = MaterialTheme.typography.titleMedium)
                 Text(quest.description)

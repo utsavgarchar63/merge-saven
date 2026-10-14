@@ -81,10 +81,14 @@ fun AppNavGraph(
         Triple(Routes.DAILY, "Challenges", R.drawable.icon_nav_challenges),
         Triple(Routes.SHOP, "Rewards", R.drawable.icon_nav_rewards),
         Triple(Routes.PROFILE, "Profile", R.drawable.icon_nav_profile))
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val useRail = tabs.any { it.first == route } &&
+        (maxWidth >= 600.dp || (maxWidth > maxHeight && maxWidth >= 480.dp))
+    val railItemHeight = if (maxHeight < 480.dp) 56.dp else 80.dp
     Scaffold(containerColor = GameColors.WoodDark, contentWindowInsets = WindowInsets(0, 0, 0, 0), bottomBar = {
         Column {
         if (route == Routes.HOME) com.mergeseven.game.ui.components.PlayUpdatePrompt(updateState, onUpdate, onRestartUpdate, onDismissUpdate)
-        if (tabs.any { it.first == route }) NavigationBar(containerColor = GameColors.WoodDark) {
+        if (!useRail && tabs.any { it.first == route }) NavigationBar(containerColor = GameColors.WoodDark) {
             tabs.forEach { (destination, label, icon) -> NavigationBarItem(selected = destination == route,
                 onClick = { navController.openPrimary(destination) }, icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) },
                 label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -93,8 +97,23 @@ fun AppNavGraph(
         }
         }
     }) { padding ->
+    Row(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)
+        .then(if (useRail) Modifier.safeDrawingPadding() else Modifier)) {
+    if (useRail) NavigationRail(containerColor = GameColors.WoodDark,
+        windowInsets = WindowInsets(0, 0, 0, 0),
+        modifier = Modifier.width(104.dp).fillMaxHeight()) {
+        tabs.forEach { (destination, label, icon) ->
+            NavigationRailItem(selected = destination == route,
+                modifier = Modifier.height(railItemHeight),
+                onClick = { navController.openPrimary(destination) },
+                icon = { Icon(painterResource(icon), null, Modifier.size(24.dp)) },
+                label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                colors = NavigationRailItemDefaults.colors(selectedIconColor = GameColors.CoinGold,
+                    selectedTextColor = GameColors.CoinGold, indicatorColor = GameColors.WoodMid))
+        }
+    }
     NavHost(
-        modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+        modifier = Modifier.weight(1f).fillMaxHeight(),
         navController = navController,
         startDestination = Routes.HOME
     ) {
@@ -325,6 +344,8 @@ fun AppNavGraph(
 
 
     }
+}
+}
 }
 }
 

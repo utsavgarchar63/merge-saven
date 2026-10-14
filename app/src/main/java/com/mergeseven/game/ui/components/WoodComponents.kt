@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.mergeseven.game.R
@@ -22,8 +23,10 @@ fun WoodPage(title: String, coins: Int? = null, onBack: (() -> Unit)? = null,
     Box(Modifier.fillMaxSize()) {
         Image(painterResource(R.drawable.bg_wood_v2), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(GameColors.WoodDark.copy(alpha = 0.64f)))
-        Column(Modifier.fillMaxSize().safeDrawingPadding(), horizontalAlignment = Alignment.CenterHorizontally) {
-            BoxWithConstraints(Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+        val shortWindow = maxHeight < 400.dp
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            BoxWithConstraints(Modifier.widthIn(max = 1040.dp).fillMaxWidth().padding(horizontal = 16.dp, vertical = if (shortWindow) 4.dp else 8.dp)) {
                 val stacked = maxWidth / LocalDensity.current.fontScale < 320.dp
                 val balance: @Composable () -> Unit = {
                     if (coins != null) Surface(shape = RoundedCornerShape(20.dp), color = GameColors.WoodMid) {
@@ -35,25 +38,29 @@ fun WoodPage(title: String, coins: Int? = null, onBack: (() -> Unit)? = null,
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (onBack != null) IconButton(onBack) { GameIcon(GameIcons.Back, "Back", tint = GameColors.TextWhite) }
-                        Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                        Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (!stacked) balance()
                         headerAction()
                     }
                     if (stacked && coins != null) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { balance() }
                 }
             }
-            Column(Modifier.weight(1f).widthIn(max = 720.dp).fillMaxWidth().verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp),
-                content = content)
-            footer()
+            Column(Modifier.weight(1f).widthIn(max = 1040.dp).fillMaxWidth().verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = if (shortWindow) 8.dp else 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                content()
+                if (shortWindow) footer()
+            }
+            if (!shortWindow) Box(Modifier.widthIn(max = 1040.dp).fillMaxWidth()) { footer() }
+        }
         }
     }
 }
 @Composable
-fun WoodPanel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun WoodPanel(modifier: Modifier = Modifier, compact: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
     Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
         color = GameColors.WoodMid.copy(alpha = 0.98f), border = BorderStroke(1.dp, GameColors.WoodLight.copy(alpha = 0.5f))) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
+        Column(Modifier.padding(if (compact) 12.dp else 20.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp), content = content)
     }
 }
 @Composable
